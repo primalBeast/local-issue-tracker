@@ -1,0 +1,27 @@
+{
+  "name": "local-issue-tracker-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tsconfig/svelte": "^5.0.4",
+    "svelte": "^5.19.0",
+    "svelte-check": "^4.1.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11",
+    "vitest": "^3.0.4"
+  },
+  "dependencies": {
+    "@tiptap/core": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5",
+    "@tiptap/extension-placeholder": "^2.11.5"
+  }
+}
