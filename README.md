@@ -21,15 +21,26 @@ needs, not only issues.
 - **Filters & presets** saved per workspace
 - Dark-mode-first UI
 
-## Requirements
+## How to run (full install guides)
 
-- **Python 3.12+** managed by [`uv`](https://docs.astral.sh/uv/) (recommended)
-- A modern desktop browser (Chrome, Firefox, Safari, Edge)
+**Start here** — downloads, install steps, and troubleshooting:
+
+| OS | Guide |
+|----|--------|
+| **macOS** | **[docs/RUN-macOS.md](docs/RUN-macOS.md)** |
+| **Windows 11** | **[docs/RUN-Windows11.md](docs/RUN-Windows11.md)** |
+| Index | [docs/RUN.md](docs/RUN.md) |
+
+## Requirements (summary)
+
+- **Git** — to clone this repository  
+- **[uv](https://docs.astral.sh/uv/)** — installs Python 3.12+ and app dependencies  
+- A modern desktop browser (Chrome, Firefox, Safari, Edge)  
 - **Node.js 20+** only if you change the frontend source (production `frontend/dist` is committed)
 
 > Do **not** use system Python 3.9. Always run via `uv`.
 
-## Clone and run
+## Clone and run (short version)
 
 ```bash
 git clone https://github.com/primalBeast/local-issue-tracker.git
@@ -38,11 +49,24 @@ cd local-issue-tracker
 # Install Python deps (creates .venv)
 uv sync
 
+# macOS: fix import if you see "No module named lit"
+uv run python packaging/ensure_sitecustomize.py
+
 # Start the local server and open the browser
 uv run lit serve --open
 ```
 
 Then open [http://127.0.0.1:8765](http://127.0.0.1:8765) if it did not open automatically.
+
+Windows (PowerShell) is the same `uv` / `git` commands after installing [Git for Windows](https://git-scm.com/download/win) and [uv](https://docs.astral.sh/uv/getting-started/installation/). See **[docs/RUN-Windows11.md](docs/RUN-Windows11.md)**.
+
+If you ever see `ModuleNotFoundError: No module named 'lit'` (especially on macOS):
+
+```bash
+uv run python packaging/ensure_sitecustomize.py
+# or
+uv run lit doctor
+```
 
 ### First run
 
@@ -55,7 +79,7 @@ directory with default fields and a Main Board workspace.
 |----------|------------------------|
 | macOS | `~/Library/Application Support/LocalIssueTracker` |
 | Linux | `~/.local/share/local-issue-tracker` |
-| Windows | `%APPDATA%\LocalIssueTracker` |
+| Windows | `%APPDATA%\\LocalIssueTracker` |
 
 Override with:
 
@@ -107,11 +131,14 @@ cd frontend && npm ci && npm run build
 ## Project layout
 
 ```text
-src/lit/                 Python package (FastAPI + storage)
+lit/                     Python package (FastAPI + storage + CLI)
 frontend/                Svelte 5 + Vite SPA
-frontend/dist/           Committed production build
-src/lit/templates/       Project templates (issue-tracker fields, etc.)
+frontend/dist/           Committed production build (clone-and-run)
+lit/templates/           Project templates (issue-tracker fields, etc.)
+docs/RUN-macOS.md        Install & run on Mac
+docs/RUN-Windows11.md    Install & run on Windows 11
 docs/DESIGN.md           Architecture design document
+packaging/               Venv import fixes (macOS)
 tests/                   pytest suite
 ```
 
@@ -120,6 +147,14 @@ tests/                   pytest suite
 ```bash
 uv sync --extra dev
 uv run pytest
+```
+
+## Publishing local commits to GitHub
+
+If this machine is not logged into GitHub CLI/SSH, push with:
+
+```bash
+./scripts/push-to-github.sh
 ```
 
 ## License
