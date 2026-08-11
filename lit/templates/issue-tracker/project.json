@@ -1,0 +1,31 @@
+{
+  "id": "00000000-0000-0000-0000-000000000001",
+  "slug": "issue-tracker",
+  "name": "Issue Tracker",
+  "created_at": "2026-01-01T00:00:00Z",
+  "updated_at": "2026-01-01T00:00:00Z",
+  "waiting_state_value": "Waiting For",
+  "color_coding": {
+    "color_by_field": "state",
+    "intensity_by_field": "priority",
+    "intensity_min": 1,
+    "intensity_max": 10,
+    "palette": {
+      "In fixing": "#3b82f6",
+      "Submitted": "#8b5cf6",
+      "External Fixing \u2013 Support": "#f59e0b",
+      "External Fixing \u2013 PS": "#f97316",
+      "In QA": "#06b6d4",
+      "Done": "#22c55e",
+      "On Hold": "#64748b",
+      "Waiting For": "#ef4444"
+    }
+  },
+  "primary_identifier_field": "ticket_key",
+  "compact_mode_zoom_threshold": 0.55,
+  "default_item_panel": {
+    "width": 720,
+    "height": 480
+  },
+  "schema_version": 1
+}

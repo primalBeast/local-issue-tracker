@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "d1",
+      "title": "Ship first working board",
+      "done": false,
+      "notes": ""
+    }
+  ]
+}

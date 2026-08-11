@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "content": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Welcome to Local Issue Tracker. Track tickets, notes, and deliverables entirely offline."
+          }
+        ]
+      }
+    ]
+  }
+}
