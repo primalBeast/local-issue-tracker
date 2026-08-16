@@ -109,7 +109,9 @@ git pull
 
 ## 4. Install the app (Python deps)
 
-From the project root:
+Easiest: double-click **`install.cmd`** in the repo folder. It installs **uv** if needed, runs `uv sync`, and checks that the app and UI bundle are present.
+
+Or from the project root in PowerShell:
 
 ```powershell
 uv sync
@@ -127,6 +129,10 @@ uv run lit doctor
 
 ## 5. Start the web app
 
+Easiest: double-click **`start.cmd`**. It starts the server and opens the browser. Leave that window open. If the app is already running, it just opens http://127.0.0.1:8765.
+
+Or:
+
 ```powershell
 uv run lit serve --open
 ```
@@ -139,8 +145,10 @@ Leave the PowerShell window open while you use the app. Stop the server with **C
 
 ### Daily start (after the first setup)
 
+Double-click **`start.cmd`**, or:
+
 ```powershell
-cd D:\\g\\IssueTracker\\local-issue-tracker   # your clone path
+cd D:\dev\local-issue-tracker   # your clone path
 uv run lit serve --open
 ```
 
@@ -200,7 +208,7 @@ Only needed if you change files under `frontend\src\`.
 | Problem | What to try |
 |---------|-------------|
 | `No module named 'lit.cli'` | `git pull` then `uv sync --reinstall` |
-| `uv` not recognized | Close and reopen Terminal; confirm with `uv --version` |
+| `uv` not recognized | Double-click `install.cmd`, or close and reopen Terminal; confirm with `uv --version` |
 | Port already in use | `netstat -ano \| findstr :8765` then `taskkill /PID <pid> /F` |
 | Blank or old UI | Hard refresh in Edge: **Ctrl+Shift+R** |
 

@@ -26,3 +26,5 @@ Both guides include:
 | Node.js (optional) | [nodejs.org](https://nodejs.org) LTS | [nodejs.org](https://nodejs.org) LTS |
 
 After setup, the app runs at **http://127.0.0.1:8765**.
+
+On **Windows**, after cloning you can double-click **`install.cmd`** (one-time setup + checks) then **`start.cmd`** (launch the app).
