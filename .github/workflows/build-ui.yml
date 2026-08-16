@@ -19,6 +19,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Assemble App.svelte from uploaded parts
+        run: |
+          if [ -d frontend/src/_app_parts ]; then
+            cat frontend/src/_app_parts/App.svelte.part* > frontend/src/App.svelte
+            wc -c frontend/src/App.svelte
+          fi
+          test -f frontend/src/App.svelte
       - name: Install and build frontend
         working-directory: frontend
         run: |

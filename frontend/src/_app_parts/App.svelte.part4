@@ -1,0 +1,10 @@
+          </FloatingPanel>
+        {/each}
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if toast}
+  <div class="toast">{toast}</div>
+{/if}
