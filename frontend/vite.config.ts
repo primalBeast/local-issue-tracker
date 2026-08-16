@@ -14,6 +14,21 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@tiptap') || id.includes('node_modules/prosemirror')) {
+            return 'tiptap';
+          }
+          if (id.includes('node_modules/svelte') || id.includes('node_modules/@sveltejs')) {
+            return 'svelte';
+          }
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        },
+      },
+    },
   },
   test: {
     environment: 'node',
