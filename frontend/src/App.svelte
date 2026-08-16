@@ -12,9 +12,10 @@
   import { itemMatchesFilters, sortItems } from './lib/filters';
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
+  import ItemTitleBar from './lib/ItemTitleBar.svelte';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupFieldsByRow } from './lib/fieldLayout';
-  import { isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
+  import { HEADER_TITLE_EDITOR_PX, isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
   import { clampZoom, snapToGrid } from './lib/snap';
   import {
     defaultPan,
@@ -78,7 +79,9 @@
   ];
 
   let fieldDefs = $derived(fieldsDoc?.fields || []);
-  let fieldRows = $derived(groupFieldsByRow(fieldDefs));
+  let bodyFieldRows = $derived(
+    groupFieldsByRow(fieldDefs.filter((f) => !isHeaderManagedField(f)))
+  );
   let listFields = $derived(
     [...fieldDefs]
       .filter((f) => f.show_in_list)
@@ -88,7 +91,7 @@
   let zoom = $derived(workspace?.ui.zoom ?? 1);
   let pan = $derived(workspace?.ui.viewport_scroll ?? defaultPan());
   let compact = $derived(
-    !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.5)
+    !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.33)
   );
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
   let panning = $state(false);
@@ -629,8 +632,11 @@
     void ensureDetail(itemId);
     const defaults = project?.default_item_panel || {};
     const panelW = Math.max(200, Number(defaults.width) || 720);
+    const existingItem = detailCache[itemId] || items.find((i) => i.id === itemId);
+    const headerEditor =
+      !existingItem || !itemDescription(existingItem) ? HEADER_TITLE_EDITOR_PX : 0;
     const panelH = Math.max(
-      minItemPanelHeight(fieldRows),
+      minItemPanelHeight(bodyFieldRows) + headerEditor,
       Number(defaults.height) || 480
     );
     const origin = visibleWorldOrigin();
@@ -741,11 +747,28 @@
     }, 350);
   }
 
+  function keyField(): string {
+    return project?.primary_identifier_field || 'ticket_key';
+  }
+
+  /** Ticket number + description live in the header editor, not the panel body. */
+  function isHeaderManagedField(f: { id: string }): boolean {
+    return f.id === 'title' || f.id === keyField();
+  }
+
   function primaryId(item: Item): string {
-    const key = project?.primary_identifier_field || 'ticket_key';
-    const v = String(item.fields[key] ?? '').trim();
+    const v = String(item.fields[keyField()] ?? '').trim();
     if (v) return v;
     return 'Untitled';
+  }
+
+  function itemDescription(item: Item): string {
+    return String(item.fields.title ?? '').trim();
+  }
+
+  function itemHeading(item: Item): string {
+    const desc = itemDescription(item);
+    return desc ? `${primaryId(item)}  ${desc}` : primaryId(item);
   }
 
   function itemForPanel(p: Panel): Item | null {
@@ -1058,7 +1081,7 @@
             title={
               panel.kind === 'item'
                 ? item
-                  ? primaryId(item)
+                  ? itemHeading(item)
                   : 'Item'
                 : panel.kind === 'all_items'
                   ? 'All Items'
@@ -1074,6 +1097,30 @@
             onmove={(patch) => movePanel(panel.id, patch)}
             onclose={() => closePanel(panel.id)}
           >
+            {#snippet titleSlot()}
+              {#if panel.kind === 'item' && item && !compact}
+                <ItemTitleBar
+                  ticketKey={String(item.fields[keyField()] ?? '')}
+                  description={String(item.fields.title ?? '')}
+                  onTicketKey={(value) => scheduleItemPatch(item.id, { [keyField()]: value })}
+                  onDescription={(value) => scheduleItemPatch(item.id, { title: value })}
+                />
+              {:else}
+                <div class="panel-title">
+                  {panel.kind === 'item'
+                    ? item
+                      ? compact
+                        ? primaryId(item)
+                        : itemHeading(item)
+                      : 'Item'
+                    : panel.kind === 'all_items'
+                      ? 'All Items'
+                      : panel.kind === 'notes'
+                        ? 'Project Notes'
+                        : 'Deliverables'}
+                </div>
+              {/if}
+            {/snippet}
             {#snippet compactChildren()}
               <div class="compact-id">{panel.kind === 'item' ? (item ? primaryId(item) : '…') : panel.kind === 'all_items' ? 'All Items' : panel.kind === 'notes' ? 'Notes' : 'Deliverables'}</div>
             {/snippet}
@@ -1093,7 +1140,7 @@
                 <div class="empty-hint">Loading item…</div>
               {:else}
                 {#key item.id}
-                  {#each fieldRows as row (row.row)}
+                  {#each bodyFieldRows as row (row.row)}
                     <div
                       class="field-row"
                       class:field-row-multi={row.fields.length > 1}
