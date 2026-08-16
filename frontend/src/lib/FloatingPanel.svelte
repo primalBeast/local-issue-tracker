@@ -18,6 +18,8 @@
     onclose: () => void;
     children?: import('svelte').Snippet;
     compactChildren?: import('svelte').Snippet;
+    /** Replaces the plain title text (e.g. ticket number + description editor). */
+    titleSlot?: import('svelte').Snippet;
   }
 
   let {
@@ -34,6 +36,7 @@
     onclose,
     children,
     compactChildren,
+    titleSlot,
   }: Props = $props();
 
   const gesture = {
@@ -132,7 +135,7 @@
 
   function onHeaderPointerDown(e: PointerEvent) {
     const t = e.target as HTMLElement | null;
-    if (t?.closest?.('button')) return;
+    if (t?.closest?.('button, input, textarea, select, .item-title-editor')) return;
     beginGesture(e, 'drag');
   }
 
@@ -176,7 +179,11 @@
     tabindex="-1"
     onpointerdown={onHeaderPointerDown}
   >
-    <div class="panel-title">{title}</div>
+    {#if titleSlot}
+      <div class="panel-title-slot">{@render titleSlot()}</div>
+    {:else}
+      <div class="panel-title">{title}</div>
+    {/if}
     <button
       class="ghost"
       type="button"
