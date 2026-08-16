@@ -35,9 +35,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A frontend/dist
+          git add -A frontend/dist frontend/src/App.svelte
           if git diff --cached --quiet; then
-            echo "No frontend/dist changes"
+            echo "No frontend dist/source changes"
             exit 0
           fi
           git commit -m "chore: rebuild frontend dist so Windows clones get a working UI"
