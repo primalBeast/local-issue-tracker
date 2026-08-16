@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import type { Panel } from './api';
-  import { MIN_PANEL_H, MIN_PANEL_W, snapSize, snapToGrid } from './snap';
+  import { resizeCursor, resizeFromEdge, snapToGrid, type ResizeEdge } from './snap';
 
   interface Props {
     panel: Panel;
@@ -38,6 +38,7 @@
 
   const gesture = {
     mode: null as null | 'drag' | 'resize',
+    edge: 'se' as ResizeEdge,
     startX: 0,
     startY: 0,
     origX: 0,
@@ -53,6 +54,8 @@
     window.removeEventListener('pointerup', onWindowPointerUp, true);
     window.removeEventListener('pointercancel', onWindowPointerUp, true);
     document.body.classList.remove('lit-panel-dragging');
+    document.body.classList.remove('lit-panel-resizing');
+    document.body.style.cursor = '';
   }
 
   function endGesture() {
@@ -74,11 +77,20 @@
         y: snapToGrid(gesture.origY + dy, z),
       });
     } else {
-      const size = snapSize(gesture.origW + dx, gesture.origH + dy, z);
-      onmove({
-        width: Math.max(MIN_PANEL_W, size.width),
-        height: Math.max(MIN_PANEL_H, size.height),
-      });
+      onmove(
+        resizeFromEdge(
+          {
+            x: gesture.origX,
+            y: gesture.origY,
+            width: gesture.origW,
+            height: gesture.origH,
+          },
+          gesture.edge,
+          dx,
+          dy,
+          z
+        )
+      );
     }
   }
 
@@ -88,12 +100,13 @@
     endGesture();
   }
 
-  function beginGesture(e: PointerEvent, mode: 'drag' | 'resize') {
+  function beginGesture(e: PointerEvent, mode: 'drag' | 'resize', edge: ResizeEdge = 'se') {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
 
     gesture.mode = mode;
+    gesture.edge = edge;
     gesture.pointerId = e.pointerId ?? -1;
     gesture.startX = e.clientX;
     gesture.startY = e.clientY;
@@ -103,7 +116,12 @@
     gesture.origH = panel.height;
     gesture.zoom = zoom || 1;
 
-    document.body.classList.add('lit-panel-dragging');
+    if (mode === 'drag') {
+      document.body.classList.add('lit-panel-dragging');
+    } else {
+      document.body.classList.add('lit-panel-resizing');
+      document.body.style.cursor = resizeCursor(edge);
+    }
     onfocus();
 
     cleanup();
@@ -124,8 +142,8 @@
     beginGesture(e, 'drag');
   }
 
-  function onResizeDown(e: PointerEvent) {
-    beginGesture(e, 'resize');
+  function onResizeDown(e: PointerEvent, edge: ResizeEdge) {
+    beginGesture(e, 'resize', edge);
   }
 
   onDestroy(endGesture);
@@ -189,11 +207,19 @@
   {/if}
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="resize-handle"
-    role="separator"
-    aria-orientation="horizontal"
-    title="Drag to resize"
-    onpointerdown={onResizeDown}
-  ></div>
+  <div class="resize-edge resize-n" role="separator" aria-orientation="horizontal" title="Resize" onpointerdown={(e) => onResizeDown(e, 'n')}></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="resize-edge resize-s" role="separator" aria-orientation="horizontal" title="Resize" onpointerdown={(e) => onResizeDown(e, 's')}></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="resize-edge resize-e" role="separator" aria-orientation="vertical" title="Resize" onpointerdown={(e) => onResizeDown(e, 'e')}></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="resize-edge resize-w" role="separator" aria-orientation="vertical" title="Resize" onpointerdown={(e) => onResizeDown(e, 'w')}></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="resize-corner resize-nw" role="separator" title="Resize" onpointerdown={(e) => onResizeDown(e, 'nw')}></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="resize-corner resize-ne" role="separator" title="Resize" onpointerdown={(e) => onResizeDown(e, 'ne')}></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="resize-corner resize-sw" role="separator" title="Resize" onpointerdown={(e) => onResizeDown(e, 'sw')}></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="resize-corner resize-se" role="separator" title="Resize" onpointerdown={(e) => onResizeDown(e, 'se')}></div>
 </div>
