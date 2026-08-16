@@ -1068,14 +1068,14 @@
             }
             accentBg={colors.bg || undefined}
             accentBorder={colors.border || undefined}
-            compact={compact && panel.kind === 'item'}
+            compact={compact}
             fillBody={panel.kind === 'item' || panel.kind === 'notes'}
             onfocus={() => focusPanel(panel.id)}
             onmove={(patch) => movePanel(panel.id, patch)}
             onclose={() => closePanel(panel.id)}
           >
             {#snippet compactChildren()}
-              <div class="compact-id">{item ? primaryId(item) : '…'}</div>
+              <div class="compact-id">{panel.kind === 'item' ? (item ? primaryId(item) : '…') : panel.kind === 'all_items' ? 'All Items' : panel.kind === 'notes' ? 'Notes' : 'Deliverables'}</div>
             {/snippet}
 
             {#if panel.kind === 'item' && item}
