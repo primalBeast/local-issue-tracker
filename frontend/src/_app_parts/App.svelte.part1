@@ -14,8 +14,16 @@
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupFieldsByRow } from './lib/fieldLayout';
+  import { isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
   import { clampZoom, snapToGrid } from './lib/snap';
-  import { defaultPan, panAfterZoom, screenToWorld } from './lib/viewport';
+  import {
+    defaultPan,
+    fitView,
+    panAfterZoom,
+    panelsWorldBounds,
+    screenToWorld,
+    zoomFromWheelDelta,
+  } from './lib/viewport';
   import { formatDuration, liveSeconds } from './lib/waiting';
 
   let projects = $state<Project[]>([]);
@@ -84,6 +92,7 @@
   );
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
   let panning = $state(false);
+  let canvasWrapEl = $state<HTMLElement | null>(null);
   const canvasPan = {
     pointerId: -1,
     startX: 0,
@@ -128,6 +137,18 @@
         toggleSidebar();
       }
       if (e.key === 'Escape') boardEditor = null;
+      if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+' || e.key === 'Add')) {
+        e.preventDefault();
+        zoomByKeyboard(1.12);
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === '-' || e.key === '_' || e.key === 'Subtract')) {
+        e.preventDefault();
+        zoomByKeyboard(1 / 1.12);
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === '0' || e.key === 'Numpad0')) {
+        e.preventDefault();
+        zoomByKeyboard(0);
+      }
     };
     // Only close board editor when clicking outside it — do not interfere
     // with panel drag, resize, or tab clicks.
@@ -283,3 +304,5 @@
       try {
         const saved = await api.putWorkspace(slug, id, toSave);
         workspaces = workspaces.map((w) => (w.id === id ? saved : w));
+        // Do not replace the live workspace if the user has already switched away
+        if (workspace?.id === id) {

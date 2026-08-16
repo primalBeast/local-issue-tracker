@@ -116,6 +116,29 @@ label.field-label {
 .field-col { min-width: 0; flex: 1 1 0; }
 .field-row-multi .field-group { margin-bottom: 8px; }
 
+.panel-body-fill {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  min-height: 0;
+}
+.panel-body-fill .field-row-fill {
+  flex: 1 1 auto;
+  min-height: calc(1.4em * 3 + 16px + 52px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.panel-body-fill .field-row-fill .field-col,
+.panel-body-fill .field-row-fill .field-group,
+.panel-body-fill .field-row-fill .field-group-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -353,12 +376,19 @@ body.lit-panel-dragging * { cursor: grabbing !important; }
   user-select: text;
 }
 
+.panel-compact,
+.panel-compact .panel-header,
+.panel-compact .panel-body.compact {
+  cursor: grab;
+}
+
 .panel-body.compact {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   user-select: none;
+  touch-action: none;
 }
 
 .compact-id {
@@ -452,7 +482,7 @@ body.lit-panel-dragging * { cursor: grabbing !important; }
 }
 
 .ProseMirror {
-  min-height: 100px;
+  min-height: calc(1.4em * 3 + 16px);
   outline: none;
   padding: 8px;
   background: #0e1219;

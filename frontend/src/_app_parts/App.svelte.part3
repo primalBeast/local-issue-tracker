@@ -1,7 +1,22 @@
+    updateWorkspace((ws) => {
+      ws.panels = ws.panels.filter((p) => p.id !== id);
+    });
+  }
+
+  function openItemPanel(itemId: string) {
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
+    if (existing) {
+      focusPanel(existing.id);
+      return;
+    }
     void ensureDetail(itemId);
     const defaults = project?.default_item_panel || {};
     const panelW = Math.max(200, Number(defaults.width) || 720);
-    const panelH = Math.max(120, Number(defaults.height) || 480);
+    const panelH = Math.max(
+      minItemPanelHeight(fieldRows),
+      Number(defaults.height) || 480
+    );
     const origin = visibleWorldOrigin();
     updateWorkspace((ws) => {
       const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
@@ -29,7 +44,7 @@
     }
     const sizes = {
       all_items: { w: 560, h: 640 },
-      notes: { w: 400, h: 320 },
+      notes: { w: 400, h: 420 },
       deliverables: { w: 400, h: 360 },
     }[kind];
     const origin = visibleWorldOrigin();
@@ -181,6 +196,23 @@
     void saveDeliverables(next);
   }
 
+  function seeAll() {
+    if (!workspace) return;
+    const wrap = canvasWrapEl;
+    if (!wrap) return;
+    if (!workspace.panels.length) {
+      showToast('No panels on this board');
+      return;
+    }
+    const bounds = panelsWorldBounds(workspace.panels);
+    if (!bounds) return;
+    const view = fitView(bounds, { width: wrap.clientWidth, height: wrap.clientHeight });
+    updateWorkspace((ws) => {
+      ws.ui.zoom = view.zoom;
+      ws.ui.viewport_scroll = view.pan;
+    });
+  }
+
   function resetLayout() {
     updateWorkspace((ws) => {
       ws.ui.viewport_scroll = defaultPan();
@@ -274,12 +306,3 @@
 </script>
 
 {#if loading}
-  <div class="empty-hint" style="padding-top:20vh">Loading Local Issue Tracker…</div>
-{:else if error}
-  <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
-{:else if project && workspace}
-  <div class="app-shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark"></div>
-        Local Issue Tracker

@@ -11,6 +11,8 @@
     accentBorder?: string;
     accentBg?: string;
     compact?: boolean;
+    /** Stretch children so a trailing Notes field can fill leftover height. */
+    fillBody?: boolean;
     onfocus: () => void;
     onmove: (patch: Partial<Panel>) => void;
     onclose: () => void;
@@ -26,6 +28,7 @@
     accentBorder,
     accentBg,
     compact = false,
+    fillBody = false,
     onfocus,
     onmove,
     onclose,
@@ -115,6 +118,12 @@
     beginGesture(e, 'drag');
   }
 
+  function onCompactPointerDown(e: PointerEvent) {
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.('button')) return;
+    beginGesture(e, 'drag');
+  }
+
   function onResizeDown(e: PointerEvent) {
     beginGesture(e, 'resize');
   }
@@ -126,6 +135,7 @@
 <div
   class="panel"
   class:active
+  class:panel-compact={compact}
   role="dialog"
   tabindex="-1"
   aria-label={title}
@@ -162,7 +172,8 @@
   </div>
 
   {#if compact}
-    <div class="panel-body compact">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="panel-body compact" onpointerdown={onCompactPointerDown}>
       {#if compactChildren}
         {@render compactChildren()}
       {:else}
@@ -170,7 +181,7 @@
       {/if}
     </div>
   {:else}
-    <div class="panel-body">
+    <div class="panel-body" class:panel-body-fill={fillBody}>
       {#if children}
         {@render children()}
       {/if}

@@ -7,16 +7,17 @@
     def: FieldDef;
     fields: Record<string, unknown>;
     onchange: (id: string, value: unknown) => void;
+    fill?: boolean;
   }
 
-  let { def, fields, onchange }: Props = $props();
+  let { def, fields, onchange, fill = false }: Props = $props();
 
   let visible = $derived(isVisible(def, fields));
   let value = $derived(fields[def.id]);
 </script>
 
 {#if visible}
-  <div class="field-group">
+  <div class="field-group" class:field-group-fill={fill}>
     <label class="field-label" for={def.id}>{def.label}{def.required ? ' *' : ''}</label>
 
     {#if def.type === 'text'}
@@ -100,7 +101,7 @@
         {/each}
       </div>
     {:else if def.type === 'richtext'}
-      <RichText value={value} onchange={(json) => onchange(def.id, json)} />
+      <RichText fill={fill} value={value} onchange={(json) => onchange(def.id, json)} />
     {:else}
       <input
         id={def.id}

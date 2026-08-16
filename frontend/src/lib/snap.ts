@@ -3,7 +3,8 @@
 export const SCREEN_GRID_PX = 5;
 export const MIN_PANEL_W = 200;
 export const MIN_PANEL_H = 120;
-export const ZOOM_MIN = 0.35;
+/** Safety floor only — do not treat this as a UX zoom-out limit. */
+export const ZOOM_MIN = 0.02;
 export const ZOOM_MAX = 1.75;
 
 export function clamp(n: number, min: number, max: number): number {

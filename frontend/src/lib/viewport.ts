@@ -1,6 +1,11 @@
 /** Infinite-canvas pan + zoom helpers. Screen = pan + world * zoom. */
 
+import { clamp, ZOOM_MAX, ZOOM_MIN } from './snap';
+
 export type Point = { x: number; y: number };
+export type Rect = { x: number; y: number; width: number; height: number };
+
+export const FIT_PADDING_PX = 48;
 
 export function defaultPan(): Point {
   return { x: 0, y: 0 };
@@ -28,5 +33,54 @@ export function panAfterZoom(pan: Point, oldZoom: number, newZoom: number, point
   return {
     x: pointer.x - world.x * newZoom,
     y: pointer.y - world.y * newZoom,
+  };
+}
+
+/** Normalize wheel delta (pixels / lines / pages) into a new zoom factor. */
+export function zoomFromWheelDelta(oldZoom: number, deltaY: number, deltaMode = 0): number {
+  let dy = deltaY;
+  if (deltaMode === 1) dy *= 16;
+  if (deltaMode === 2) dy *= 800;
+  return oldZoom * Math.exp(-dy * 0.0015);
+}
+
+export function panelsWorldBounds(
+  panels: Array<{ x: number; y: number; width: number; height: number }>
+): Rect | null {
+  if (!panels.length) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of panels) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x + Math.max(0, p.width));
+    maxY = Math.max(maxY, p.y + Math.max(0, p.height));
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+/** Zoom and pan so `bounds` is centered and fully visible in the viewport. */
+export function fitView(
+  bounds: Rect,
+  viewport: { width: number; height: number },
+  padding = FIT_PADDING_PX
+): { zoom: number; pan: Point } {
+  const vw = Math.max(1, viewport.width);
+  const vh = Math.max(1, viewport.height);
+  const innerW = Math.max(1, vw - padding * 2);
+  const innerH = Math.max(1, vh - padding * 2);
+  const bw = Math.max(1, bounds.width);
+  const bh = Math.max(1, bounds.height);
+  const zoom = clamp(Math.min(innerW / bw, innerH / bh), ZOOM_MIN, ZOOM_MAX);
+  const cx = bounds.x + bounds.width / 2;
+  const cy = bounds.y + bounds.height / 2;
+  return {
+    zoom,
+    pan: {
+      x: vw / 2 - cx * zoom,
+      y: vh / 2 - cy * zoom,
+    },
   };
 }

@@ -14,7 +14,8 @@ describe('snap', () => {
   });
 
   it('clamps zoom', () => {
-    expect(clampZoom(0.1)).toBe(0.35);
+    expect(clampZoom(0.001)).toBe(0.02);
+    expect(clampZoom(0.1)).toBe(0.1);
     expect(clampZoom(3)).toBe(1.75);
   });
 

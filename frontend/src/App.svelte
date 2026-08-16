@@ -14,8 +14,16 @@
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupFieldsByRow } from './lib/fieldLayout';
+  import { isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
   import { clampZoom, snapToGrid } from './lib/snap';
-  import { defaultPan, panAfterZoom, screenToWorld } from './lib/viewport';
+  import {
+    defaultPan,
+    fitView,
+    panAfterZoom,
+    panelsWorldBounds,
+    screenToWorld,
+    zoomFromWheelDelta,
+  } from './lib/viewport';
   import { formatDuration, liveSeconds } from './lib/waiting';
 
   let projects = $state<Project[]>([]);
@@ -84,6 +92,7 @@
   );
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
   let panning = $state(false);
+  let canvasWrapEl = $state<HTMLElement | null>(null);
   const canvasPan = {
     pointerId: -1,
     startX: 0,
@@ -128,6 +137,18 @@
         toggleSidebar();
       }
       if (e.key === 'Escape') boardEditor = null;
+      if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+' || e.key === 'Add')) {
+        e.preventDefault();
+        zoomByKeyboard(1.12);
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === '-' || e.key === '_' || e.key === 'Subtract')) {
+        e.preventDefault();
+        zoomByKeyboard(1 / 1.12);
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === '0' || e.key === 'Numpad0')) {
+        e.preventDefault();
+        zoomByKeyboard(0);
+      }
     };
     // Only close board editor when clicking outside it — do not interfere
     // with panel drag, resize, or tab clicks.
@@ -462,22 +483,59 @@
     }
   }
 
-  function onWheel(e: WheelEvent) {
-    if (!(e.ctrlKey || e.metaKey) || !workspace) return;
-    e.preventDefault();
-    const wrap = e.currentTarget as HTMLElement;
-    const rect = wrap.getBoundingClientRect();
-    const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  function wheelShouldZoom(e: WheelEvent): boolean {
+    // Pinch-zoom and Ctrl/Cmd+wheel always zoom the canvas.
+    if (e.ctrlKey || e.metaKey) return true;
+    const t = e.target as HTMLElement | null;
+    // Let scrollable panel contents keep native scroll unless a modifier is held.
+    if (t?.closest?.('.panel-body')) return false;
+    return true;
+  }
+
+  function applyZoomAtClient(clientX: number, clientY: number, newZoom: number) {
+    if (!workspace) return;
+    const wrap = canvasWrapEl;
+    if (!wrap) return;
     const oldZ = workspace.ui.zoom || 1;
-    const newZ = clampZoom(oldZ - e.deltaY * 0.0015);
-    if (newZ === oldZ) return;
+    const z = clampZoom(newZoom);
+    if (Math.abs(z - oldZ) < 1e-4) return;
+    const rect = wrap.getBoundingClientRect();
+    const pointer = { x: clientX - rect.left, y: clientY - rect.top };
     const curPan = workspace.ui.viewport_scroll ?? defaultPan();
-    const nextPan = panAfterZoom(curPan, oldZ, newZ, pointer);
     updateWorkspace((ws) => {
-      ws.ui.zoom = newZ;
-      ws.ui.viewport_scroll = nextPan;
+      ws.ui.zoom = z;
+      ws.ui.viewport_scroll = panAfterZoom(curPan, oldZ, z, pointer);
     });
   }
+
+  function zoomByKeyboard(factor: number) {
+    const wrap = canvasWrapEl;
+    if (!wrap || !workspace) return;
+    const rect = wrap.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    if (factor === 0) {
+      applyZoomAtClient(cx, cy, 1);
+      return;
+    }
+    applyZoomAtClient(cx, cy, (workspace.ui.zoom || 1) * factor);
+  }
+
+  function onCanvasWheel(e: WheelEvent) {
+    if (!workspace || !wheelShouldZoom(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const oldZ = workspace.ui.zoom || 1;
+    applyZoomAtClient(e.clientX, e.clientY, zoomFromWheelDelta(oldZ, e.deltaY, e.deltaMode));
+  }
+
+  $effect(() => {
+    const el = canvasWrapEl;
+    if (!el) return;
+    // Chrome/Edge treat Ctrl+wheel as page zoom unless the listener is non-passive.
+    el.addEventListener('wheel', onCanvasWheel, { passive: false, capture: true });
+    return () => el.removeEventListener('wheel', onCanvasWheel, { capture: true });
+  });
 
   function clearCanvasPanListeners() {
     window.removeEventListener('pointermove', onCanvasPanMove, true);
@@ -571,7 +629,10 @@
     void ensureDetail(itemId);
     const defaults = project?.default_item_panel || {};
     const panelW = Math.max(200, Number(defaults.width) || 720);
-    const panelH = Math.max(120, Number(defaults.height) || 480);
+    const panelH = Math.max(
+      minItemPanelHeight(fieldRows),
+      Number(defaults.height) || 480
+    );
     const origin = visibleWorldOrigin();
     updateWorkspace((ws) => {
       const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
@@ -599,7 +660,7 @@
     }
     const sizes = {
       all_items: { w: 560, h: 640 },
-      notes: { w: 400, h: 320 },
+      notes: { w: 400, h: 420 },
       deliverables: { w: 400, h: 360 },
     }[kind];
     const origin = visibleWorldOrigin();
@@ -751,6 +812,23 @@
     void saveDeliverables(next);
   }
 
+  function seeAll() {
+    if (!workspace) return;
+    const wrap = canvasWrapEl;
+    if (!wrap) return;
+    if (!workspace.panels.length) {
+      showToast('No panels on this board');
+      return;
+    }
+    const bounds = panelsWorldBounds(workspace.panels);
+    if (!bounds) return;
+    const view = fitView(bounds, { width: wrap.clientWidth, height: wrap.clientHeight });
+    updateWorkspace((ws) => {
+      ws.ui.zoom = view.zoom;
+      ws.ui.viewport_scroll = view.pan;
+    });
+  }
+
   function resetLayout() {
     updateWorkspace((ws) => {
       ws.ui.viewport_scroll = defaultPan();
@@ -870,10 +948,13 @@
       <button type="button" onclick={() => openSpecial('all_items')}>All Items</button>
       <button type="button" onclick={() => openSpecial('notes')}>Notes</button>
       <button type="button" onclick={() => openSpecial('deliverables')}>Deliverables</button>
+      <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
+        See All
+      </button>
       <button type="button" class="ghost" onclick={resetLayout}>Reset layout</button>
       <div class="topbar-spacer"></div>
       <div class="topbar-meta">
-        {workspace.name} · zoom {(zoom * 100).toFixed(0)}%
+        {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
         <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16a</span>
       </div>
@@ -953,12 +1034,12 @@
     <div
       class="canvas-wrap"
       role="application"
-      aria-label="Unlimited workspace. Drag empty space to pan. Ctrl+scroll zooms toward the pointer."
+      aria-label="Unlimited workspace. Drag empty space to pan. Scroll or Ctrl+scroll zooms toward the pointer."
+      bind:this={canvasWrapEl}
       class:is-panning={panning}
       style:--pan-x="{pan.x}px"
       style:--pan-y="{pan.y}px"
       style:--zoom={zoom}
-      onwheel={onWheel}
       onpointerdown={onCanvasPointerDown}
     >
       <div class="canvas-grid" aria-hidden="true"></div>
@@ -988,6 +1069,7 @@
             accentBg={colors.bg || undefined}
             accentBorder={colors.border || undefined}
             compact={compact && panel.kind === 'item'}
+            fillBody={panel.kind === 'item' || panel.kind === 'notes'}
             onfocus={() => focusPanel(panel.id)}
             onmove={(patch) => movePanel(panel.id, patch)}
             onclose={() => closePanel(panel.id)}
@@ -1012,11 +1094,16 @@
               {:else}
                 {#key item.id}
                   {#each fieldRows as row (row.row)}
-                    <div class="field-row" class:field-row-multi={row.fields.length > 1}>
+                    <div
+                      class="field-row"
+                      class:field-row-multi={row.fields.length > 1}
+                      class:field-row-fill={isNotesFillRow(row)}
+                    >
                       {#each row.fields as def (def.id)}
                         <div class="field-col" style:flex={fieldFlex(def)}>
                           <FieldRenderer
                             {def}
+                            fill={isNotesFillRow(row)}
                             fields={detailCache[item.id].fields}
                             onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
                           />
@@ -1093,7 +1180,9 @@
               {/if}
             {:else if panel.kind === 'notes'}
               {#key project.slug}
-                <RichText value={notesContent} onchange={(json) => void saveNotes(json)} />
+                <div class="field-row field-row-fill">
+                  <RichText fill value={notesContent} onchange={(json) => void saveNotes(json)} />
+                </div>
               {/key}
             {:else if panel.kind === 'deliverables'}
               <div class="toolbar-row">

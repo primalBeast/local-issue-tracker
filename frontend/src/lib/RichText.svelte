@@ -6,9 +6,15 @@
     value?: unknown;
     onchange?: (json: unknown) => void;
     placeholder?: string;
+    fill?: boolean;
   }
 
-  let { value = { type: 'doc', content: [] }, onchange, placeholder = 'Write notes…' }: Props = $props();
+  let {
+    value = { type: 'doc', content: [] },
+    onchange,
+    placeholder = 'Write notes…',
+    fill = false,
+  }: Props = $props();
 
   let el: HTMLDivElement;
   let editor = $state<Editor | null>(null);
@@ -116,7 +122,7 @@
   }
 </script>
 
-<div class="rte-wrap">
+<div class="rte-wrap" class:fill>
   {#if editorError}
     <div class="empty-hint" style="padding:8px">Notes editor failed to load. The rest of the app still works.</div>
   {:else if !editor}
@@ -209,6 +215,14 @@
     border-radius: 8px;
     background: #0e1219;
     overflow: hidden;
+  }
+
+  .rte-wrap.fill {
+    flex: 1 1 auto;
+    min-height: calc(1.4em * 3 + 16px);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
   }
 
   .rte-toolbar {
@@ -304,16 +318,26 @@
   }
 
   .rte {
-    min-height: 100px;
+    min-height: calc(1.4em * 3 + 16px);
+  }
+
+  .rte-wrap.fill .rte {
+    flex: 1 1 auto;
+    min-height: calc(1.4em * 3 + 16px);
+    overflow: auto;
   }
 
   .rte :global(.ProseMirror) {
-    min-height: 100px;
+    min-height: calc(1.4em * 3 + 16px);
     outline: none;
     padding: 8px;
     border: none;
     background: transparent;
     border-radius: 0;
+  }
+
+  .rte-wrap.fill .rte :global(.ProseMirror) {
+    min-height: 100%;
   }
 
   .rte :global(.ProseMirror u),

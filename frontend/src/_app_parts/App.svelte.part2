@@ -1,5 +1,3 @@
-        // Do not replace the live workspace if the user has already switched away
-        if (workspace?.id === id) {
           workspace = {
             ...cloneWorkspace(workspace),
             updated_at: saved.updated_at,
@@ -177,22 +175,59 @@
     }
   }
 
-  function onWheel(e: WheelEvent) {
-    if (!(e.ctrlKey || e.metaKey) || !workspace) return;
-    e.preventDefault();
-    const wrap = e.currentTarget as HTMLElement;
-    const rect = wrap.getBoundingClientRect();
-    const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  function wheelShouldZoom(e: WheelEvent): boolean {
+    // Pinch-zoom and Ctrl/Cmd+wheel always zoom the canvas.
+    if (e.ctrlKey || e.metaKey) return true;
+    const t = e.target as HTMLElement | null;
+    // Let scrollable panel contents keep native scroll unless a modifier is held.
+    if (t?.closest?.('.panel-body')) return false;
+    return true;
+  }
+
+  function applyZoomAtClient(clientX: number, clientY: number, newZoom: number) {
+    if (!workspace) return;
+    const wrap = canvasWrapEl;
+    if (!wrap) return;
     const oldZ = workspace.ui.zoom || 1;
-    const newZ = clampZoom(oldZ - e.deltaY * 0.0015);
-    if (newZ === oldZ) return;
+    const z = clampZoom(newZoom);
+    if (Math.abs(z - oldZ) < 1e-4) return;
+    const rect = wrap.getBoundingClientRect();
+    const pointer = { x: clientX - rect.left, y: clientY - rect.top };
     const curPan = workspace.ui.viewport_scroll ?? defaultPan();
-    const nextPan = panAfterZoom(curPan, oldZ, newZ, pointer);
     updateWorkspace((ws) => {
-      ws.ui.zoom = newZ;
-      ws.ui.viewport_scroll = nextPan;
+      ws.ui.zoom = z;
+      ws.ui.viewport_scroll = panAfterZoom(curPan, oldZ, z, pointer);
     });
   }
+
+  function zoomByKeyboard(factor: number) {
+    const wrap = canvasWrapEl;
+    if (!wrap || !workspace) return;
+    const rect = wrap.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    if (factor === 0) {
+      applyZoomAtClient(cx, cy, 1);
+      return;
+    }
+    applyZoomAtClient(cx, cy, (workspace.ui.zoom || 1) * factor);
+  }
+
+  function onCanvasWheel(e: WheelEvent) {
+    if (!workspace || !wheelShouldZoom(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const oldZ = workspace.ui.zoom || 1;
+    applyZoomAtClient(e.clientX, e.clientY, zoomFromWheelDelta(oldZ, e.deltaY, e.deltaMode));
+  }
+
+  $effect(() => {
+    const el = canvasWrapEl;
+    if (!el) return;
+    // Chrome/Edge treat Ctrl+wheel as page zoom unless the listener is non-passive.
+    el.addEventListener('wheel', onCanvasWheel, { passive: false, capture: true });
+    return () => el.removeEventListener('wheel', onCanvasWheel, { capture: true });
+  });
 
   function clearCanvasPanListeners() {
     window.removeEventListener('pointermove', onCanvasPanMove, true);
@@ -271,15 +306,3 @@
   }
 
   function closePanel(id: string) {
-    updateWorkspace((ws) => {
-      ws.panels = ws.panels.filter((p) => p.id !== id);
-    });
-  }
-
-  function openItemPanel(itemId: string) {
-    if (!workspace) return;
-    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
-    if (existing) {
-      focusPanel(existing.id);
-      return;
-    }

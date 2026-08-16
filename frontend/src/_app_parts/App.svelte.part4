@@ -1,3 +1,12 @@
+  <div class="empty-hint" style="padding-top:20vh">Loading Local Issue Tracker…</div>
+{:else if error}
+  <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
+{:else if project && workspace}
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        Local Issue Tracker
       </div>
       <select
         style="width:auto;min-width:160px"
@@ -15,10 +24,13 @@
       <button type="button" onclick={() => openSpecial('all_items')}>All Items</button>
       <button type="button" onclick={() => openSpecial('notes')}>Notes</button>
       <button type="button" onclick={() => openSpecial('deliverables')}>Deliverables</button>
+      <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
+        See All
+      </button>
       <button type="button" class="ghost" onclick={resetLayout}>Reset layout</button>
       <div class="topbar-spacer"></div>
       <div class="topbar-meta">
-        {workspace.name} · zoom {(zoom * 100).toFixed(0)}%
+        {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
         <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16a</span>
       </div>
@@ -98,12 +110,12 @@
     <div
       class="canvas-wrap"
       role="application"
-      aria-label="Unlimited workspace. Drag empty space to pan. Ctrl+scroll zooms toward the pointer."
+      aria-label="Unlimited workspace. Drag empty space to pan. Scroll or Ctrl+scroll zooms toward the pointer."
+      bind:this={canvasWrapEl}
       class:is-panning={panning}
       style:--pan-x="{pan.x}px"
       style:--pan-y="{pan.y}px"
       style:--zoom={zoom}
-      onwheel={onWheel}
       onpointerdown={onCanvasPointerDown}
     >
       <div class="canvas-grid" aria-hidden="true"></div>
@@ -133,6 +145,7 @@
             accentBg={colors.bg || undefined}
             accentBorder={colors.border || undefined}
             compact={compact && panel.kind === 'item'}
+            fillBody={panel.kind === 'item' || panel.kind === 'notes'}
             onfocus={() => focusPanel(panel.id)}
             onmove={(patch) => movePanel(panel.id, patch)}
             onclose={() => closePanel(panel.id)}
@@ -157,11 +170,16 @@
               {:else}
                 {#key item.id}
                   {#each fieldRows as row (row.row)}
-                    <div class="field-row" class:field-row-multi={row.fields.length > 1}>
+                    <div
+                      class="field-row"
+                      class:field-row-multi={row.fields.length > 1}
+                      class:field-row-fill={isNotesFillRow(row)}
+                    >
                       {#each row.fields as def (def.id)}
                         <div class="field-col" style:flex={fieldFlex(def)}>
                           <FieldRenderer
                             {def}
+                            fill={isNotesFillRow(row)}
                             fields={detailCache[item.id].fields}
                             onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
                           />
@@ -238,7 +256,9 @@
               {/if}
             {:else if panel.kind === 'notes'}
               {#key project.slug}
-                <RichText value={notesContent} onchange={(json) => void saveNotes(json)} />
+                <div class="field-row field-row-fill">
+                  <RichText fill value={notesContent} onchange={(json) => void saveNotes(json)} />
+                </div>
               {/key}
             {:else if panel.kind === 'deliverables'}
               <div class="toolbar-row">
