@@ -1,60 +1,3 @@
-          workspace = {
-            ...cloneWorkspace(workspace),
-            updated_at: saved.updated_at,
-          };
-        }
-      } catch (e) {
-        showToast('Failed to save layout');
-        console.error(e);
-      }
-    }, 400);
-  }
-
-  function updateWorkspace(mutator: (ws: Workspace) => void) {
-    if (!workspace) return;
-    const next = cloneWorkspace(workspace);
-    mutator(next);
-    workspace = next;
-    scheduleWorkspaceSave();
-  }
-
-  function toggleSidebar() {
-    updateWorkspace((ws) => {
-      ws.ui.sidebar_visible = !ws.ui.sidebar_visible;
-    });
-  }
-
-  async function selectWorkspace(id: string) {
-    if (!project) return;
-    if (workspace?.id === id) return;
-
-    // Persist current workspace into the list before leaving it
-    flushCurrentWorkspaceToList();
-
-    // Switch immediately from local list so the tab always responds
-    const local = workspaces.find((x) => x.id === id);
-    if (!local) {
-      showToast('Board not found');
-      return;
-    }
-    workspace = cloneWorkspace(local);
-    void rememberLastWorkspace(id);
-
-    // Refresh from server in the background (do not block UI)
-    try {
-      const fresh = await api.workspace(project.slug, id);
-      if (workspace?.id !== id) return; // user already switched again
-      workspace = fresh;
-      workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? fresh : w)));
-      for (const p of fresh.panels || []) {
-        if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
-      }
-    } catch (e) {
-      // Keep local board; do not stick the user on a failed network call
-      console.error(e);
-    }
-  }
-
   async function persistWorkspaceOrders(list: Workspace[]) {
     if (!project) return;
     try {
@@ -306,3 +249,111 @@
   }
 
   function closePanel(id: string) {
+    updateWorkspace((ws) => {
+      ws.panels = ws.panels.filter((p) => p.id !== id);
+    });
+  }
+
+  function openItemPanel(itemId: string) {
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
+    if (existing) {
+      focusPanel(existing.id);
+      return;
+    }
+    void ensureDetail(itemId);
+    const defaults = project?.default_item_panel || {};
+    const panelW = Math.max(200, Number(defaults.width) || 720);
+    const existingItem = detailCache[itemId] || items.find((i) => i.id === itemId);
+    const headerEditor =
+      !existingItem || !itemDescription(existingItem) ? HEADER_TITLE_EDITOR_PX : 0;
+    const panelH = Math.max(
+      minItemPanelHeight(bodyFieldRows) + headerEditor,
+      Number(defaults.height) || 480
+    );
+    const origin = visibleWorldOrigin();
+    updateWorkspace((ws) => {
+      const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
+      const stagger = (ws.panels.length % 5) * 30;
+      ws.panels.push({
+        id: `panel-item-${itemId.slice(0, 8)}-${Date.now().toString(36)}`,
+        kind: 'item',
+        item_id: itemId,
+        x: snapToGrid(origin.x + 80 + stagger, ws.ui.zoom),
+        y: snapToGrid(origin.y + 80 + stagger, ws.ui.zoom),
+        width: panelW,
+        height: panelH,
+        z_index: z,
+        collapsed: false,
+      });
+    });
+  }
+
+  function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === kind);
+    if (existing) {
+      focusPanel(existing.id);
+      return;
+    }
+    const sizes = {
+      all_items: { w: 560, h: 640 },
+      notes: { w: 400, h: 420 },
+      deliverables: { w: 400, h: 360 },
+    }[kind];
+    const origin = visibleWorldOrigin();
+    updateWorkspace((ws) => {
+      ws.panels.push({
+        id: `panel-${kind}-${Date.now().toString(36)}`,
+        kind,
+        x: snapToGrid(origin.x + 60, ws.ui.zoom),
+        y: snapToGrid(origin.y + 60, ws.ui.zoom),
+        width: sizes.w,
+        height: sizes.h,
+        z_index: maxZ() + 1,
+      });
+    });
+  }
+
+  async function createItem() {
+    if (!project) return;
+    try {
+      const n = items.length + 1;
+      const item = await api.createItem(project.slug, {
+        ticket_key: `NEW-${n}`,
+        title: '',
+        priority: 5,
+        state: 'Submitted',
+      });
+      items = [...items, item];
+      detailCache = { ...detailCache, [item.id]: item };
+      openItemPanel(item.id);
+      showToast('Item created');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Create failed');
+    }
+  }
+
+  function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
+    if (!project) return;
+    // Optimistic lean list update
+    items = items.map((it) =>
+      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields } } : it
+    );
+    if (detailCache[itemId]) {
+      detailCache = {
+        ...detailCache,
+        [itemId]: {
+          ...detailCache[itemId],
+          fields: { ...detailCache[itemId].fields, ...fields },
+        },
+      };
+    }
+    if (itemSaveTimers[itemId]) clearTimeout(itemSaveTimers[itemId]);
+    itemSaveTimers[itemId] = setTimeout(async () => {
+      try {
+        const current = detailCache[itemId] || items.find((i) => i.id === itemId);
+        const version = current?.version;
+        const updated = await api.patchItem(project!.slug, itemId, fields, version);
+        items = items.map((it) => {
+          if (it.id !== itemId) return it;
