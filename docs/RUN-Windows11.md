@@ -21,26 +21,15 @@ The production UI is already built and committed in `frontend/dist`, so **you do
 
 ## Quick fix: `ModuleNotFoundError: No module named 'lit.cli'`
 
-This means either the clone is missing `lit\\cli.py`, or the editable install did not put the package on Python’s path.
-
-**1. Confirm the file exists after a pull:**
+The app package lives at the repo root (`lit\\cli.py`). Reinstall from a fresh pull:
 
 ```powershell
-cd D:\\g\\IssueTracker\\local-issue-tracker   # your clone path
 git pull
-dir lit\\cli.py
-```
-
-If `dir` says the file is missing, the GitHub copy was incomplete — pull again after the fix is on `main`, or re-clone.
-
-**2. Reinstall the package into the venv (recommended on Windows):**
-
-```powershell
-uv sync --reinstall --no-editable
+uv sync --reinstall
 uv run lit serve --open
 ```
 
-**3. Fallback — run as a module with PYTHONPATH set to the repo root:**
+Fallback — run as a module with PYTHONPATH set to the repo root:
 
 ```powershell
 $env:PYTHONPATH = (Get-Location).Path
@@ -123,7 +112,7 @@ git pull
 From the project root:
 
 ```powershell
-uv sync --reinstall --no-editable
+uv sync
 ```
 
 This creates a `.venv` folder and installs FastAPI, uvicorn, and the rest of the backend.
@@ -210,7 +199,7 @@ Only needed if you change files under `frontend\src\`.
 
 | Problem | What to try |
 |---------|-------------|
-| `No module named 'lit.cli'` | `git pull` then `uv sync --reinstall --no-editable` |
+| `No module named 'lit.cli'` | `git pull` then `uv sync --reinstall` |
 | `uv` not recognized | Close and reopen Terminal; confirm with `uv --version` |
 | Port already in use | `netstat -ano \| findstr :8765` then `taskkill /PID <pid> /F` |
 | Blank or old UI | Hard refresh in Edge: **Ctrl+Shift+R** |

@@ -49,9 +49,6 @@ cd local-issue-tracker
 # Install Python deps (creates .venv)
 uv sync
 
-# macOS: fix import if you see "No module named lit"
-uv run python packaging/ensure_sitecustomize.py
-
 # Start the local server and open the browser
 uv run lit serve --open
 ```
@@ -137,8 +134,7 @@ frontend/dist/           Committed production build (clone-and-run)
 lit/templates/           Project templates (issue-tracker fields, etc.)
 docs/RUN-macOS.md        Install & run on Mac
 docs/RUN-Windows11.md    Install & run on Windows 11
-docs/DESIGN.md           Architecture design document
-packaging/               Venv import fixes (macOS)
+packaging/               Venv import fallback (macOS hidden .pth files)
 tests/                   pytest suite
 ```
 
