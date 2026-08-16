@@ -136,7 +136,10 @@
   style:z-index={panel.z_index}
   style:background={accentBg || undefined}
   style:border-color={accentBorder || undefined}
-  onpointerdown={() => onfocus()}
+  onpointerdown={(e) => {
+    e.stopPropagation();
+    onfocus();
+  }}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div

@@ -1,3 +1,94 @@
+        // Do not replace the live workspace if the user has already switched away
+        if (workspace?.id === id) {
+          workspace = {
+            ...cloneWorkspace(workspace),
+            updated_at: saved.updated_at,
+          };
+        }
+      } catch (e) {
+        showToast('Failed to save layout');
+        console.error(e);
+      }
+    }, 400);
+  }
+
+  function updateWorkspace(mutator: (ws: Workspace) => void) {
+    if (!workspace) return;
+    const next = cloneWorkspace(workspace);
+    mutator(next);
+    workspace = next;
+    scheduleWorkspaceSave();
+  }
+
+  function toggleSidebar() {
+    updateWorkspace((ws) => {
+      ws.ui.sidebar_visible = !ws.ui.sidebar_visible;
+    });
+  }
+
+  async function selectWorkspace(id: string) {
+    if (!project) return;
+    if (workspace?.id === id) return;
+
+    // Persist current workspace into the list before leaving it
+    flushCurrentWorkspaceToList();
+
+    // Switch immediately from local list so the tab always responds
+    const local = workspaces.find((x) => x.id === id);
+    if (!local) {
+      showToast('Board not found');
+      return;
+    }
+    workspace = cloneWorkspace(local);
+    void rememberLastWorkspace(id);
+
+    // Refresh from server in the background (do not block UI)
+    try {
+      const fresh = await api.workspace(project.slug, id);
+      if (workspace?.id !== id) return; // user already switched again
+      workspace = fresh;
+      workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? fresh : w)));
+      for (const p of fresh.panels || []) {
+        if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
+      }
+    } catch (e) {
+      // Keep local board; do not stick the user on a failed network call
+      console.error(e);
+    }
+  }
+
+  async function persistWorkspaceOrders(list: Workspace[]) {
+    if (!project) return;
+    try {
+      const savedList = await Promise.all(
+        list.map((w) => api.putWorkspace(project!.slug, w.id, w))
+      );
+      workspaces = sortWorkspaces(savedList);
+      if (workspace) {
+        const cur = savedList.find((w) => w.id === workspace!.id);
+        if (cur) {
+          workspace = {
+            ...cloneWorkspace(workspace),
+            order: cur.order,
+            updated_at: cur.updated_at,
+          };
+        }
+      }
+    } catch (e) {
+      showToast('Failed to save board order');
+      console.error(e);
+    }
+  }
+
+  function reorderWorkspaceBefore(fromId: string, overId: string) {
+    if (fromId === overId) return;
+    const from = workspaces.find((w) => w.id === fromId);
+    const over = workspaces.find((w) => w.id === overId);
+    if (!from || !over || isMainBoard(from) || isMainBoard(over)) return;
+
+    const main = workspaces.filter(isMainBoard).map(cloneWorkspace);
+    let rest = workspaces.filter((w) => !isMainBoard(w)).map(cloneWorkspace);
+    const fromIdx = rest.findIndex((w) => w.id === fromId);
     const toIdx = rest.findIndex((w) => w.id === overId);
     if (fromIdx < 0 || toIdx < 0) return;
     const [moved] = rest.splice(fromIdx, 1);
@@ -89,10 +180,73 @@
   function onWheel(e: WheelEvent) {
     if (!(e.ctrlKey || e.metaKey) || !workspace) return;
     e.preventDefault();
-    const delta = -e.deltaY * 0.0015;
+    const wrap = e.currentTarget as HTMLElement;
+    const rect = wrap.getBoundingClientRect();
+    const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const oldZ = workspace.ui.zoom || 1;
+    const newZ = clampZoom(oldZ - e.deltaY * 0.0015);
+    if (newZ === oldZ) return;
+    const curPan = workspace.ui.viewport_scroll ?? defaultPan();
+    const nextPan = panAfterZoom(curPan, oldZ, newZ, pointer);
     updateWorkspace((ws) => {
-      ws.ui.zoom = clampZoom((ws.ui.zoom || 1) + delta);
+      ws.ui.zoom = newZ;
+      ws.ui.viewport_scroll = nextPan;
     });
+  }
+
+  function clearCanvasPanListeners() {
+    window.removeEventListener('pointermove', onCanvasPanMove, true);
+    window.removeEventListener('pointerup', onCanvasPanUp, true);
+    window.removeEventListener('pointercancel', onCanvasPanUp, true);
+    document.body.classList.remove('lit-canvas-panning');
+  }
+
+  function endCanvasPan() {
+    canvasPan.pointerId = -1;
+    panning = false;
+    clearCanvasPanListeners();
+  }
+
+  function onCanvasPointerDown(e: PointerEvent) {
+    if (e.button !== 0 || !workspace) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.('.panel')) return;
+    if (t?.closest?.('.board-editor')) return;
+    e.preventDefault();
+    const cur = workspace.ui.viewport_scroll ?? defaultPan();
+    canvasPan.pointerId = e.pointerId;
+    canvasPan.startX = e.clientX;
+    canvasPan.startY = e.clientY;
+    canvasPan.origX = cur.x;
+    canvasPan.origY = cur.y;
+    panning = true;
+    document.body.classList.add('lit-canvas-panning');
+    clearCanvasPanListeners();
+    window.addEventListener('pointermove', onCanvasPanMove, true);
+    window.addEventListener('pointerup', onCanvasPanUp, true);
+    window.addEventListener('pointercancel', onCanvasPanUp, true);
+  }
+
+  function onCanvasPanMove(e: PointerEvent) {
+    if (canvasPan.pointerId !== e.pointerId || !workspace) return;
+    e.preventDefault();
+    const dx = e.clientX - canvasPan.startX;
+    const dy = e.clientY - canvasPan.startY;
+    updateWorkspace((ws) => {
+      ws.ui.viewport_scroll = {
+        x: canvasPan.origX + dx,
+        y: canvasPan.origY + dy,
+      };
+    });
+  }
+
+  function onCanvasPanUp(e: PointerEvent) {
+    if (canvasPan.pointerId !== e.pointerId) return;
+    endCanvasPan();
+  }
+
+  function visibleWorldOrigin(): { x: number; y: number } {
+    return screenToWorld(pan, zoom || 1, { x: 0, y: 0 });
   }
 
   function maxZ(): number {
@@ -129,258 +283,3 @@
       focusPanel(existing.id);
       return;
     }
-    void ensureDetail(itemId);
-    const defaults = project?.default_item_panel || {};
-    const panelW = Math.max(200, Number(defaults.width) || 720);
-    const panelH = Math.max(120, Number(defaults.height) || 480);
-    updateWorkspace((ws) => {
-      const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
-      ws.panels.push({
-        id: `panel-item-${itemId.slice(0, 8)}-${Date.now().toString(36)}`,
-        kind: 'item',
-        item_id: itemId,
-        x: snapToGrid(80 + (ws.panels.length % 5) * 30, ws.ui.zoom),
-        y: snapToGrid(80 + (ws.panels.length % 5) * 30, ws.ui.zoom),
-        width: panelW,
-        height: panelH,
-        z_index: z,
-        collapsed: false,
-      });
-    });
-  }
-
-  function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
-    if (!workspace) return;
-    const existing = workspace.panels.find((p) => p.kind === kind);
-    if (existing) {
-      focusPanel(existing.id);
-      return;
-    }
-    const sizes = {
-      all_items: { w: 560, h: 640 },
-      notes: { w: 400, h: 320 },
-      deliverables: { w: 400, h: 360 },
-    }[kind];
-    updateWorkspace((ws) => {
-      ws.panels.push({
-        id: `panel-${kind}-${Date.now().toString(36)}`,
-        kind,
-        x: 60,
-        y: 60,
-        width: sizes.w,
-        height: sizes.h,
-        z_index: maxZ() + 1,
-      });
-    });
-  }
-
-  async function createItem() {
-    if (!project) return;
-    try {
-      const n = items.length + 1;
-      const item = await api.createItem(project.slug, {
-        ticket_key: `NEW-${n}`,
-        title: '',
-        priority: 5,
-        state: 'Submitted',
-      });
-      items = [...items, item];
-      detailCache = { ...detailCache, [item.id]: item };
-      openItemPanel(item.id);
-      showToast('Item created');
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Create failed');
-    }
-  }
-
-  function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
-    if (!project) return;
-    // Optimistic lean list update
-    items = items.map((it) =>
-      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields } } : it
-    );
-    if (detailCache[itemId]) {
-      detailCache = {
-        ...detailCache,
-        [itemId]: {
-          ...detailCache[itemId],
-          fields: { ...detailCache[itemId].fields, ...fields },
-        },
-      };
-    }
-    if (itemSaveTimers[itemId]) clearTimeout(itemSaveTimers[itemId]);
-    itemSaveTimers[itemId] = setTimeout(async () => {
-      try {
-        const current = detailCache[itemId] || items.find((i) => i.id === itemId);
-        const version = current?.version;
-        const updated = await api.patchItem(project!.slug, itemId, fields, version);
-        items = items.map((it) => {
-          if (it.id !== itemId) return it;
-          // lean merge: omit textarea/richtext from list store but keep others
-          const leanFields = { ...it.fields };
-          for (const [k, v] of Object.entries(updated.fields)) {
-            const def = fieldDefs.find((f) => f.id === k);
-            if (def && (def.type === 'richtext' || def.type === 'textarea')) continue;
-            leanFields[k] = v;
-          }
-          return { ...it, fields: leanFields, version: updated.version, waiting: updated.waiting, updated_at: updated.updated_at };
-        });
-        detailCache = { ...detailCache, [itemId]: updated };
-      } catch (e) {
-        showToast('Save failed — reloading item');
-        console.error(e);
-        if (project) {
-          const full = await api.item(project.slug, itemId);
-          detailCache = { ...detailCache, [itemId]: full };
-          items = await api.items(project.slug);
-        }
-      }
-    }, 350);
-  }
-
-  function primaryId(item: Item): string {
-    const key = project?.primary_identifier_field || 'ticket_key';
-    const v = String(item.fields[key] ?? '').trim();
-    if (v) return v;
-    return 'Untitled';
-  }
-
-  function itemForPanel(p: Panel): Item | null {
-    if (!p.item_id) return null;
-    return detailCache[p.item_id] || items.find((i) => i.id === p.item_id) || null;
-  }
-
-  function showToast(msg: string) {
-    toast = msg;
-    setTimeout(() => {
-      if (toast === msg) toast = null;
-    }, 2800);
-  }
-
-  function setFilterOption(fieldId: string, option: string, checked: boolean) {
-    updateWorkspace((ws) => {
-      const cur = (ws.filters.active[fieldId] as string[] | undefined) || [];
-      let next = [...cur];
-      if (checked && !next.includes(option)) next.push(option);
-      if (!checked) next = next.filter((x) => x !== option);
-      if (next.length === 0) delete ws.filters.active[fieldId];
-      else ws.filters.active[fieldId] = next;
-    });
-  }
-
-  function applyPreset(presetId: string) {
-    updateWorkspace((ws) => {
-      const p = ws.filters.presets.find((x) => x.id === presetId);
-      if (p) ws.filters.active = structuredClone(p.filter);
-    });
-  }
-
-  function clearFilters() {
-    updateWorkspace((ws) => {
-      ws.filters.active = {};
-    });
-  }
-
-  async function saveNotes(content: unknown) {
-    if (!project) return;
-    notesContent = content;
-    try {
-      await api.putNotes(project.slug, content);
-    } catch {
-      showToast('Notes save failed');
-    }
-  }
-
-  async function saveDeliverables(next: Array<Record<string, unknown>>) {
-    if (!project) return;
-    deliverables = next;
-    try {
-      await api.putDeliverables(project.slug, next);
-    } catch {
-      showToast('Deliverables save failed');
-    }
-  }
-
-  function addDeliverable() {
-    const next = [
-      ...deliverables,
-      { id: crypto.randomUUID(), title: '', done: false, notes: '' },
-    ];
-    void saveDeliverables(next);
-  }
-
-  function resetLayout() {
-    updateWorkspace((ws) => {
-      let x = 40;
-      let y = 40;
-      for (const p of ws.panels) {
-        p.x = x;
-        p.y = y;
-        x += 40;
-        y += 30;
-      }
-    });
-    showToast('Layout reset');
-  }
-
-  async function newWorkspace() {
-    if (!project) return;
-    // Save current board into the list (and debounce server save) before leaving
-    flushCurrentWorkspaceToList();
-    scheduleWorkspaceSave();
-    try {
-      const maxOrder = Math.max(
-        0,
-        ...workspaces.filter((w) => !isMainBoard(w)).map((w) => w.order ?? 0)
-      );
-      const w = await api.createWorkspace(
-        project.slug,
-        `Board ${workspaces.filter((x) => !isMainBoard(x)).length + 1}`,
-        maxOrder + 1
-      );
-      workspaces = sortWorkspaces([...workspaces, cloneWorkspace(w)]);
-      workspace = cloneWorkspace(w);
-      void rememberLastWorkspace(w.id);
-    } catch (e) {
-      showToast('Failed to create workspace');
-      console.error(e);
-    }
-  }
-
-  function openBoardEditor(e: MouseEvent, w: Workspace) {
-    e.preventDefault();
-    e.stopPropagation();
-    boardEditor = {
-      id: w.id,
-      name: w.name,
-      tab_color: w.tab_color ?? null,
-      x: Math.min(e.clientX, window.innerWidth - 240),
-      y: Math.min(e.clientY, window.innerHeight - 200),
-    };
-  }
-
-  async function saveBoardEditor() {
-    if (!project || !boardEditor) return;
-    const id = boardEditor.id;
-    const name = boardEditor.name.trim() || 'Untitled board';
-    const tab_color = boardEditor.tab_color;
-    const existing = workspaces.find((w) => w.id === id);
-    if (!existing) {
-      boardEditor = null;
-      return;
-    }
-    const next = cloneWorkspace(existing);
-    next.name = name;
-    next.tab_color = tab_color;
-    workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? next : w)));
-    if (workspace?.id === id) {
-      workspace = { ...cloneWorkspace(workspace), name, tab_color };
-    }
-    boardEditor = null;
-    try {
-      const saved = await api.putWorkspace(project.slug, id, next);
-      workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? saved : w)));
-      if (workspace?.id === id) {
-        workspace = cloneWorkspace(saved);
-      }
-      showToast('Board updated');

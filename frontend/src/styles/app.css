@@ -261,10 +261,29 @@ label.field-label {
 .canvas-wrap {
   position: relative;
   overflow: hidden;
+  cursor: grab;
+  touch-action: none;
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(110, 168, 254, 0.08), transparent 50%),
     radial-gradient(900px 500px at 100% 0%, rgba(139, 92, 246, 0.07), transparent 45%),
     var(--bg);
+}
+
+.canvas-wrap.is-panning,
+body.lit-canvas-panning,
+body.lit-canvas-panning * {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+.canvas-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1.2px);
+  background-size: calc(20px * var(--zoom, 1)) calc(20px * var(--zoom, 1));
+  background-position: var(--pan-x, 0px) var(--pan-y, 0px);
 }
 
 .canvas {
@@ -276,6 +295,7 @@ label.field-label {
 
 .panel {
   position: absolute;
+  cursor: default;
   min-width: 200px;
   min-height: 120px;
   background: var(--bg-panel);

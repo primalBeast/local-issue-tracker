@@ -15,6 +15,7 @@
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupFieldsByRow } from './lib/fieldLayout';
   import { clampZoom, snapToGrid } from './lib/snap';
+  import { defaultPan, panAfterZoom, screenToWorld } from './lib/viewport';
   import { formatDuration, liveSeconds } from './lib/waiting';
 
   let projects = $state<Project[]>([]);
@@ -77,10 +78,19 @@
   );
   let filterableFields = $derived(fieldDefs.filter((f) => f.filterable));
   let zoom = $derived(workspace?.ui.zoom ?? 1);
+  let pan = $derived(workspace?.ui.viewport_scroll ?? defaultPan());
   let compact = $derived(
     !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.55)
   );
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
+  let panning = $state(false);
+  const canvasPan = {
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    origX: 0,
+    origY: 0,
+  };
 
   /** Main Board (seed id) is always pinned to the top of the tab list. */
   function isMainBoard(w: Workspace): boolean {
@@ -134,6 +144,7 @@
       clearInterval(tick);
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
+      endCanvasPan();
     };
   });
 
@@ -272,94 +283,3 @@
       try {
         const saved = await api.putWorkspace(slug, id, toSave);
         workspaces = workspaces.map((w) => (w.id === id ? saved : w));
-        // Do not replace the live workspace if the user has already switched away
-        if (workspace?.id === id) {
-          workspace = {
-            ...cloneWorkspace(workspace),
-            updated_at: saved.updated_at,
-          };
-        }
-      } catch (e) {
-        showToast('Failed to save layout');
-        console.error(e);
-      }
-    }, 400);
-  }
-
-  function updateWorkspace(mutator: (ws: Workspace) => void) {
-    if (!workspace) return;
-    const next = cloneWorkspace(workspace);
-    mutator(next);
-    workspace = next;
-    scheduleWorkspaceSave();
-  }
-
-  function toggleSidebar() {
-    updateWorkspace((ws) => {
-      ws.ui.sidebar_visible = !ws.ui.sidebar_visible;
-    });
-  }
-
-  async function selectWorkspace(id: string) {
-    if (!project) return;
-    if (workspace?.id === id) return;
-
-    // Persist current workspace into the list before leaving it
-    flushCurrentWorkspaceToList();
-
-    // Switch immediately from local list so the tab always responds
-    const local = workspaces.find((x) => x.id === id);
-    if (!local) {
-      showToast('Board not found');
-      return;
-    }
-    workspace = cloneWorkspace(local);
-    void rememberLastWorkspace(id);
-
-    // Refresh from server in the background (do not block UI)
-    try {
-      const fresh = await api.workspace(project.slug, id);
-      if (workspace?.id !== id) return; // user already switched again
-      workspace = fresh;
-      workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? fresh : w)));
-      for (const p of fresh.panels || []) {
-        if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
-      }
-    } catch (e) {
-      // Keep local board; do not stick the user on a failed network call
-      console.error(e);
-    }
-  }
-
-  async function persistWorkspaceOrders(list: Workspace[]) {
-    if (!project) return;
-    try {
-      const savedList = await Promise.all(
-        list.map((w) => api.putWorkspace(project!.slug, w.id, w))
-      );
-      workspaces = sortWorkspaces(savedList);
-      if (workspace) {
-        const cur = savedList.find((w) => w.id === workspace!.id);
-        if (cur) {
-          workspace = {
-            ...cloneWorkspace(workspace),
-            order: cur.order,
-            updated_at: cur.updated_at,
-          };
-        }
-      }
-    } catch (e) {
-      showToast('Failed to save board order');
-      console.error(e);
-    }
-  }
-
-  function reorderWorkspaceBefore(fromId: string, overId: string) {
-    if (fromId === overId) return;
-    const from = workspaces.find((w) => w.id === fromId);
-    const over = workspaces.find((w) => w.id === overId);
-    if (!from || !over || isMainBoard(from) || isMainBoard(over)) return;
-
-    const main = workspaces.filter(isMainBoard).map(cloneWorkspace);
-    let rest = workspaces.filter((w) => !isMainBoard(w)).map(cloneWorkspace);
-    const fromIdx = rest.findIndex((w) => w.id === fromId);

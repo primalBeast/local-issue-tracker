@@ -15,6 +15,7 @@
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupFieldsByRow } from './lib/fieldLayout';
   import { clampZoom, snapToGrid } from './lib/snap';
+  import { defaultPan, panAfterZoom, screenToWorld } from './lib/viewport';
   import { formatDuration, liveSeconds } from './lib/waiting';
 
   let projects = $state<Project[]>([]);
@@ -77,10 +78,19 @@
   );
   let filterableFields = $derived(fieldDefs.filter((f) => f.filterable));
   let zoom = $derived(workspace?.ui.zoom ?? 1);
+  let pan = $derived(workspace?.ui.viewport_scroll ?? defaultPan());
   let compact = $derived(
     !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.55)
   );
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
+  let panning = $state(false);
+  const canvasPan = {
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    origX: 0,
+    origY: 0,
+  };
 
   /** Main Board (seed id) is always pinned to the top of the tab list. */
   function isMainBoard(w: Workspace): boolean {
@@ -134,6 +144,7 @@
       clearInterval(tick);
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
+      endCanvasPan();
     };
   });
 
@@ -454,10 +465,73 @@
   function onWheel(e: WheelEvent) {
     if (!(e.ctrlKey || e.metaKey) || !workspace) return;
     e.preventDefault();
-    const delta = -e.deltaY * 0.0015;
+    const wrap = e.currentTarget as HTMLElement;
+    const rect = wrap.getBoundingClientRect();
+    const pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const oldZ = workspace.ui.zoom || 1;
+    const newZ = clampZoom(oldZ - e.deltaY * 0.0015);
+    if (newZ === oldZ) return;
+    const curPan = workspace.ui.viewport_scroll ?? defaultPan();
+    const nextPan = panAfterZoom(curPan, oldZ, newZ, pointer);
     updateWorkspace((ws) => {
-      ws.ui.zoom = clampZoom((ws.ui.zoom || 1) + delta);
+      ws.ui.zoom = newZ;
+      ws.ui.viewport_scroll = nextPan;
     });
+  }
+
+  function clearCanvasPanListeners() {
+    window.removeEventListener('pointermove', onCanvasPanMove, true);
+    window.removeEventListener('pointerup', onCanvasPanUp, true);
+    window.removeEventListener('pointercancel', onCanvasPanUp, true);
+    document.body.classList.remove('lit-canvas-panning');
+  }
+
+  function endCanvasPan() {
+    canvasPan.pointerId = -1;
+    panning = false;
+    clearCanvasPanListeners();
+  }
+
+  function onCanvasPointerDown(e: PointerEvent) {
+    if (e.button !== 0 || !workspace) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.('.panel')) return;
+    if (t?.closest?.('.board-editor')) return;
+    e.preventDefault();
+    const cur = workspace.ui.viewport_scroll ?? defaultPan();
+    canvasPan.pointerId = e.pointerId;
+    canvasPan.startX = e.clientX;
+    canvasPan.startY = e.clientY;
+    canvasPan.origX = cur.x;
+    canvasPan.origY = cur.y;
+    panning = true;
+    document.body.classList.add('lit-canvas-panning');
+    clearCanvasPanListeners();
+    window.addEventListener('pointermove', onCanvasPanMove, true);
+    window.addEventListener('pointerup', onCanvasPanUp, true);
+    window.addEventListener('pointercancel', onCanvasPanUp, true);
+  }
+
+  function onCanvasPanMove(e: PointerEvent) {
+    if (canvasPan.pointerId !== e.pointerId || !workspace) return;
+    e.preventDefault();
+    const dx = e.clientX - canvasPan.startX;
+    const dy = e.clientY - canvasPan.startY;
+    updateWorkspace((ws) => {
+      ws.ui.viewport_scroll = {
+        x: canvasPan.origX + dx,
+        y: canvasPan.origY + dy,
+      };
+    });
+  }
+
+  function onCanvasPanUp(e: PointerEvent) {
+    if (canvasPan.pointerId !== e.pointerId) return;
+    endCanvasPan();
+  }
+
+  function visibleWorldOrigin(): { x: number; y: number } {
+    return screenToWorld(pan, zoom || 1, { x: 0, y: 0 });
   }
 
   function maxZ(): number {
@@ -498,14 +572,16 @@
     const defaults = project?.default_item_panel || {};
     const panelW = Math.max(200, Number(defaults.width) || 720);
     const panelH = Math.max(120, Number(defaults.height) || 480);
+    const origin = visibleWorldOrigin();
     updateWorkspace((ws) => {
       const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
+      const stagger = (ws.panels.length % 5) * 30;
       ws.panels.push({
         id: `panel-item-${itemId.slice(0, 8)}-${Date.now().toString(36)}`,
         kind: 'item',
         item_id: itemId,
-        x: snapToGrid(80 + (ws.panels.length % 5) * 30, ws.ui.zoom),
-        y: snapToGrid(80 + (ws.panels.length % 5) * 30, ws.ui.zoom),
+        x: snapToGrid(origin.x + 80 + stagger, ws.ui.zoom),
+        y: snapToGrid(origin.y + 80 + stagger, ws.ui.zoom),
         width: panelW,
         height: panelH,
         z_index: z,
@@ -526,12 +602,13 @@
       notes: { w: 400, h: 320 },
       deliverables: { w: 400, h: 360 },
     }[kind];
+    const origin = visibleWorldOrigin();
     updateWorkspace((ws) => {
       ws.panels.push({
         id: `panel-${kind}-${Date.now().toString(36)}`,
         kind,
-        x: 60,
-        y: 60,
+        x: snapToGrid(origin.x + 60, ws.ui.zoom),
+        y: snapToGrid(origin.y + 60, ws.ui.zoom),
         width: sizes.w,
         height: sizes.h,
         z_index: maxZ() + 1,
@@ -676,6 +753,7 @@
 
   function resetLayout() {
     updateWorkspace((ws) => {
+      ws.ui.viewport_scroll = defaultPan();
       let x = 40;
       let y = 40;
       for (const p of ws.panels) {
@@ -797,7 +875,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}%
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-10c</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16a</span>
       </div>
     </header>
 
@@ -871,8 +949,20 @@
       </div>
     {/if}
 
-    <div class="canvas-wrap" onwheel={onWheel}>
-      <div class="canvas" style:transform={`scale(${zoom})`}>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="canvas-wrap"
+      role="application"
+      aria-label="Unlimited workspace. Drag empty space to pan. Ctrl+scroll zooms toward the pointer."
+      class:is-panning={panning}
+      style:--pan-x="{pan.x}px"
+      style:--pan-y="{pan.y}px"
+      style:--zoom={zoom}
+      onwheel={onWheel}
+      onpointerdown={onCanvasPointerDown}
+    >
+      <div class="canvas-grid" aria-hidden="true"></div>
+      <div class="canvas" style:transform={`translate(${pan.x}px, ${pan.y}px) scale(${zoom})`}>
         {#each workspace.panels as panel (panel.id)}
           {@const item = itemForPanel(panel)}
           {@const colors =

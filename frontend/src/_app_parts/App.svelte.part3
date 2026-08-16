@@ -1,3 +1,262 @@
+    void ensureDetail(itemId);
+    const defaults = project?.default_item_panel || {};
+    const panelW = Math.max(200, Number(defaults.width) || 720);
+    const panelH = Math.max(120, Number(defaults.height) || 480);
+    const origin = visibleWorldOrigin();
+    updateWorkspace((ws) => {
+      const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
+      const stagger = (ws.panels.length % 5) * 30;
+      ws.panels.push({
+        id: `panel-item-${itemId.slice(0, 8)}-${Date.now().toString(36)}`,
+        kind: 'item',
+        item_id: itemId,
+        x: snapToGrid(origin.x + 80 + stagger, ws.ui.zoom),
+        y: snapToGrid(origin.y + 80 + stagger, ws.ui.zoom),
+        width: panelW,
+        height: panelH,
+        z_index: z,
+        collapsed: false,
+      });
+    });
+  }
+
+  function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === kind);
+    if (existing) {
+      focusPanel(existing.id);
+      return;
+    }
+    const sizes = {
+      all_items: { w: 560, h: 640 },
+      notes: { w: 400, h: 320 },
+      deliverables: { w: 400, h: 360 },
+    }[kind];
+    const origin = visibleWorldOrigin();
+    updateWorkspace((ws) => {
+      ws.panels.push({
+        id: `panel-${kind}-${Date.now().toString(36)}`,
+        kind,
+        x: snapToGrid(origin.x + 60, ws.ui.zoom),
+        y: snapToGrid(origin.y + 60, ws.ui.zoom),
+        width: sizes.w,
+        height: sizes.h,
+        z_index: maxZ() + 1,
+      });
+    });
+  }
+
+  async function createItem() {
+    if (!project) return;
+    try {
+      const n = items.length + 1;
+      const item = await api.createItem(project.slug, {
+        ticket_key: `NEW-${n}`,
+        title: '',
+        priority: 5,
+        state: 'Submitted',
+      });
+      items = [...items, item];
+      detailCache = { ...detailCache, [item.id]: item };
+      openItemPanel(item.id);
+      showToast('Item created');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Create failed');
+    }
+  }
+
+  function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
+    if (!project) return;
+    // Optimistic lean list update
+    items = items.map((it) =>
+      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields } } : it
+    );
+    if (detailCache[itemId]) {
+      detailCache = {
+        ...detailCache,
+        [itemId]: {
+          ...detailCache[itemId],
+          fields: { ...detailCache[itemId].fields, ...fields },
+        },
+      };
+    }
+    if (itemSaveTimers[itemId]) clearTimeout(itemSaveTimers[itemId]);
+    itemSaveTimers[itemId] = setTimeout(async () => {
+      try {
+        const current = detailCache[itemId] || items.find((i) => i.id === itemId);
+        const version = current?.version;
+        const updated = await api.patchItem(project!.slug, itemId, fields, version);
+        items = items.map((it) => {
+          if (it.id !== itemId) return it;
+          // lean merge: omit textarea/richtext from list store but keep others
+          const leanFields = { ...it.fields };
+          for (const [k, v] of Object.entries(updated.fields)) {
+            const def = fieldDefs.find((f) => f.id === k);
+            if (def && (def.type === 'richtext' || def.type === 'textarea')) continue;
+            leanFields[k] = v;
+          }
+          return { ...it, fields: leanFields, version: updated.version, waiting: updated.waiting, updated_at: updated.updated_at };
+        });
+        detailCache = { ...detailCache, [itemId]: updated };
+      } catch (e) {
+        showToast('Save failed — reloading item');
+        console.error(e);
+        if (project) {
+          const full = await api.item(project.slug, itemId);
+          detailCache = { ...detailCache, [itemId]: full };
+          items = await api.items(project.slug);
+        }
+      }
+    }, 350);
+  }
+
+  function primaryId(item: Item): string {
+    const key = project?.primary_identifier_field || 'ticket_key';
+    const v = String(item.fields[key] ?? '').trim();
+    if (v) return v;
+    return 'Untitled';
+  }
+
+  function itemForPanel(p: Panel): Item | null {
+    if (!p.item_id) return null;
+    return detailCache[p.item_id] || items.find((i) => i.id === p.item_id) || null;
+  }
+
+  function showToast(msg: string) {
+    toast = msg;
+    setTimeout(() => {
+      if (toast === msg) toast = null;
+    }, 2800);
+  }
+
+  function setFilterOption(fieldId: string, option: string, checked: boolean) {
+    updateWorkspace((ws) => {
+      const cur = (ws.filters.active[fieldId] as string[] | undefined) || [];
+      let next = [...cur];
+      if (checked && !next.includes(option)) next.push(option);
+      if (!checked) next = next.filter((x) => x !== option);
+      if (next.length === 0) delete ws.filters.active[fieldId];
+      else ws.filters.active[fieldId] = next;
+    });
+  }
+
+  function applyPreset(presetId: string) {
+    updateWorkspace((ws) => {
+      const p = ws.filters.presets.find((x) => x.id === presetId);
+      if (p) ws.filters.active = structuredClone(p.filter);
+    });
+  }
+
+  function clearFilters() {
+    updateWorkspace((ws) => {
+      ws.filters.active = {};
+    });
+  }
+
+  async function saveNotes(content: unknown) {
+    if (!project) return;
+    notesContent = content;
+    try {
+      await api.putNotes(project.slug, content);
+    } catch {
+      showToast('Notes save failed');
+    }
+  }
+
+  async function saveDeliverables(next: Array<Record<string, unknown>>) {
+    if (!project) return;
+    deliverables = next;
+    try {
+      await api.putDeliverables(project.slug, next);
+    } catch {
+      showToast('Deliverables save failed');
+    }
+  }
+
+  function addDeliverable() {
+    const next = [
+      ...deliverables,
+      { id: crypto.randomUUID(), title: '', done: false, notes: '' },
+    ];
+    void saveDeliverables(next);
+  }
+
+  function resetLayout() {
+    updateWorkspace((ws) => {
+      ws.ui.viewport_scroll = defaultPan();
+      let x = 40;
+      let y = 40;
+      for (const p of ws.panels) {
+        p.x = x;
+        p.y = y;
+        x += 40;
+        y += 30;
+      }
+    });
+    showToast('Layout reset');
+  }
+
+  async function newWorkspace() {
+    if (!project) return;
+    // Save current board into the list (and debounce server save) before leaving
+    flushCurrentWorkspaceToList();
+    scheduleWorkspaceSave();
+    try {
+      const maxOrder = Math.max(
+        0,
+        ...workspaces.filter((w) => !isMainBoard(w)).map((w) => w.order ?? 0)
+      );
+      const w = await api.createWorkspace(
+        project.slug,
+        `Board ${workspaces.filter((x) => !isMainBoard(x)).length + 1}`,
+        maxOrder + 1
+      );
+      workspaces = sortWorkspaces([...workspaces, cloneWorkspace(w)]);
+      workspace = cloneWorkspace(w);
+      void rememberLastWorkspace(w.id);
+    } catch (e) {
+      showToast('Failed to create workspace');
+      console.error(e);
+    }
+  }
+
+  function openBoardEditor(e: MouseEvent, w: Workspace) {
+    e.preventDefault();
+    e.stopPropagation();
+    boardEditor = {
+      id: w.id,
+      name: w.name,
+      tab_color: w.tab_color ?? null,
+      x: Math.min(e.clientX, window.innerWidth - 240),
+      y: Math.min(e.clientY, window.innerHeight - 200),
+    };
+  }
+
+  async function saveBoardEditor() {
+    if (!project || !boardEditor) return;
+    const id = boardEditor.id;
+    const name = boardEditor.name.trim() || 'Untitled board';
+    const tab_color = boardEditor.tab_color;
+    const existing = workspaces.find((w) => w.id === id);
+    if (!existing) {
+      boardEditor = null;
+      return;
+    }
+    const next = cloneWorkspace(existing);
+    next.name = name;
+    next.tab_color = tab_color;
+    workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? next : w)));
+    if (workspace?.id === id) {
+      workspace = { ...cloneWorkspace(workspace), name, tab_color };
+    }
+    boardEditor = null;
+    try {
+      const saved = await api.putWorkspace(project.slug, id, next);
+      workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? saved : w)));
+      if (workspace?.id === id) {
+        workspace = cloneWorkspace(saved);
+      }
+      showToast('Board updated');
     } catch (err) {
       showToast('Failed to update board');
       console.error(err);
@@ -24,272 +283,3 @@
       <div class="brand">
         <div class="brand-mark"></div>
         Local Issue Tracker
-      </div>
-      <select
-        style="width:auto;min-width:160px"
-        value={project.slug}
-        onchange={(e) => loadProject(e.currentTarget.value)}
-      >
-        {#each projects as p}
-          <option value={p.slug}>{p.name}</option>
-        {/each}
-      </select>
-      <button type="button" class="ghost" title="Toggle sidebar (⌘\)" onclick={toggleSidebar}>
-        {sidebarVisible ? 'Hide tabs' : 'Show tabs'}
-      </button>
-      <button type="button" class="primary" onclick={createItem}>+ Item</button>
-      <button type="button" onclick={() => openSpecial('all_items')}>All Items</button>
-      <button type="button" onclick={() => openSpecial('notes')}>Notes</button>
-      <button type="button" onclick={() => openSpecial('deliverables')}>Deliverables</button>
-      <button type="button" class="ghost" onclick={resetLayout}>Reset layout</button>
-      <div class="topbar-spacer"></div>
-      <div class="topbar-meta">
-        {workspace.name} · zoom {(zoom * 100).toFixed(0)}%
-        {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-10c</span>
-      </div>
-    </header>
-
-    <aside class="sidebar" class:hidden={!sidebarVisible}>
-      {#each workspaces as w (w.id)}
-        <button
-          type="button"
-          class="ws-tab"
-          data-ws-id={w.id}
-          class:active={w.id === workspace.id}
-          class:ws-tab-main={isMainBoard(w)}
-          class:ws-tab-dragging={dragWsId === w.id}
-          class:ws-tab-drag-over={dragOverWsId === w.id && dragWsId !== w.id}
-          style={tabStyle(w)}
-          onclick={() => onTabClick(w.id)}
-          onpointerdown={(e) => onTabPointerDown(e, w.id)}
-          ondblclick={(e) => openBoardEditor(e, w)}
-          oncontextmenu={(e) => openBoardEditor(e, w)}
-          title={
-            isMainBoard(w)
-              ? `${w.name} — click to open; right-click or double-click to rename / set colour`
-              : `${w.name} — click to open; drag to reorder; right-click or double-click to rename / set colour`
-          }
-        >
-          {w.name}
-        </button>
-      {/each}
-      <button type="button" class="ws-tab" onclick={() => void newWorkspace()} title="New workspace">+</button>
-    </aside>
-
-    {#if boardEditor}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="board-editor"
-        style:left="{boardEditor.x}px"
-        style:top="{boardEditor.y}px"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="board-editor-title">Board settings</div>
-        <label class="field-label" for="board-name-input">Name</label>
-        <input
-          id="board-name-input"
-          type="text"
-          bind:value={boardEditor.name}
-          onkeydown={(e) => {
-            if (e.key === 'Enter') void saveBoardEditor();
-            if (e.key === 'Escape') boardEditor = null;
-          }}
-        />
-        <div class="field-label" style="margin-top:10px">Tab colour</div>
-        <div class="color-swatches">
-          {#each TAB_COLOR_SWATCHES as c}
-            <button
-              type="button"
-              class="color-swatch"
-              class:selected={(boardEditor.tab_color || null) === c}
-              class:swatch-none={c === null}
-              style:background={c || 'transparent'}
-              title={c || 'Default'}
-              onclick={() => {
-                if (boardEditor) boardEditor = { ...boardEditor, tab_color: c };
-              }}
-            ></button>
-          {/each}
-        </div>
-        <div class="board-editor-actions">
-          <button type="button" class="ghost" onclick={() => (boardEditor = null)}>Cancel</button>
-          <button type="button" class="primary" onclick={() => void saveBoardEditor()}>Save</button>
-        </div>
-      </div>
-    {/if}
-
-    <div class="canvas-wrap" onwheel={onWheel}>
-      <div class="canvas" style:transform={`scale(${zoom})`}>
-        {#each workspace.panels as panel (panel.id)}
-          {@const item = itemForPanel(panel)}
-          {@const colors =
-            panel.kind === 'item' && item
-              ? panelColors(item.fields, project.color_coding)
-              : { bg: '', border: '' }}
-
-          <FloatingPanel
-            {panel}
-            {zoom}
-            active={false}
-            title={
-              panel.kind === 'item'
-                ? item
-                  ? primaryId(item)
-                  : 'Item'
-                : panel.kind === 'all_items'
-                  ? 'All Items'
-                  : panel.kind === 'notes'
-                    ? 'Project Notes'
-                    : 'Deliverables'
-            }
-            accentBg={colors.bg || undefined}
-            accentBorder={colors.border || undefined}
-            compact={compact && panel.kind === 'item'}
-            onfocus={() => focusPanel(panel.id)}
-            onmove={(patch) => movePanel(panel.id, patch)}
-            onclose={() => closePanel(panel.id)}
-          >
-            {#snippet compactChildren()}
-              <div class="compact-id">{item ? primaryId(item) : '…'}</div>
-            {/snippet}
-
-            {#if panel.kind === 'item' && item}
-              {#if item.waiting?.is_waiting}
-                <div class="waiting-badge" style="margin-bottom:8px">
-                  ⏱ Waiting
-                  {formatDuration(
-                    liveSeconds(item.waiting.current_started_at, nowTick) ??
-                      item.waiting.current_seconds
-                  )}
-                  · total {formatDuration(item.waiting.total_seconds)}
-                </div>
-              {/if}
-              {#if !detailCache[item.id]}
-                <div class="empty-hint">Loading item…</div>
-              {:else}
-                {#key item.id}
-                  {#each fieldRows as row (row.row)}
-                    <div class="field-row" class:field-row-multi={row.fields.length > 1}>
-                      {#each row.fields as def (def.id)}
-                        <div class="field-col" style:flex={fieldFlex(def)}>
-                          <FieldRenderer
-                            {def}
-                            fields={detailCache[item.id].fields}
-                            onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
-                          />
-                        </div>
-                      {/each}
-                    </div>
-                  {/each}
-                {/key}
-              {/if}
-            {:else if panel.kind === 'all_items'}
-              <div class="toolbar-row">
-                <button type="button" class="primary" onclick={createItem}>New item</button>
-                <button type="button" class="ghost" onclick={clearFilters}>Clear filters</button>
-                {#each workspace.filters.presets as preset}
-                  <button type="button" onclick={() => applyPreset(preset.id)}>{preset.name}</button>
-                {/each}
-              </div>
-
-              {#if filterableFields.length}
-                <div class="filter-panel" style="margin-bottom:12px">
-                  {#each filterableFields as ff}
-                    <div>
-                      <div class="filter-group-title">{ff.label}</div>
-                      {#if ff.type === 'select' && ff.options}
-                        {#each ff.options as opt}
-                          <label class="check-row">
-                            <input
-                              type="checkbox"
-                              checked={((workspace.filters.active[ff.id] as string[]) || []).includes(opt)}
-                              onchange={(e) => setFilterOption(ff.id, opt, e.currentTarget.checked)}
-                            />
-                            {opt}
-                          </label>
-                        {/each}
-                      {/if}
-                    </div>
-                  {/each}
-                </div>
-              {/if}
-
-              <table class="table">
-                <thead>
-                  <tr>
-                    {#each listFields as f}
-                      <th style:width={f.list_width || undefined}>{f.label}</th>
-                    {/each}
-                    <th>Waiting</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each filteredItems as it}
-                    <tr class="clickable" onclick={() => openItemPanel(it.id)}>
-                      {#each listFields as f}
-                        <td>{String(it.fields[f.id] ?? '')}</td>
-                      {/each}
-                      <td>
-                        {#if it.waiting?.is_waiting}
-                          <span class="waiting-badge">
-                            {formatDuration(
-                              liveSeconds(it.waiting.current_started_at, nowTick) ??
-                                it.waiting.current_seconds
-                            )}
-                          </span>
-                        {:else}
-                          —
-                        {/if}
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-              {#if !filteredItems.length}
-                <div class="empty-hint">No items match filters. Create one or clear filters.</div>
-              {/if}
-            {:else if panel.kind === 'notes'}
-              {#key project.slug}
-                <RichText value={notesContent} onchange={(json) => void saveNotes(json)} />
-              {/key}
-            {:else if panel.kind === 'deliverables'}
-              <div class="toolbar-row">
-                <button type="button" class="primary" onclick={addDeliverable}>Add</button>
-              </div>
-              {#each deliverables as d, i}
-                <div class="toolbar-row" style="align-items:flex-start">
-                  <input
-                    type="checkbox"
-                    style="width:auto;margin-top:8px"
-                    checked={Boolean(d.done)}
-                    onchange={(e) => {
-                      const next = deliverables.map((x, j) =>
-                        j === i ? { ...x, done: e.currentTarget.checked } : x
-                      );
-                      void saveDeliverables(next);
-                    }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Deliverable title"
-                    value={String(d.title ?? '')}
-                    oninput={(e) => {
-                      const next = deliverables.map((x, j) =>
-                        j === i ? { ...x, title: e.currentTarget.value } : x
-                      );
-                      deliverables = next;
-                    }}
-                    onchange={() => void saveDeliverables(deliverables)}
-                  />
-                  <button
-                    type="button"
-                    class="ghost"
-                    onclick={() => void saveDeliverables(deliverables.filter((_, j) => j !== i))}
-                  >
-                    ✕
-                  </button>
-                </div>
-              {/each}
-            {/if}
