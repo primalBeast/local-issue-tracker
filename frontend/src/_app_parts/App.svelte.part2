@@ -1,0 +1,386 @@
+    const toIdx = rest.findIndex((w) => w.id === overId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const [moved] = rest.splice(fromIdx, 1);
+    rest.splice(toIdx, 0, moved);
+
+    for (const m of main) m.order = 0;
+    rest = rest.map((w, i) => ({ ...w, order: i + 1 }));
+    const next = sortWorkspaces([...main, ...rest]);
+    workspaces = next;
+    void persistWorkspaceOrders(next);
+  }
+
+  function clearTabWindowListeners() {
+    window.removeEventListener('pointermove', onTabWindowMove, true);
+    window.removeEventListener('pointerup', onTabWindowUp, true);
+    window.removeEventListener('pointercancel', onTabWindowUp, true);
+  }
+
+  function resetTabDrag() {
+    tabDrag.id = null;
+    tabDrag.dragging = false;
+    tabDrag.pointerId = -1;
+    dragWsId = null;
+    dragOverWsId = null;
+    clearTabWindowListeners();
+  }
+
+  /** Board select — always works via normal click. Drag only reorders. */
+  function onTabClick(id: string) {
+    void selectWorkspace(id);
+  }
+
+  function onTabPointerDown(e: PointerEvent, id: string) {
+    if (e.button !== 0) return;
+    // Arm a potential reorder only; selection is always via onclick.
+    tabDrag.id = id;
+    tabDrag.startX = e.clientX;
+    tabDrag.startY = e.clientY;
+    tabDrag.dragging = false;
+    tabDrag.suppressClick = false;
+    tabDrag.pointerId = e.pointerId;
+    clearTabWindowListeners();
+    window.addEventListener('pointermove', onTabWindowMove, true);
+    window.addEventListener('pointerup', onTabWindowUp, true);
+    window.addEventListener('pointercancel', onTabWindowUp, true);
+  }
+
+  function onTabWindowMove(e: PointerEvent) {
+    if (tabDrag.pointerId !== e.pointerId || !tabDrag.id) return;
+    const w = workspaces.find((x) => x.id === tabDrag.id);
+    // Main board is pinned — never reorder
+    if (!w || isMainBoard(w)) return;
+
+    const dx = Math.abs(e.clientX - tabDrag.startX);
+    const dy = Math.abs(e.clientY - tabDrag.startY);
+    if (!tabDrag.dragging && (dx > 12 || dy > 12)) {
+      tabDrag.dragging = true;
+      dragWsId = tabDrag.id;
+    }
+    if (!tabDrag.dragging) return;
+
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const tabEl = el?.closest?.('[data-ws-id]') as HTMLElement | null;
+    const overId = tabEl?.dataset?.wsId ?? null;
+    if (!overId || overId === tabDrag.id) {
+      dragOverWsId = null;
+      return;
+    }
+    const over = workspaces.find((x) => x.id === overId);
+    if (!over || isMainBoard(over)) {
+      dragOverWsId = null;
+      return;
+    }
+    dragOverWsId = overId;
+  }
+
+  function onTabWindowUp(e: PointerEvent) {
+    if (tabDrag.pointerId !== e.pointerId) return;
+    const wasDrag = tabDrag.dragging;
+    const fromId = tabDrag.id;
+    const dropId = dragOverWsId;
+    resetTabDrag();
+    // Reorder only — never suppress the click that selects the board
+    if (wasDrag && fromId && dropId) {
+      reorderWorkspaceBefore(fromId, dropId);
+    }
+  }
+
+  function onWheel(e: WheelEvent) {
+    if (!(e.ctrlKey || e.metaKey) || !workspace) return;
+    e.preventDefault();
+    const delta = -e.deltaY * 0.0015;
+    updateWorkspace((ws) => {
+      ws.ui.zoom = clampZoom((ws.ui.zoom || 1) + delta);
+    });
+  }
+
+  function maxZ(): number {
+    if (!workspace?.panels.length) return 1;
+    return Math.max(...workspace.panels.map((p) => p.z_index || 0));
+  }
+
+  function focusPanel(id: string) {
+    updateWorkspace((ws) => {
+      const p = ws.panels.find((x) => x.id === id);
+      if (!p) return;
+      p.z_index = maxZ() + 1;
+    });
+  }
+
+  function movePanel(id: string, patch: Partial<Panel>) {
+    updateWorkspace((ws) => {
+      const p = ws.panels.find((x) => x.id === id);
+      if (!p) return;
+      Object.assign(p, patch);
+    });
+  }
+
+  function closePanel(id: string) {
+    updateWorkspace((ws) => {
+      ws.panels = ws.panels.filter((p) => p.id !== id);
+    });
+  }
+
+  function openItemPanel(itemId: string) {
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
+    if (existing) {
+      focusPanel(existing.id);
+      return;
+    }
+    void ensureDetail(itemId);
+    const defaults = project?.default_item_panel || {};
+    const panelW = Math.max(200, Number(defaults.width) || 720);
+    const panelH = Math.max(120, Number(defaults.height) || 480);
+    updateWorkspace((ws) => {
+      const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
+      ws.panels.push({
+        id: `panel-item-${itemId.slice(0, 8)}-${Date.now().toString(36)}`,
+        kind: 'item',
+        item_id: itemId,
+        x: snapToGrid(80 + (ws.panels.length % 5) * 30, ws.ui.zoom),
+        y: snapToGrid(80 + (ws.panels.length % 5) * 30, ws.ui.zoom),
+        width: panelW,
+        height: panelH,
+        z_index: z,
+        collapsed: false,
+      });
+    });
+  }
+
+  function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === kind);
+    if (existing) {
+      focusPanel(existing.id);
+      return;
+    }
+    const sizes = {
+      all_items: { w: 560, h: 640 },
+      notes: { w: 400, h: 320 },
+      deliverables: { w: 400, h: 360 },
+    }[kind];
+    updateWorkspace((ws) => {
+      ws.panels.push({
+        id: `panel-${kind}-${Date.now().toString(36)}`,
+        kind,
+        x: 60,
+        y: 60,
+        width: sizes.w,
+        height: sizes.h,
+        z_index: maxZ() + 1,
+      });
+    });
+  }
+
+  async function createItem() {
+    if (!project) return;
+    try {
+      const n = items.length + 1;
+      const item = await api.createItem(project.slug, {
+        ticket_key: `NEW-${n}`,
+        title: '',
+        priority: 5,
+        state: 'Submitted',
+      });
+      items = [...items, item];
+      detailCache = { ...detailCache, [item.id]: item };
+      openItemPanel(item.id);
+      showToast('Item created');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Create failed');
+    }
+  }
+
+  function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
+    if (!project) return;
+    // Optimistic lean list update
+    items = items.map((it) =>
+      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields } } : it
+    );
+    if (detailCache[itemId]) {
+      detailCache = {
+        ...detailCache,
+        [itemId]: {
+          ...detailCache[itemId],
+          fields: { ...detailCache[itemId].fields, ...fields },
+        },
+      };
+    }
+    if (itemSaveTimers[itemId]) clearTimeout(itemSaveTimers[itemId]);
+    itemSaveTimers[itemId] = setTimeout(async () => {
+      try {
+        const current = detailCache[itemId] || items.find((i) => i.id === itemId);
+        const version = current?.version;
+        const updated = await api.patchItem(project!.slug, itemId, fields, version);
+        items = items.map((it) => {
+          if (it.id !== itemId) return it;
+          // lean merge: omit textarea/richtext from list store but keep others
+          const leanFields = { ...it.fields };
+          for (const [k, v] of Object.entries(updated.fields)) {
+            const def = fieldDefs.find((f) => f.id === k);
+            if (def && (def.type === 'richtext' || def.type === 'textarea')) continue;
+            leanFields[k] = v;
+          }
+          return { ...it, fields: leanFields, version: updated.version, waiting: updated.waiting, updated_at: updated.updated_at };
+        });
+        detailCache = { ...detailCache, [itemId]: updated };
+      } catch (e) {
+        showToast('Save failed — reloading item');
+        console.error(e);
+        if (project) {
+          const full = await api.item(project.slug, itemId);
+          detailCache = { ...detailCache, [itemId]: full };
+          items = await api.items(project.slug);
+        }
+      }
+    }, 350);
+  }
+
+  function primaryId(item: Item): string {
+    const key = project?.primary_identifier_field || 'ticket_key';
+    const v = String(item.fields[key] ?? '').trim();
+    if (v) return v;
+    return 'Untitled';
+  }
+
+  function itemForPanel(p: Panel): Item | null {
+    if (!p.item_id) return null;
+    return detailCache[p.item_id] || items.find((i) => i.id === p.item_id) || null;
+  }
+
+  function showToast(msg: string) {
+    toast = msg;
+    setTimeout(() => {
+      if (toast === msg) toast = null;
+    }, 2800);
+  }
+
+  function setFilterOption(fieldId: string, option: string, checked: boolean) {
+    updateWorkspace((ws) => {
+      const cur = (ws.filters.active[fieldId] as string[] | undefined) || [];
+      let next = [...cur];
+      if (checked && !next.includes(option)) next.push(option);
+      if (!checked) next = next.filter((x) => x !== option);
+      if (next.length === 0) delete ws.filters.active[fieldId];
+      else ws.filters.active[fieldId] = next;
+    });
+  }
+
+  function applyPreset(presetId: string) {
+    updateWorkspace((ws) => {
+      const p = ws.filters.presets.find((x) => x.id === presetId);
+      if (p) ws.filters.active = structuredClone(p.filter);
+    });
+  }
+
+  function clearFilters() {
+    updateWorkspace((ws) => {
+      ws.filters.active = {};
+    });
+  }
+
+  async function saveNotes(content: unknown) {
+    if (!project) return;
+    notesContent = content;
+    try {
+      await api.putNotes(project.slug, content);
+    } catch {
+      showToast('Notes save failed');
+    }
+  }
+
+  async function saveDeliverables(next: Array<Record<string, unknown>>) {
+    if (!project) return;
+    deliverables = next;
+    try {
+      await api.putDeliverables(project.slug, next);
+    } catch {
+      showToast('Deliverables save failed');
+    }
+  }
+
+  function addDeliverable() {
+    const next = [
+      ...deliverables,
+      { id: crypto.randomUUID(), title: '', done: false, notes: '' },
+    ];
+    void saveDeliverables(next);
+  }
+
+  function resetLayout() {
+    updateWorkspace((ws) => {
+      let x = 40;
+      let y = 40;
+      for (const p of ws.panels) {
+        p.x = x;
+        p.y = y;
+        x += 40;
+        y += 30;
+      }
+    });
+    showToast('Layout reset');
+  }
+
+  async function newWorkspace() {
+    if (!project) return;
+    // Save current board into the list (and debounce server save) before leaving
+    flushCurrentWorkspaceToList();
+    scheduleWorkspaceSave();
+    try {
+      const maxOrder = Math.max(
+        0,
+        ...workspaces.filter((w) => !isMainBoard(w)).map((w) => w.order ?? 0)
+      );
+      const w = await api.createWorkspace(
+        project.slug,
+        `Board ${workspaces.filter((x) => !isMainBoard(x)).length + 1}`,
+        maxOrder + 1
+      );
+      workspaces = sortWorkspaces([...workspaces, cloneWorkspace(w)]);
+      workspace = cloneWorkspace(w);
+      void rememberLastWorkspace(w.id);
+    } catch (e) {
+      showToast('Failed to create workspace');
+      console.error(e);
+    }
+  }
+
+  function openBoardEditor(e: MouseEvent, w: Workspace) {
+    e.preventDefault();
+    e.stopPropagation();
+    boardEditor = {
+      id: w.id,
+      name: w.name,
+      tab_color: w.tab_color ?? null,
+      x: Math.min(e.clientX, window.innerWidth - 240),
+      y: Math.min(e.clientY, window.innerHeight - 200),
+    };
+  }
+
+  async function saveBoardEditor() {
+    if (!project || !boardEditor) return;
+    const id = boardEditor.id;
+    const name = boardEditor.name.trim() || 'Untitled board';
+    const tab_color = boardEditor.tab_color;
+    const existing = workspaces.find((w) => w.id === id);
+    if (!existing) {
+      boardEditor = null;
+      return;
+    }
+    const next = cloneWorkspace(existing);
+    next.name = name;
+    next.tab_color = tab_color;
+    workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? next : w)));
+    if (workspace?.id === id) {
+      workspace = { ...cloneWorkspace(workspace), name, tab_color };
+    }
+    boardEditor = null;
+    try {
+      const saved = await api.putWorkspace(project.slug, id, next);
+      workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? saved : w)));
+      if (workspace?.id === id) {
+        workspace = cloneWorkspace(saved);
+      }
+      showToast('Board updated');
