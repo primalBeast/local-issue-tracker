@@ -1,10 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { Editor } from '@tiptap/core';
-  import StarterKit from '@tiptap/starter-kit';
-  import Placeholder from '@tiptap/extension-placeholder';
-  import Underline from '@tiptap/extension-underline';
-  import Strike from '@tiptap/extension-strike';
+  import type { Editor } from '@tiptap/core';
 
   interface Props {
     value?: unknown;
@@ -18,19 +14,10 @@
   let editor = $state<Editor | null>(null);
   let toolbarTick = $state(0);
   let showHelp = $state(false);
+  let editorError = $state<string | null>(null);
 
+  /** Last JSON we emitted to parent — ignore echo updates. */
   let lastEmitted = '';
-
-  const StrikeWithShortcuts = Strike.extend({
-    addKeyboardShortcuts() {
-      return {
-        'Mod-Shift-s': () => this.editor.commands.toggleStrike(),
-        'Mod-Shift-S': () => this.editor.commands.toggleStrike(),
-        'Mod-Shift-x': () => this.editor.commands.toggleStrike(),
-        'Mod-Shift-X': () => this.editor.commands.toggleStrike(),
-      };
-    },
-  });
 
   function serialize(doc: unknown): string {
     try {
@@ -41,33 +28,75 @@
   }
 
   onMount(() => {
+    // Snapshot initial value once at mount. Parent must remount (via {#key}) to load different content.
+    // NO $effect syncing value ↔ editor — that caused effect_update_depth_exceeded and froze the app.
     const initial = (value as object) || { type: 'doc', content: [] };
     lastEmitted = serialize(initial);
+    let cancelled = false;
 
-    const ed = new Editor({
-      element: el,
-      extensions: [
-        StarterKit.configure({
-          strike: false,
-        }),
-        Underline,
-        StrikeWithShortcuts,
-        Placeholder.configure({ placeholder }),
-      ],
-      content: initial,
-      onUpdate: ({ editor: instance }) => {
-        const json = instance.getJSON();
-        const s = serialize(json);
-        if (s === lastEmitted) return;
-        lastEmitted = s;
-        onchange?.(json);
-      },
-      onSelectionUpdate: () => {
-        toolbarTick += 1;
-      },
-    });
-    editor = ed;
-    lastEmitted = serialize(ed.getJSON());
+    // Dynamic import so the rest of the UI can load even if TipTap chunks 404.
+    void (async () => {
+      try {
+        const [{ Editor }, { default: StarterKit }, { default: Placeholder }, { default: Underline }, { default: Strike }] =
+          await Promise.all([
+            import('@tiptap/core'),
+            import('@tiptap/starter-kit'),
+            import('@tiptap/extension-placeholder'),
+            import('@tiptap/extension-underline'),
+            import('@tiptap/extension-strike'),
+          ]);
+        if (cancelled) return;
+
+        const StrikeWithShortcuts = Strike.extend({
+          addKeyboardShortcuts() {
+            return {
+              'Mod-Shift-s': () => this.editor.commands.toggleStrike(),
+              'Mod-Shift-S': () => this.editor.commands.toggleStrike(),
+              'Mod-Shift-x': () => this.editor.commands.toggleStrike(),
+              'Mod-Shift-X': () => this.editor.commands.toggleStrike(),
+            };
+          },
+        });
+
+        const ed = new Editor({
+          element: el,
+          extensions: [
+            StarterKit.configure({
+              strike: false,
+            }),
+            Underline,
+            StrikeWithShortcuts,
+            Placeholder.configure({ placeholder }),
+          ],
+          content: initial,
+          onUpdate: ({ editor: instance }) => {
+            const json = instance.getJSON();
+            const s = serialize(json);
+            if (s === lastEmitted) return;
+            lastEmitted = s;
+            onchange?.(json);
+          },
+          onSelectionUpdate: () => {
+            toolbarTick += 1;
+          },
+        });
+        if (cancelled) {
+          ed.destroy();
+          return;
+        }
+        editor = ed;
+        // TipTap may normalize initial doc; treat that as baseline (do not emit)
+        lastEmitted = serialize(ed.getJSON());
+      } catch (e) {
+        if (!cancelled) {
+          editorError = e instanceof Error ? e.message : String(e);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   });
 
   onDestroy(() => {
@@ -88,18 +117,47 @@
 </script>
 
 <div class="rte-wrap">
+  {#if editorError}
+    <div class="empty-hint" style="padding:8px">Notes editor failed to load. The rest of the app still works.</div>
+  {:else if !editor}
+    <div class="empty-hint" style="padding:8px">Loading notes editor…</div>
+  {/if}
   {#if editor}
     <div class="rte-toolbar" role="toolbar" aria-label="Text formatting">
-      <button type="button" class="rte-btn" class:active={isActive('bold')} title="Bold (⌘B / Ctrl+B)" onclick={() => run(() => editor!.chain().focus().toggleBold().run())}>
+      <button
+        type="button"
+        class="rte-btn"
+        class:active={isActive('bold')}
+        title="Bold (⌘B / Ctrl+B)"
+        onclick={() => run(() => editor!.chain().focus().toggleBold().run())}
+      >
         <strong>B</strong>
       </button>
-      <button type="button" class="rte-btn" class:active={isActive('italic')} title="Italic (⌘I / Ctrl+I)" onclick={() => run(() => editor!.chain().focus().toggleItalic().run())}>
+      <button
+        type="button"
+        class="rte-btn"
+        class:active={isActive('italic')}
+        title="Italic (⌘I / Ctrl+I)"
+        onclick={() => run(() => editor!.chain().focus().toggleItalic().run())}
+      >
         <em>I</em>
       </button>
-      <button type="button" class="rte-btn" class:active={isActive('underline')} title="Underline (⌘U / Ctrl+U)" onclick={() => run(() => editor!.chain().focus().toggleUnderline().run())}>
+      <button
+        type="button"
+        class="rte-btn"
+        class:active={isActive('underline')}
+        title="Underline (⌘U / Ctrl+U)"
+        onclick={() => run(() => editor!.chain().focus().toggleUnderline().run())}
+      >
         <span class="u">U</span>
       </button>
-      <button type="button" class="rte-btn" class:active={isActive('strike')} title="Strikethrough (⌘⇧X or ⌘⇧S)" onclick={() => run(() => editor!.chain().focus().toggleStrike().run())}>
+      <button
+        type="button"
+        class="rte-btn"
+        class:active={isActive('strike')}
+        title="Strikethrough (⌘⇧X or ⌘⇧S / Ctrl+Shift+X or Ctrl+Shift+S)"
+        onclick={() => run(() => editor!.chain().focus().toggleStrike().run())}
+      >
         <span class="s">S</span>
       </button>
       <button
@@ -152,6 +210,7 @@
     background: #0e1219;
     overflow: hidden;
   }
+
   .rte-toolbar {
     display: flex;
     gap: 4px;
@@ -159,6 +218,7 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     background: rgba(255, 255, 255, 0.02);
   }
+
   .rte-btn {
     min-width: 28px;
     height: 26px;
@@ -170,19 +230,33 @@
     font-size: 13px;
     line-height: 1;
   }
+
   .rte-btn:hover {
     background: rgba(255, 255, 255, 0.06);
     color: var(--text, #e8eaed);
     border-color: var(--border, #2a3140);
   }
+
   .rte-btn.active {
     background: rgba(110, 168, 254, 0.15);
     border-color: rgba(110, 168, 254, 0.4);
     color: var(--text, #e8eaed);
   }
-  .rte-btn .u { text-decoration: underline; font-weight: 600; }
-  .rte-btn .s { text-decoration: line-through; }
-  .rte-help { margin-left: auto; font-weight: 650; }
+
+  .rte-btn .u {
+    text-decoration: underline;
+    font-weight: 600;
+  }
+
+  .rte-btn .s {
+    text-decoration: line-through;
+  }
+
+  .rte-help {
+    margin-left: auto;
+    font-weight: 650;
+  }
+
   .rte-help-panel {
     padding: 8px 10px 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -190,10 +264,28 @@
     font-size: 11.5px;
     color: var(--text-muted, #9aa3b2);
   }
-  .rte-help-title { font-weight: 650; color: var(--text, #e8eaed); margin-bottom: 6px; }
-  .rte-help-table { width: 100%; border-collapse: collapse; }
-  .rte-help-table td { padding: 3px 0; vertical-align: top; }
-  .rte-help-table td:first-child { width: 38%; color: var(--text, #e8eaed); }
+
+  .rte-help-title {
+    font-weight: 650;
+    color: var(--text, #e8eaed);
+    margin-bottom: 6px;
+  }
+
+  .rte-help-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .rte-help-table td {
+    padding: 3px 0;
+    vertical-align: top;
+  }
+
+  .rte-help-table td:first-child {
+    width: 38%;
+    color: var(--text, #e8eaed);
+  }
+
   .rte-help-table kbd {
     display: inline-block;
     padding: 1px 5px;
@@ -204,12 +296,17 @@
     font-size: 10.5px;
     color: var(--text, #e8eaed);
   }
+
   .rte-help-table code {
     font-family: var(--mono, ui-monospace, monospace);
     font-size: 10.5px;
     color: #7dd3fc;
   }
-  .rte { min-height: 100px; }
+
+  .rte {
+    min-height: 100px;
+  }
+
   .rte :global(.ProseMirror) {
     min-height: 100px;
     outline: none;
@@ -218,9 +315,15 @@
     background: transparent;
     border-radius: 0;
   }
+
   .rte :global(.ProseMirror u),
-  .rte :global(.ProseMirror [style*='underline']) { text-decoration: underline; }
+  .rte :global(.ProseMirror [style*='underline']) {
+    text-decoration: underline;
+  }
+
   .rte :global(.ProseMirror s),
   .rte :global(.ProseMirror del),
-  .rte :global(.ProseMirror strike) { text-decoration: line-through; }
+  .rte :global(.ProseMirror strike) {
+    text-decoration: line-through;
+  }
 </style>
