@@ -88,7 +88,7 @@
   let zoom = $derived(workspace?.ui.zoom ?? 1);
   let pan = $derived(workspace?.ui.viewport_scroll ?? defaultPan());
   let compact = $derived(
-    !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.55)
+    !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.5)
   );
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
   let panning = $state(false);
