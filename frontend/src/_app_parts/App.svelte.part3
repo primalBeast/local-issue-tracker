@@ -1,108 +1,3 @@
-    updateWorkspace((ws) => {
-      ws.panels = ws.panels.filter((p) => p.id !== id);
-    });
-  }
-
-  function openItemPanel(itemId: string) {
-    if (!workspace) return;
-    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
-    if (existing) {
-      focusPanel(existing.id);
-      return;
-    }
-    void ensureDetail(itemId);
-    const defaults = project?.default_item_panel || {};
-    const panelW = Math.max(200, Number(defaults.width) || 720);
-    const panelH = Math.max(
-      minItemPanelHeight(fieldRows),
-      Number(defaults.height) || 480
-    );
-    const origin = visibleWorldOrigin();
-    updateWorkspace((ws) => {
-      const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
-      const stagger = (ws.panels.length % 5) * 30;
-      ws.panels.push({
-        id: `panel-item-${itemId.slice(0, 8)}-${Date.now().toString(36)}`,
-        kind: 'item',
-        item_id: itemId,
-        x: snapToGrid(origin.x + 80 + stagger, ws.ui.zoom),
-        y: snapToGrid(origin.y + 80 + stagger, ws.ui.zoom),
-        width: panelW,
-        height: panelH,
-        z_index: z,
-        collapsed: false,
-      });
-    });
-  }
-
-  function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
-    if (!workspace) return;
-    const existing = workspace.panels.find((p) => p.kind === kind);
-    if (existing) {
-      focusPanel(existing.id);
-      return;
-    }
-    const sizes = {
-      all_items: { w: 560, h: 640 },
-      notes: { w: 400, h: 420 },
-      deliverables: { w: 400, h: 360 },
-    }[kind];
-    const origin = visibleWorldOrigin();
-    updateWorkspace((ws) => {
-      ws.panels.push({
-        id: `panel-${kind}-${Date.now().toString(36)}`,
-        kind,
-        x: snapToGrid(origin.x + 60, ws.ui.zoom),
-        y: snapToGrid(origin.y + 60, ws.ui.zoom),
-        width: sizes.w,
-        height: sizes.h,
-        z_index: maxZ() + 1,
-      });
-    });
-  }
-
-  async function createItem() {
-    if (!project) return;
-    try {
-      const n = items.length + 1;
-      const item = await api.createItem(project.slug, {
-        ticket_key: `NEW-${n}`,
-        title: '',
-        priority: 5,
-        state: 'Submitted',
-      });
-      items = [...items, item];
-      detailCache = { ...detailCache, [item.id]: item };
-      openItemPanel(item.id);
-      showToast('Item created');
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Create failed');
-    }
-  }
-
-  function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
-    if (!project) return;
-    // Optimistic lean list update
-    items = items.map((it) =>
-      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields } } : it
-    );
-    if (detailCache[itemId]) {
-      detailCache = {
-        ...detailCache,
-        [itemId]: {
-          ...detailCache[itemId],
-          fields: { ...detailCache[itemId].fields, ...fields },
-        },
-      };
-    }
-    if (itemSaveTimers[itemId]) clearTimeout(itemSaveTimers[itemId]);
-    itemSaveTimers[itemId] = setTimeout(async () => {
-      try {
-        const current = detailCache[itemId] || items.find((i) => i.id === itemId);
-        const version = current?.version;
-        const updated = await api.patchItem(project!.slug, itemId, fields, version);
-        items = items.map((it) => {
-          if (it.id !== itemId) return it;
           // lean merge: omit textarea/richtext from list store but keep others
           const leanFields = { ...it.fields };
           for (const [k, v] of Object.entries(updated.fields)) {
@@ -125,11 +20,28 @@
     }, 350);
   }
 
+  function keyField(): string {
+    return project?.primary_identifier_field || 'ticket_key';
+  }
+
+  /** Ticket number + description live in the header editor, not the panel body. */
+  function isHeaderManagedField(f: { id: string }): boolean {
+    return f.id === 'title' || f.id === keyField();
+  }
+
   function primaryId(item: Item): string {
-    const key = project?.primary_identifier_field || 'ticket_key';
-    const v = String(item.fields[key] ?? '').trim();
+    const v = String(item.fields[keyField()] ?? '').trim();
     if (v) return v;
     return 'Untitled';
+  }
+
+  function itemDescription(item: Item): string {
+    return String(item.fields.title ?? '').trim();
+  }
+
+  function itemHeading(item: Item): string {
+    const desc = itemDescription(item);
+    return desc ? `${primaryId(item)}  ${desc}` : primaryId(item);
   }
 
   function itemForPanel(p: Panel): Item | null {
@@ -306,3 +218,137 @@
 </script>
 
 {#if loading}
+  <div class="empty-hint" style="padding-top:20vh">Loading Local Issue Tracker…</div>
+{:else if error}
+  <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
+{:else if project && workspace}
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        Local Issue Tracker
+      </div>
+      <select
+        style="width:auto;min-width:160px"
+        value={project.slug}
+        onchange={(e) => loadProject(e.currentTarget.value)}
+      >
+        {#each projects as p}
+          <option value={p.slug}>{p.name}</option>
+        {/each}
+      </select>
+      <button type="button" class="ghost" title="Toggle sidebar (⌘\)" onclick={toggleSidebar}>
+        {sidebarVisible ? 'Hide tabs' : 'Show tabs'}
+      </button>
+      <button type="button" class="primary" onclick={createItem}>+ Item</button>
+      <button type="button" onclick={() => openSpecial('all_items')}>All Items</button>
+      <button type="button" onclick={() => openSpecial('notes')}>Notes</button>
+      <button type="button" onclick={() => openSpecial('deliverables')}>Deliverables</button>
+      <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
+        See All
+      </button>
+      <button type="button" class="ghost" onclick={resetLayout}>Reset layout</button>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-meta">
+        {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
+        {#if compact}<span class="chip">compact</span>{/if}
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16a</span>
+      </div>
+    </header>
+
+    <aside class="sidebar" class:hidden={!sidebarVisible}>
+      {#each workspaces as w (w.id)}
+        <button
+          type="button"
+          class="ws-tab"
+          data-ws-id={w.id}
+          class:active={w.id === workspace.id}
+          class:ws-tab-main={isMainBoard(w)}
+          class:ws-tab-dragging={dragWsId === w.id}
+          class:ws-tab-drag-over={dragOverWsId === w.id && dragWsId !== w.id}
+          style={tabStyle(w)}
+          onclick={() => onTabClick(w.id)}
+          onpointerdown={(e) => onTabPointerDown(e, w.id)}
+          ondblclick={(e) => openBoardEditor(e, w)}
+          oncontextmenu={(e) => openBoardEditor(e, w)}
+          title={
+            isMainBoard(w)
+              ? `${w.name} — click to open; right-click or double-click to rename / set colour`
+              : `${w.name} — click to open; drag to reorder; right-click or double-click to rename / set colour`
+          }
+        >
+          {w.name}
+        </button>
+      {/each}
+      <button type="button" class="ws-tab" onclick={() => void newWorkspace()} title="New workspace">+</button>
+    </aside>
+
+    {#if boardEditor}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="board-editor"
+        style:left="{boardEditor.x}px"
+        style:top="{boardEditor.y}px"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div class="board-editor-title">Board settings</div>
+        <label class="field-label" for="board-name-input">Name</label>
+        <input
+          id="board-name-input"
+          type="text"
+          bind:value={boardEditor.name}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void saveBoardEditor();
+            if (e.key === 'Escape') boardEditor = null;
+          }}
+        />
+        <div class="field-label" style="margin-top:10px">Tab colour</div>
+        <div class="color-swatches">
+          {#each TAB_COLOR_SWATCHES as c}
+            <button
+              type="button"
+              class="color-swatch"
+              class:selected={(boardEditor.tab_color || null) === c}
+              class:swatch-none={c === null}
+              style:background={c || 'transparent'}
+              title={c || 'Default'}
+              onclick={() => {
+                if (boardEditor) boardEditor = { ...boardEditor, tab_color: c };
+              }}
+            ></button>
+          {/each}
+        </div>
+        <div class="board-editor-actions">
+          <button type="button" class="ghost" onclick={() => (boardEditor = null)}>Cancel</button>
+          <button type="button" class="primary" onclick={() => void saveBoardEditor()}>Save</button>
+        </div>
+      </div>
+    {/if}
+
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="canvas-wrap"
+      role="application"
+      aria-label="Unlimited workspace. Drag empty space to pan. Scroll or Ctrl+scroll zooms toward the pointer."
+      bind:this={canvasWrapEl}
+      class:is-panning={panning}
+      style:--pan-x="{pan.x}px"
+      style:--pan-y="{pan.y}px"
+      style:--zoom={zoom}
+      onpointerdown={onCanvasPointerDown}
+    >
+      <div class="canvas-grid" aria-hidden="true"></div>
+      <div class="canvas" style:transform={`translate(${pan.x}px, ${pan.y}px) scale(${zoom})`}>
+        {#each workspace.panels as panel (panel.id)}
+          {@const item = itemForPanel(panel)}
+          {@const colors =
+            panel.kind === 'item' && item
+              ? panelColors(item.fields, project.color_coding)
+              : { bg: '', border: '' }}
+
+          <FloatingPanel
+            {panel}
+            {zoom}
+            active={false}
+            title={

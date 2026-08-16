@@ -12,9 +12,10 @@
   import { itemMatchesFilters, sortItems } from './lib/filters';
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
+  import ItemTitleBar from './lib/ItemTitleBar.svelte';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupFieldsByRow } from './lib/fieldLayout';
-  import { isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
+  import { HEADER_TITLE_EDITOR_PX, isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
   import { clampZoom, snapToGrid } from './lib/snap';
   import {
     defaultPan,
@@ -78,7 +79,9 @@
   ];
 
   let fieldDefs = $derived(fieldsDoc?.fields || []);
-  let fieldRows = $derived(groupFieldsByRow(fieldDefs));
+  let bodyFieldRows = $derived(
+    groupFieldsByRow(fieldDefs.filter((f) => !isHeaderManagedField(f)))
+  );
   let listFields = $derived(
     [...fieldDefs]
       .filter((f) => f.show_in_list)
@@ -88,7 +91,7 @@
   let zoom = $derived(workspace?.ui.zoom ?? 1);
   let pan = $derived(workspace?.ui.viewport_scroll ?? defaultPan());
   let compact = $derived(
-    !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.5)
+    !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.33)
   );
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
   let panning = $state(false);
@@ -306,3 +309,60 @@
         workspaces = workspaces.map((w) => (w.id === id ? saved : w));
         // Do not replace the live workspace if the user has already switched away
         if (workspace?.id === id) {
+          workspace = {
+            ...cloneWorkspace(workspace),
+            updated_at: saved.updated_at,
+          };
+        }
+      } catch (e) {
+        showToast('Failed to save layout');
+        console.error(e);
+      }
+    }, 400);
+  }
+
+  function updateWorkspace(mutator: (ws: Workspace) => void) {
+    if (!workspace) return;
+    const next = cloneWorkspace(workspace);
+    mutator(next);
+    workspace = next;
+    scheduleWorkspaceSave();
+  }
+
+  function toggleSidebar() {
+    updateWorkspace((ws) => {
+      ws.ui.sidebar_visible = !ws.ui.sidebar_visible;
+    });
+  }
+
+  async function selectWorkspace(id: string) {
+    if (!project) return;
+    if (workspace?.id === id) return;
+
+    // Persist current workspace into the list before leaving it
+    flushCurrentWorkspaceToList();
+
+    // Switch immediately from local list so the tab always responds
+    const local = workspaces.find((x) => x.id === id);
+    if (!local) {
+      showToast('Board not found');
+      return;
+    }
+    workspace = cloneWorkspace(local);
+    void rememberLastWorkspace(id);
+
+    // Refresh from server in the background (do not block UI)
+    try {
+      const fresh = await api.workspace(project.slug, id);
+      if (workspace?.id !== id) return; // user already switched again
+      workspace = fresh;
+      workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? fresh : w)));
+      for (const p of fresh.panels || []) {
+        if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
+      }
+    } catch (e) {
+      // Keep local board; do not stick the user on a failed network call
+      console.error(e);
+    }
+  }
+
