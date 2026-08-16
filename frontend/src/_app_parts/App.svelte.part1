@@ -1,0 +1,365 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import {
+    api,
+    type FieldDef,
+    type Item,
+    type Panel,
+    type Project,
+    type Workspace,
+  } from './lib/api';
+  import { panelColors } from './lib/color';
+  import { itemMatchesFilters, sortItems } from './lib/filters';
+  import FieldRenderer from './lib/FieldRenderer.svelte';
+  import FloatingPanel from './lib/FloatingPanel.svelte';
+  import RichText from './lib/RichText.svelte';
+  import { fieldFlex, groupFieldsByRow } from './lib/fieldLayout';
+  import { clampZoom, snapToGrid } from './lib/snap';
+  import { formatDuration, liveSeconds } from './lib/waiting';
+
+  let projects = $state<Project[]>([]);
+  let project = $state<Project | null>(null);
+  let fieldsDoc = $state<{ fields: FieldDef[] } | null>(null);
+  let items = $state<Item[]>([]);
+  let workspaces = $state<Workspace[]>([]);
+  let workspace = $state<Workspace | null>(null);
+  let notesContent = $state<unknown>({ type: 'doc', content: [] });
+  let deliverables = $state<Array<Record<string, unknown>>>([]);
+  let detailCache = $state<Record<string, Item>>({});
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+  let toast = $state<string | null>(null);
+  let nowTick = $state(Date.now());
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  let itemSaveTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+  /** Pointer-based tab reorder. Selection is via click (never gated on drag). */
+  let dragWsId = $state<string | null>(null);
+  let dragOverWsId = $state<string | null>(null);
+  const tabDrag = {
+    id: null as string | null,
+    startX: 0,
+    startY: 0,
+    dragging: false,
+    /** When true, the next click is from a completed drag — ignore it. */
+    suppressClick: false,
+    pointerId: -1,
+  };
+  /** Board rename / tab color editor (right-click a tab). */
+  let boardEditor = $state<{
+    id: string;
+    name: string;
+    tab_color: string | null;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const TAB_COLOR_SWATCHES: (string | null)[] = [
+    null,
+    '#3b82f6',
+    '#8b5cf6',
+    '#06b6d4',
+    '#22c55e',
+    '#84cc16',
+    '#f59e0b',
+    '#f97316',
+    '#ef4444',
+    '#ec4899',
+    '#a78bfa',
+    '#64748b',
+  ];
+
+  let fieldDefs = $derived(fieldsDoc?.fields || []);
+  let fieldRows = $derived(groupFieldsByRow(fieldDefs));
+  let listFields = $derived(
+    [...fieldDefs]
+      .filter((f) => f.show_in_list)
+      .sort((a, b) => String(a.order).localeCompare(String(b.order), undefined, { numeric: true }))
+  );
+  let filterableFields = $derived(fieldDefs.filter((f) => f.filterable));
+  let zoom = $derived(workspace?.ui.zoom ?? 1);
+  let compact = $derived(
+    !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.55)
+  );
+  let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
+
+  /** Main Board (seed id) is always pinned to the top of the tab list. */
+  function isMainBoard(w: Workspace): boolean {
+    return w.id === 'ws-main';
+  }
+
+  function sortWorkspaces(list: Workspace[]): Workspace[] {
+    const main = list.filter(isMainBoard);
+    const rest = list
+      .filter((w) => !isMainBoard(w))
+      .sort(
+        (a, b) =>
+          (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
+      );
+    // Main boards first (stable by name/id), then the rest by order
+    main.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+    return [...main, ...rest];
+  }
+
+  let filteredItems = $derived(
+    workspace
+      ? sortItems(
+          items.filter((it) => itemMatchesFilters(it, workspace!.filters.active, fieldDefs)),
+          workspace.sort
+        )
+      : items
+  );
+
+  onMount(() => {
+    const tick = setInterval(() => (nowTick = Date.now()), 1000);
+    void bootstrap();
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+      if (e.key === 'Escape') boardEditor = null;
+    };
+    // Only close board editor when clicking outside it — do not interfere
+    // with panel drag, resize, or tab clicks.
+    const onDocPointerDown = (e: PointerEvent) => {
+      if (!boardEditor) return;
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.('.board-editor')) return;
+      if (t?.closest?.('.ws-tab')) return; // tab open/context menu owns the click
+      boardEditor = null;
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onDocPointerDown, true);
+    return () => {
+      clearInterval(tick);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onDocPointerDown, true);
+    };
+  });
+
+  async function bootstrap() {
+    try {
+      loading = true;
+      projects = await api.projects();
+      if (!projects.length) {
+        error = 'No projects found. Run lit serve to auto-seed, or lit init-project.';
+        return;
+      }
+      const settings = await api.settings();
+      const slug =
+        (settings.last_project_slug as string) || projects[0].slug;
+      await loadProject(slug);
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function localLastWsKey(slug: string) {
+    return `lit:lastWorkspace:${slug}`;
+  }
+
+  function readLocalLastWorkspace(slug: string): string | null {
+    try {
+      return localStorage.getItem(localLastWsKey(slug));
+    } catch {
+      return null;
+    }
+  }
+
+  function writeLocalLastWorkspace(slug: string, wsId: string) {
+    try {
+      localStorage.setItem(localLastWsKey(slug), wsId);
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+
+  async function rememberLastWorkspace(wsId: string) {
+    if (!project) return;
+    // Always persist client-side so a plain browser reload restores the board
+    // even if the settings API fails or an old server is still running.
+    writeLocalLastWorkspace(project.slug, wsId);
+    try {
+      await api.patchSettings({
+        last_project_slug: project.slug,
+        last_workspace_by_project: { [project.slug]: wsId },
+      });
+    } catch (e) {
+      console.error('Failed to persist last workspace to server settings', e);
+    }
+  }
+
+  async function loadProject(slug: string) {
+    project = await api.project(slug);
+    fieldsDoc = await api.fields(slug);
+    items = await api.items(slug);
+    workspaces = sortWorkspaces(await api.workspaces(slug));
+    notesContent = (await api.notes(slug)).content;
+    deliverables = (await api.deliverables(slug)).items || [];
+    detailCache = {};
+
+    // Prefer server settings, fall back to localStorage
+    let lastWsId: string | null = null;
+    try {
+      const settings = await api.settings();
+      const lastMap = (settings.last_workspace_by_project || {}) as Record<string, string>;
+      lastWsId = lastMap[slug] || null;
+    } catch (e) {
+      console.error(e);
+    }
+    if (!lastWsId) {
+      lastWsId = readLocalLastWorkspace(slug);
+    }
+
+    const preferred =
+      (lastWsId && workspaces.find((w) => w.id === lastWsId)) || workspaces[0] || null;
+    workspace = preferred ? cloneWorkspace(preferred) : null;
+
+    // Do not overwrite last_workspace when only updating last_project_slug
+    try {
+      await api.patchSettings({ last_project_slug: slug });
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (workspace) {
+      // Sync both stores to whatever we actually opened
+      writeLocalLastWorkspace(slug, workspace.id);
+      for (const p of workspace.panels) {
+        if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
+      }
+    }
+  }
+
+  async function ensureDetail(id: string) {
+    if (detailCache[id]) return detailCache[id];
+    if (!project) return null;
+    const full = await api.item(project.slug, id);
+    detailCache = { ...detailCache, [id]: full };
+    return full;
+  }
+
+  /** Deep clone without relying on structuredClone(proxy) (Svelte $state). */
+  function cloneWorkspace(ws: Workspace): Workspace {
+    return JSON.parse(JSON.stringify(ws)) as Workspace;
+  }
+
+  /** Keep the workspaces list in sync with the in-memory current workspace. */
+  function flushCurrentWorkspaceToList() {
+    if (!workspace) return;
+    const snap = cloneWorkspace(workspace);
+    const idx = workspaces.findIndex((w) => w.id === snap.id);
+    if (idx >= 0) {
+      workspaces = workspaces.map((w) => (w.id === snap.id ? snap : w));
+    } else {
+      workspaces = [...workspaces, snap];
+    }
+  }
+
+  function scheduleWorkspaceSave() {
+    if (!project || !workspace) return;
+    // Always mirror latest local state into the list immediately
+    const id = workspace.id;
+    flushCurrentWorkspaceToList();
+
+    if (saveTimer) clearTimeout(saveTimer);
+    const slug = project.slug;
+    saveTimer = setTimeout(async () => {
+      const toSave = workspaces.find((w) => w.id === id);
+      if (!toSave) return;
+      try {
+        const saved = await api.putWorkspace(slug, id, toSave);
+        workspaces = workspaces.map((w) => (w.id === id ? saved : w));
+        // Do not replace the live workspace if the user has already switched away
+        if (workspace?.id === id) {
+          workspace = {
+            ...cloneWorkspace(workspace),
+            updated_at: saved.updated_at,
+          };
+        }
+      } catch (e) {
+        showToast('Failed to save layout');
+        console.error(e);
+      }
+    }, 400);
+  }
+
+  function updateWorkspace(mutator: (ws: Workspace) => void) {
+    if (!workspace) return;
+    const next = cloneWorkspace(workspace);
+    mutator(next);
+    workspace = next;
+    scheduleWorkspaceSave();
+  }
+
+  function toggleSidebar() {
+    updateWorkspace((ws) => {
+      ws.ui.sidebar_visible = !ws.ui.sidebar_visible;
+    });
+  }
+
+  async function selectWorkspace(id: string) {
+    if (!project) return;
+    if (workspace?.id === id) return;
+
+    // Persist current workspace into the list before leaving it
+    flushCurrentWorkspaceToList();
+
+    // Switch immediately from local list so the tab always responds
+    const local = workspaces.find((x) => x.id === id);
+    if (!local) {
+      showToast('Board not found');
+      return;
+    }
+    workspace = cloneWorkspace(local);
+    void rememberLastWorkspace(id);
+
+    // Refresh from server in the background (do not block UI)
+    try {
+      const fresh = await api.workspace(project.slug, id);
+      if (workspace?.id !== id) return; // user already switched again
+      workspace = fresh;
+      workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? fresh : w)));
+      for (const p of fresh.panels || []) {
+        if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
+      }
+    } catch (e) {
+      // Keep local board; do not stick the user on a failed network call
+      console.error(e);
+    }
+  }
+
+  async function persistWorkspaceOrders(list: Workspace[]) {
+    if (!project) return;
+    try {
+      const savedList = await Promise.all(
+        list.map((w) => api.putWorkspace(project!.slug, w.id, w))
+      );
+      workspaces = sortWorkspaces(savedList);
+      if (workspace) {
+        const cur = savedList.find((w) => w.id === workspace!.id);
+        if (cur) {
+          workspace = {
+            ...cloneWorkspace(workspace),
+            order: cur.order,
+            updated_at: cur.updated_at,
+          };
+        }
+      }
+    } catch (e) {
+      showToast('Failed to save board order');
+      console.error(e);
+    }
+  }
+
+  function reorderWorkspaceBefore(fromId: string, overId: string) {
+    if (fromId === overId) return;
+    const from = workspaces.find((w) => w.id === fromId);
+    const over = workspaces.find((w) => w.id === overId);
+    if (!from || !over || isMainBoard(from) || isMainBoard(over)) return;
+
+    const main = workspaces.filter(isMainBoard).map(cloneWorkspace);
+    let rest = workspaces.filter((w) => !isMainBoard(w)).map(cloneWorkspace);
+    const fromIdx = rest.findIndex((w) => w.id === fromId);
