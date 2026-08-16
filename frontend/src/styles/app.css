@@ -339,7 +339,7 @@ body.lit-canvas-panning * {
 
 .panel-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   padding: 8px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -369,12 +369,86 @@ body.lit-panel-resizing * {
 body.lit-panel-resizing * { cursor: inherit !important; }
 
 .panel-title {
-  font-weight: 600;
+  font-weight: 650;
+  font-size: 20px;
+  line-height: 1.2;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.panel-title-slot {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.item-title-key {
+  flex: 0 0 auto;
+  font-weight: 650;
+  font-size: 20px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.item-title-desc {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.2;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: ltr;
+}
+
+.item-title-toggle {
+  flex: 0 0 auto;
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+}
+
+.item-title-toggle.open {
+  transform: rotate(180deg);
+}
+
+.item-title-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 0 2px;
+  cursor: default;
+}
+
+.item-title-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.item-title-field input {
+  width: 100%;
 }
 
 .panel-body {
