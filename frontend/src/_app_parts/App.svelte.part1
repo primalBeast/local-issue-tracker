@@ -14,8 +14,15 @@
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
   import RichText from './lib/RichText.svelte';
-  import { fieldFlex, groupFieldsByRow } from './lib/fieldLayout';
+  import { fieldFlex, groupBodyBlocks, groupFieldsByRow, pickField } from './lib/fieldLayout';
   import { HEADER_TITLE_EDITOR_PX, isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
+  import {
+    isPanelSortField,
+    layoutColumnMajor,
+    PANEL_SORT_OPTIONS,
+    sortItemPanels,
+    type PanelSortField,
+  } from './lib/panelSort';
   import { clampZoom, snapToGrid } from './lib/snap';
   import {
     defaultPan,
@@ -25,7 +32,7 @@
     screenToWorld,
     zoomFromWheelDelta,
   } from './lib/viewport';
-  import { formatDuration, liveSeconds } from './lib/waiting';
+  import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
 
   let projects = $state<Project[]>([]);
   let project = $state<Project | null>(null);
@@ -82,6 +89,7 @@
   let bodyFieldRows = $derived(
     groupFieldsByRow(fieldDefs.filter((f) => !isHeaderManagedField(f)))
   );
+  let bodyFieldBlocks = $derived(groupBodyBlocks(bodyFieldRows));
   let listFields = $derived(
     [...fieldDefs]
       .filter((f) => f.show_in_list)
@@ -95,6 +103,7 @@
   );
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
   let panning = $state(false);
+  let sortBy = $state<PanelSortField>('ticket_key');
   let canvasWrapEl = $state<HTMLElement | null>(null);
   const canvasPan = {
     pointerId: -1,
@@ -126,7 +135,8 @@
     workspace
       ? sortItems(
           items.filter((it) => itemMatchesFilters(it, workspace!.filters.active, fieldDefs)),
-          workspace.sort
+          workspace.sort,
+          fieldDefs
         )
       : items
   );
@@ -251,6 +261,9 @@
     const preferred =
       (lastWsId && workspaces.find((w) => w.id === lastWsId)) || workspaces[0] || null;
     workspace = preferred ? cloneWorkspace(preferred) : null;
+    if (workspace?.sort?.field && isPanelSortField(workspace.sort.field)) {
+      sortBy = workspace.sort.field;
+    }
 
     // Do not overwrite last_workspace when only updating last_project_slug
     try {
@@ -333,36 +346,5 @@
     updateWorkspace((ws) => {
       ws.ui.sidebar_visible = !ws.ui.sidebar_visible;
     });
-  }
-
-  async function selectWorkspace(id: string) {
-    if (!project) return;
-    if (workspace?.id === id) return;
-
-    // Persist current workspace into the list before leaving it
-    flushCurrentWorkspaceToList();
-
-    // Switch immediately from local list so the tab always responds
-    const local = workspaces.find((x) => x.id === id);
-    if (!local) {
-      showToast('Board not found');
-      return;
-    }
-    workspace = cloneWorkspace(local);
-    void rememberLastWorkspace(id);
-
-    // Refresh from server in the background (do not block UI)
-    try {
-      const fresh = await api.workspace(project.slug, id);
-      if (workspace?.id !== id) return; // user already switched again
-      workspace = fresh;
-      workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? fresh : w)));
-      for (const p of fresh.panels || []) {
-        if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
-      }
-    } catch (e) {
-      // Keep local board; do not stick the user on a failed network call
-      console.error(e);
-    }
   }
 

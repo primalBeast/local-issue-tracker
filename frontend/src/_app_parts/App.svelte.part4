@@ -1,3 +1,105 @@
+        {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
+        {#if compact}<span class="chip">compact</span>{/if}
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16a</span>
+      </div>
+    </header>
+
+    <aside class="sidebar" class:hidden={!sidebarVisible}>
+      {#each workspaces as w (w.id)}
+        <button
+          type="button"
+          class="ws-tab"
+          data-ws-id={w.id}
+          class:active={w.id === workspace.id}
+          class:ws-tab-main={isMainBoard(w)}
+          class:ws-tab-dragging={dragWsId === w.id}
+          class:ws-tab-drag-over={dragOverWsId === w.id && dragWsId !== w.id}
+          style={tabStyle(w)}
+          onclick={() => onTabClick(w.id)}
+          onpointerdown={(e) => onTabPointerDown(e, w.id)}
+          ondblclick={(e) => openBoardEditor(e, w)}
+          oncontextmenu={(e) => openBoardEditor(e, w)}
+          title={
+            isMainBoard(w)
+              ? `${w.name} — click to open; right-click or double-click to rename / set colour`
+              : `${w.name} — click to open; drag to reorder; right-click or double-click to rename / set colour`
+          }
+        >
+          {w.name}
+        </button>
+      {/each}
+      <button type="button" class="ws-tab" onclick={() => void newWorkspace()} title="New workspace">+</button>
+    </aside>
+
+    {#if boardEditor}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="board-editor"
+        style:left="{boardEditor.x}px"
+        style:top="{boardEditor.y}px"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div class="board-editor-title">Board settings</div>
+        <label class="field-label" for="board-name-input">Name</label>
+        <input
+          id="board-name-input"
+          type="text"
+          bind:value={boardEditor.name}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void saveBoardEditor();
+            if (e.key === 'Escape') boardEditor = null;
+          }}
+        />
+        <div class="field-label" style="margin-top:10px">Tab colour</div>
+        <div class="color-swatches">
+          {#each TAB_COLOR_SWATCHES as c}
+            <button
+              type="button"
+              class="color-swatch"
+              class:selected={(boardEditor.tab_color || null) === c}
+              class:swatch-none={c === null}
+              style:background={c || 'transparent'}
+              title={c || 'Default'}
+              onclick={() => {
+                if (boardEditor) boardEditor = { ...boardEditor, tab_color: c };
+              }}
+            ></button>
+          {/each}
+        </div>
+        <div class="board-editor-actions">
+          <button type="button" class="ghost" onclick={() => (boardEditor = null)}>Cancel</button>
+          <button type="button" class="primary" onclick={() => void saveBoardEditor()}>Save</button>
+        </div>
+      </div>
+    {/if}
+
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="canvas-wrap"
+      role="application"
+      aria-label="Unlimited workspace. Drag empty space to pan. Scroll or Ctrl+scroll zooms toward the pointer."
+      bind:this={canvasWrapEl}
+      class:is-panning={panning}
+      style:--pan-x="{pan.x}px"
+      style:--pan-y="{pan.y}px"
+      style:--zoom={zoom}
+      onpointerdown={onCanvasPointerDown}
+    >
+      <div class="canvas-grid" aria-hidden="true"></div>
+      <div class="canvas" style:transform={`translate(${pan.x}px, ${pan.y}px) scale(${zoom})`}>
+        {#each workspace.panels as panel (panel.id)}
+          {@const item = itemForPanel(panel)}
+          {@const colors =
+            panel.kind === 'item' && item
+              ? panelColors(item.fields, project.color_coding)
+              : { bg: '', border: '' }}
+
+          <FloatingPanel
+            {panel}
+            {zoom}
+            active={false}
+            title={
               panel.kind === 'item'
                 ? item
                   ? itemHeading(item)
@@ -48,34 +150,73 @@
               {#if item.waiting?.is_waiting}
                 <div class="waiting-badge" style="margin-bottom:8px">
                   ⏱ Waiting
-                  {formatDuration(
+                  {formatWaitingDays(
                     liveSeconds(item.waiting.current_started_at, nowTick) ??
                       item.waiting.current_seconds
                   )}
-                  · total {formatDuration(item.waiting.total_seconds)}
                 </div>
               {/if}
               {#if !detailCache[item.id]}
                 <div class="empty-hint">Loading item…</div>
               {:else}
                 {#key item.id}
-                  {#each bodyFieldRows as row (row.row)}
-                    <div
-                      class="field-row"
-                      class:field-row-multi={row.fields.length > 1}
-                      class:field-row-fill={isNotesFillRow(row)}
-                    >
-                      {#each row.fields as def (def.id)}
-                        <div class="field-col" style:flex={fieldFlex(def)}>
-                          <FieldRenderer
-                            {def}
-                            fill={isNotesFillRow(row)}
-                            fields={detailCache[item.id].fields}
-                            onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
-                          />
-                        </div>
-                      {/each}
-                    </div>
+                  {#each bodyFieldBlocks as block, bi (block.kind === 'waiting' ? 'waiting' : block.row.row)}
+                    {#if block.kind === 'waiting'}
+                      {@const person = pickField(block.fields, 'waiting_for')}
+                      {@const since = pickField(block.fields, 'waiting_since')}
+                      {@const reason = pickField(block.fields, 'waiting_for_reason')}
+                      {@const waitingOn =
+                        detailCache[item.id].fields.state ===
+                        (project.waiting_state_value || 'Waiting For')}
+                      {#if waitingOn}
+                      <div class="waiting-fields">
+                        {#if person}
+                          <div class="waiting-person">
+                            <FieldRenderer
+                              def={person}
+                              fields={detailCache[item.id].fields}
+                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                            />
+                          </div>
+                        {/if}
+                        {#if since}
+                          <div class="waiting-since">
+                            <FieldRenderer
+                              def={since}
+                              fields={detailCache[item.id].fields}
+                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                            />
+                          </div>
+                        {/if}
+                        {#if reason}
+                          <div class="waiting-reason">
+                            <FieldRenderer
+                              def={reason}
+                              fields={detailCache[item.id].fields}
+                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                            />
+                          </div>
+                        {/if}
+                      </div>
+                      {/if}
+                    {:else}
+                      <div
+                        class="field-row"
+                        class:field-row-multi={block.row.fields.length > 1}
+                        class:field-row-fill={isNotesFillRow(block.row)}
+                      >
+                        {#each block.row.fields as def (def.id)}
+                          <div class="field-col" style:flex={fieldFlex(def)}>
+                            <FieldRenderer
+                              {def}
+                              fill={isNotesFillRow(block.row)}
+                              fields={detailCache[item.id].fields}
+                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                            />
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
                   {/each}
                 {/key}
               {/if}
@@ -114,9 +255,18 @@
                 <thead>
                   <tr>
                     {#each listFields as f}
-                      <th style:width={f.list_width || undefined}>{f.label}</th>
+                      <th
+                        class="sortable"
+                        class:sorted={workspace.sort?.field === f.id}
+                        style:width={f.list_width || undefined}
+                        onclick={() => clickListSort(f.id)}
+                      >{f.list_label || f.label}{listSortMark(f.id)}</th>
                     {/each}
-                    <th>Waiting</th>
+                    <th
+                      class="sortable"
+                      class:sorted={workspace.sort?.field === '_waiting'}
+                      onclick={() => clickListSort('_waiting')}
+                    >Waiting{listSortMark('_waiting')}</th>
                   </tr>
                 </thead>
                 <tbody>

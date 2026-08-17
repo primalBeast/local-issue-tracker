@@ -193,7 +193,7 @@ def _coerce_and_check(fdef: dict[str, Any], value: Any) -> Any:
     if ftype == "date":
         if not isinstance(value, str):
             raise ValidationError(f"{fid}: expected string", [{"field": fid, "message": "type"}])
-        if value and not re.match(r"^\\d{4}-\\d{2}-\\d{2}$", value):
+        if value and not re.match(r"^\d{4}-\d{2}-\d{2}$", value):
             raise ValidationError(f"{fid}: date format", [{"field": fid, "message": "format"}])
         return value
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import uuid
 from copy import deepcopy
@@ -52,9 +53,130 @@ def save_project(slug: str, data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+URGENCY_FIELD: dict[str, Any] = {
+    "id": "urgency",
+    "label": "Urgency",
+    "type": "number",
+    "required": False,
+    "order": "30b",
+    "default": 5,
+    "validation": {"min": 1, "max": 10, "step": 1},
+    "show_in_list": True,
+    "filterable": True,
+    "width_weight": 1,
+}
+
+_URGENCY_LABELS = {"Critical": 1, "High": 3, "Medium": 5, "Low": 8}
+
+
+def coerce_urgency_int(value: Any) -> int:
+    if isinstance(value, bool):
+        return 5
+    if isinstance(value, (int, float)):
+        n = int(value)
+        return max(1, min(10, n))
+    if isinstance(value, str) and value in _URGENCY_LABELS:
+        return _URGENCY_LABELS[value]
+    try:
+        return max(1, min(10, int(value)))
+    except (TypeError, ValueError):
+        return 5
+
+
+def ensure_urgency_field(data: dict[str, Any]) -> bool:
+    """Insert or convert Urgency to an integer field between Priority and State."""
+    fields = data.get("fields")
+    if not isinstance(fields, list):
+        return False
+    existing = next((f for f in fields if isinstance(f, dict) and f.get("id") == "urgency"), None)
+    if existing is not None:
+        if existing.get("type") == "number":
+            return False
+        existing.clear()
+        existing.update(URGENCY_FIELD)
+        return True
+    for f in fields:
+        if isinstance(f, dict) and f.get("id") == "state" and str(f.get("order")) == "30b":
+            f["order"] = "30c"
+    insert_at = next(
+        (i + 1 for i, f in enumerate(fields) if isinstance(f, dict) and f.get("id") == "priority"),
+        len(fields),
+    )
+    fields.insert(insert_at, dict(URGENCY_FIELD))
+    data["fields"] = fields
+    return True
+
+
+def _migrate_urgency_item_values(slug: str) -> None:
+    db = items_db.items_db_path(project_dir(slug))
+    if not db.exists():
+        return
+
+    def _walk(conn) -> None:
+        rows = conn.execute("SELECT id, fields_json FROM items").fetchall()
+        for row in rows:
+            fields = json.loads(row["fields_json"])
+            raw = fields.get("urgency")
+            coerced = coerce_urgency_int(raw) if raw is not None else 5
+            if raw == coerced:
+                continue
+            fields["urgency"] = coerced
+            conn.execute(
+                "UPDATE items SET fields_json=? WHERE id=?",
+                (json.dumps(fields, ensure_ascii=False), row["id"]),
+            )
+        conn.commit()
+
+    items_db.run_db(db, _walk)
+
+
+WAITING_SINCE_FIELD: dict[str, Any] = {
+    "id": "waiting_since",
+    "label": "Waiting Since",
+    "type": "date",
+    "required": False,
+    "order": 51,
+    "default": "",
+    "visible_when": {"field": "state", "equals": "Waiting For"},
+    "show_in_list": False,
+}
+
+
+def ensure_waiting_since_field(data: dict[str, Any]) -> bool:
+    fields = data.get("fields")
+    if not isinstance(fields, list):
+        return False
+    changed = False
+    for f in fields:
+        if isinstance(f, dict) and f.get("id") == "waiting_for" and not f.get("list_label"):
+            f["list_label"] = "Waiting For"
+            changed = True
+    if any(isinstance(f, dict) and f.get("id") == "waiting_since" for f in fields):
+        return changed
+    last_waiting = max(
+        (i for i, f in enumerate(fields) if isinstance(f, dict) and str(f.get("id", "")).startswith("waiting_for")),
+        default=len(fields) - 1,
+    )
+    fields.insert(last_waiting + 1, dict(WAITING_SINCE_FIELD))
+    data["fields"] = fields
+    return True
+
+
 def load_fields(slug: str) -> dict[str, Any]:
     path = project_dir(slug) / "fields.json"
-    return read_json(path)
+    data = read_json(path)
+    changed = False
+    if ensure_urgency_field(data):
+        changed = True
+        try:
+            _migrate_urgency_item_values(slug)
+        except Exception:
+            pass
+    if ensure_waiting_since_field(data):
+        changed = True
+    if changed:
+        write_json(path, data)
+    return data
 
 
 def save_fields(slug: str, data: dict[str, Any]) -> dict[str, Any]:

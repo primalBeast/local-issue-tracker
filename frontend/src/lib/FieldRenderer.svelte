@@ -71,6 +71,7 @@
         type="date"
         value={String(value ?? '')}
         oninput={(e) => onchange(def.id, e.currentTarget.value)}
+        onchange={(e) => onchange(def.id, e.currentTarget.value)}
       />
     {:else if def.type === 'datetime'}
       <input

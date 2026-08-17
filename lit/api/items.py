@@ -13,7 +13,7 @@ from lit.services.validation import (
     apply_defaults,
     validate_item_fields,
 )
-from lit.services.waiting import apply_state_transition
+from lit.services.waiting import apply_state_transition, set_open_started_at
 from lit.storage import items_db
 from lit.storage.project_fs import load_fields
 
@@ -91,7 +91,10 @@ async def create_item(slug: str, body: ItemCreate) -> dict[str, Any]:
                 waiting_state_value=waiting_value,
                 waiting_for=fields.get("waiting_for"),
                 reason=fields.get("waiting_for_reason"),
+                started_on=fields.get("waiting_since"),
             )
+            if fields.get("waiting_since"):
+                set_open_started_at(conn, item["id"], str(fields.get("waiting_since")))
             conn.commit()
             item = items_db.get_item(conn, item["id"])
         return item
@@ -134,7 +137,10 @@ async def patch_item(slug: str, item_id: str, body: ItemPatch) -> dict[str, Any]
             waiting_state_value=waiting_value,
             waiting_for=merged.get("waiting_for"),
             reason=merged.get("waiting_for_reason"),
+            started_on=merged.get("waiting_since"),
         )
+        if "waiting_since" in patch_fields and patch_fields.get("waiting_since"):
+            set_open_started_at(conn, item_id, str(patch_fields["waiting_since"]))
         conn.commit()
         return items_db.get_item(conn, item_id)
 

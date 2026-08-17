@@ -71,3 +71,33 @@ export function fieldFlex(def: FieldDef): number {
   if (typeof w === 'number' && w > 0) return w;
   return 1;
 }
+
+const WAITING_LAYOUT_IDS = new Set(['waiting_for', 'waiting_since', 'waiting_for_reason']);
+
+export type BodyBlock =
+  | { kind: 'row'; row: FieldRow }
+  | { kind: 'waiting'; fields: FieldDef[] };
+
+/** Pull waiting fields into one two-column block (person+since | reason). */
+export function groupBodyBlocks(rows: FieldRow[]): BodyBlock[] {
+  const waiting: FieldDef[] = [];
+  const out: BodyBlock[] = [];
+  for (const row of rows) {
+    const wait = row.fields.filter((f) => WAITING_LAYOUT_IDS.has(f.id));
+    const other = row.fields.filter((f) => !WAITING_LAYOUT_IDS.has(f.id));
+    waiting.push(...wait);
+    if (other.length) out.push({ kind: 'row', row: { row: row.row, fields: other } });
+  }
+  if (!waiting.length) return out;
+  const notesIdx = out.findIndex(
+    (b) => b.kind === 'row' && b.row.fields.some((f) => f.id === 'notes' || f.type === 'richtext')
+  );
+  const block: BodyBlock = { kind: 'waiting', fields: waiting };
+  if (notesIdx >= 0) out.splice(notesIdx, 0, block);
+  else out.push(block);
+  return out;
+}
+
+export function pickField(fields: FieldDef[], id: string): FieldDef | undefined {
+  return fields.find((f) => f.id === id);
+}

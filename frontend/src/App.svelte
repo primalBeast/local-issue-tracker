@@ -14,8 +14,15 @@
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
   import RichText from './lib/RichText.svelte';
-  import { fieldFlex, groupFieldsByRow } from './lib/fieldLayout';
+  import { fieldFlex, groupBodyBlocks, groupFieldsByRow, pickField } from './lib/fieldLayout';
   import { HEADER_TITLE_EDITOR_PX, isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
+  import {
+    isPanelSortField,
+    layoutColumnMajor,
+    PANEL_SORT_OPTIONS,
+    sortItemPanels,
+    type PanelSortField,
+  } from './lib/panelSort';
   import { clampZoom, snapToGrid } from './lib/snap';
   import {
     defaultPan,
@@ -25,7 +32,7 @@
     screenToWorld,
     zoomFromWheelDelta,
   } from './lib/viewport';
-  import { formatDuration, liveSeconds } from './lib/waiting';
+  import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
 
   let projects = $state<Project[]>([]);
   let project = $state<Project | null>(null);
@@ -82,6 +89,7 @@
   let bodyFieldRows = $derived(
     groupFieldsByRow(fieldDefs.filter((f) => !isHeaderManagedField(f)))
   );
+  let bodyFieldBlocks = $derived(groupBodyBlocks(bodyFieldRows));
   let listFields = $derived(
     [...fieldDefs]
       .filter((f) => f.show_in_list)
@@ -95,6 +103,7 @@
   );
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
   let panning = $state(false);
+  let sortBy = $state<PanelSortField>('ticket_key');
   let canvasWrapEl = $state<HTMLElement | null>(null);
   const canvasPan = {
     pointerId: -1,
@@ -126,7 +135,8 @@
     workspace
       ? sortItems(
           items.filter((it) => itemMatchesFilters(it, workspace!.filters.active, fieldDefs)),
-          workspace.sort
+          workspace.sort,
+          fieldDefs
         )
       : items
   );
@@ -251,6 +261,9 @@
     const preferred =
       (lastWsId && workspaces.find((w) => w.id === lastWsId)) || workspaces[0] || null;
     workspace = preferred ? cloneWorkspace(preferred) : null;
+    if (workspace?.sort?.field && isPanelSortField(workspace.sort.field)) {
+      sortBy = workspace.sort.field;
+    }
 
     // Do not overwrite last_workspace when only updating last_project_slug
     try {
@@ -349,6 +362,9 @@
       return;
     }
     workspace = cloneWorkspace(local);
+    if (workspace.sort?.field && isPanelSortField(workspace.sort.field)) {
+      sortBy = workspace.sort.field;
+    }
     void rememberLastWorkspace(id);
 
     // Refresh from server in the background (do not block UI)
@@ -691,6 +707,7 @@
         ticket_key: `NEW-${n}`,
         title: '',
         priority: 5,
+        urgency: 5,
         state: 'Submitted',
       });
       items = [...items, item];
@@ -801,6 +818,23 @@
     });
   }
 
+  function clickListSort(field: string) {
+    updateWorkspace((ws) => {
+      if (!ws.sort) ws.sort = { field, direction: 'asc' };
+      else if (ws.sort.field === field) {
+        ws.sort.direction = ws.sort.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        ws.sort.field = field;
+        ws.sort.direction = 'asc';
+      }
+    });
+  }
+
+  function listSortMark(field: string): string {
+    if (workspace?.sort?.field !== field) return '';
+    return workspace.sort.direction === 'desc' ? ' ▼' : ' ▲';
+  }
+
   function clearFilters() {
     updateWorkspace((ws) => {
       ws.filters.active = {};
@@ -833,6 +867,25 @@
       { id: crypto.randomUUID(), title: '', done: false, notes: '' },
     ];
     void saveDeliverables(next);
+  }
+
+  function sortOpenPanels() {
+    if (!workspace) return;
+    const wrap = canvasWrapEl;
+    if (!wrap) return;
+    const z = zoom || 1;
+    const origin = visibleWorldOrigin();
+    const viewH = wrap.clientHeight / z;
+    const ordered = sortItemPanels(workspace.panels, itemForPanel, sortBy, fieldDefs);
+    const placed = layoutColumnMajor(ordered, origin, viewH);
+    const byId = new Map(placed.map((p) => [p.id, p]));
+    updateWorkspace((ws) => {
+      ws.sort = { field: sortBy, direction: 'asc' };
+      ws.panels = ws.panels.map((p) => {
+        const n = byId.get(p.id);
+        return n ? { ...p, x: snapToGrid(n.x, z), y: snapToGrid(n.y, z) } : p;
+      });
+    });
   }
 
   function seeAll() {
@@ -971,6 +1024,24 @@
       <button type="button" onclick={() => openSpecial('all_items')}>All Items</button>
       <button type="button" onclick={() => openSpecial('notes')}>Notes</button>
       <button type="button" onclick={() => openSpecial('deliverables')}>Deliverables</button>
+      <div class="sort-controls">
+        <select
+          style="width:auto;min-width:140px"
+          value={sortBy}
+          onchange={(e) => {
+            const v = e.currentTarget.value;
+            if (isPanelSortField(v)) sortBy = v;
+          }}
+          title="Sort open item panels by"
+        >
+          {#each PANEL_SORT_OPTIONS as opt}
+            <option value={opt.id}>{opt.label}</option>
+          {/each}
+        </select>
+        <button type="button" onclick={sortOpenPanels} title="Line up panels top-to-bottom, then left-to-right">
+          Sort
+        </button>
+      </div>
       <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
         See All
       </button>
@@ -1129,34 +1200,73 @@
               {#if item.waiting?.is_waiting}
                 <div class="waiting-badge" style="margin-bottom:8px">
                   ⏱ Waiting
-                  {formatDuration(
+                  {formatWaitingDays(
                     liveSeconds(item.waiting.current_started_at, nowTick) ??
                       item.waiting.current_seconds
                   )}
-                  · total {formatDuration(item.waiting.total_seconds)}
                 </div>
               {/if}
               {#if !detailCache[item.id]}
                 <div class="empty-hint">Loading item…</div>
               {:else}
                 {#key item.id}
-                  {#each bodyFieldRows as row (row.row)}
-                    <div
-                      class="field-row"
-                      class:field-row-multi={row.fields.length > 1}
-                      class:field-row-fill={isNotesFillRow(row)}
-                    >
-                      {#each row.fields as def (def.id)}
-                        <div class="field-col" style:flex={fieldFlex(def)}>
-                          <FieldRenderer
-                            {def}
-                            fill={isNotesFillRow(row)}
-                            fields={detailCache[item.id].fields}
-                            onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
-                          />
-                        </div>
-                      {/each}
-                    </div>
+                  {#each bodyFieldBlocks as block, bi (block.kind === 'waiting' ? 'waiting' : block.row.row)}
+                    {#if block.kind === 'waiting'}
+                      {@const person = pickField(block.fields, 'waiting_for')}
+                      {@const since = pickField(block.fields, 'waiting_since')}
+                      {@const reason = pickField(block.fields, 'waiting_for_reason')}
+                      {@const waitingOn =
+                        detailCache[item.id].fields.state ===
+                        (project.waiting_state_value || 'Waiting For')}
+                      {#if waitingOn}
+                      <div class="waiting-fields">
+                        {#if person}
+                          <div class="waiting-person">
+                            <FieldRenderer
+                              def={person}
+                              fields={detailCache[item.id].fields}
+                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                            />
+                          </div>
+                        {/if}
+                        {#if since}
+                          <div class="waiting-since">
+                            <FieldRenderer
+                              def={since}
+                              fields={detailCache[item.id].fields}
+                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                            />
+                          </div>
+                        {/if}
+                        {#if reason}
+                          <div class="waiting-reason">
+                            <FieldRenderer
+                              def={reason}
+                              fields={detailCache[item.id].fields}
+                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                            />
+                          </div>
+                        {/if}
+                      </div>
+                      {/if}
+                    {:else}
+                      <div
+                        class="field-row"
+                        class:field-row-multi={block.row.fields.length > 1}
+                        class:field-row-fill={isNotesFillRow(block.row)}
+                      >
+                        {#each block.row.fields as def (def.id)}
+                          <div class="field-col" style:flex={fieldFlex(def)}>
+                            <FieldRenderer
+                              {def}
+                              fill={isNotesFillRow(block.row)}
+                              fields={detailCache[item.id].fields}
+                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                            />
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
                   {/each}
                 {/key}
               {/if}
@@ -1195,9 +1305,18 @@
                 <thead>
                   <tr>
                     {#each listFields as f}
-                      <th style:width={f.list_width || undefined}>{f.label}</th>
+                      <th
+                        class="sortable"
+                        class:sorted={workspace.sort?.field === f.id}
+                        style:width={f.list_width || undefined}
+                        onclick={() => clickListSort(f.id)}
+                      >{f.list_label || f.label}{listSortMark(f.id)}</th>
                     {/each}
-                    <th>Waiting</th>
+                    <th
+                      class="sortable"
+                      class:sorted={workspace.sort?.field === '_waiting'}
+                      onclick={() => clickListSort('_waiting')}
+                    >Waiting{listSortMark('_waiting')}</th>
                   </tr>
                 </thead>
                 <tbody>

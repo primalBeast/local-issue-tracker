@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupFieldsByRow, parseFieldOrder } from './fieldLayout';
+import { groupBodyBlocks, groupFieldsByRow, parseFieldOrder } from './fieldLayout';
 import type { FieldDef } from './api';
 
 function f(id: string, order: number | string): FieldDef {
@@ -33,5 +33,25 @@ describe('groupFieldsByRow', () => {
     ]);
     expect(rows.map((r) => r.row)).toEqual([20, 30, 90]);
     expect(rows[1].fields.map((x) => x.id)).toEqual(['priority', 'state']);
+  });
+});
+
+describe('groupBodyBlocks', () => {
+  it('stacks waiting person/since beside reason, before notes', () => {
+    const rows = groupFieldsByRow([
+      f('priority', '30a'),
+      f('waiting_for', '50a'),
+      f('waiting_for_reason', '50b'),
+      f('waiting_since', 51),
+      f('notes', 60),
+    ]);
+    const blocks = groupBodyBlocks(rows);
+    expect(blocks.map((b) => b.kind)).toEqual(['row', 'waiting', 'row']);
+    if (blocks[1].kind !== 'waiting') throw new Error('expected waiting');
+    expect(blocks[1].fields.map((x) => x.id).sort()).toEqual([
+      'waiting_for',
+      'waiting_for_reason',
+      'waiting_since',
+    ]);
   });
 });

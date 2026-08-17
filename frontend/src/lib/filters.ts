@@ -1,4 +1,5 @@
 import type { FieldDef, Item } from './api';
+import { compareItemFields } from './panelSort';
 
 export function isVisible(def: FieldDef, fields: Record<string, unknown>): boolean {
   const vw = def.visible_when;
@@ -40,16 +41,16 @@ export function itemMatchesFilters(
 
 export function sortItems(
   items: Item[],
-  sort: { field: string; direction: 'asc' | 'desc' }
+  sort: { field: string; direction: 'asc' | 'desc' },
+  defs: FieldDef[] = []
 ): Item[] {
   const dir = sort.direction === 'desc' ? -1 : 1;
   return [...items].sort((a, b) => {
-    const av = a.fields[sort.field];
-    const bv = b.fields[sort.field];
-    if (av == null && bv == null) return 0;
-    if (av == null) return 1;
-    if (bv == null) return -1;
-    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-    return String(av).localeCompare(String(bv)) * dir;
+    if (sort.field === '_waiting') {
+      const aw = a.waiting?.is_waiting ? (a.waiting.current_seconds ?? 0) : -1;
+      const bw = b.waiting?.is_waiting ? (b.waiting.current_seconds ?? 0) : -1;
+      return (aw - bw) * dir;
+    }
+    return compareItemFields(a, b, sort.field, defs) * dir;
   });
 }

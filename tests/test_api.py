@@ -45,6 +45,12 @@ def test_seeded_project_and_fields(client: TestClient):
     assert "ticket_key" in ids
     assert "state" in ids
     assert "notes" in ids
+    assert "urgency" in ids
+    assert "waiting_since" in ids
+    by_id = {f["id"]: f for f in fields["fields"]}
+    assert by_id["priority"]["order"] == "30a"
+    assert by_id["urgency"]["order"] == "30b"
+    assert by_id["state"]["order"] == "30c"
 
 
 def test_item_crud_and_lean_list(client: TestClient):
@@ -93,6 +99,16 @@ def test_waiting_transition(client: TestClient):
     body = waiting.json()
     assert body["waiting"]["is_waiting"] is True
     assert body["waiting"]["current_started_at"]
+    assert body["fields"].get("waiting_since") == body["waiting"]["current_started_at"][:10]
+
+    dated = client.patch(
+        f"/api/projects/{slug}/items/{item_id}",
+        json={"fields": {"waiting_since": "2024-01-15"}, "version": body["version"]},
+    )
+    assert dated.status_code == 200, dated.text
+    body = dated.json()
+    assert body["fields"]["waiting_since"] == "2024-01-15"
+    assert body["waiting"]["current_started_at"].startswith("2024-01-15")
 
     done = client.patch(
         f"/api/projects/{slug}/items/{item_id}",

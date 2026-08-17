@@ -11,6 +11,12 @@ export function formatDuration(seconds: number | null | undefined): string {
   return `${secs}s`;
 }
 
+export function formatWaitingDays(seconds: number | null | undefined): string {
+  if (seconds == null || Number.isNaN(seconds) || seconds < 0) return '0 days';
+  const days = Math.floor(seconds / 86400);
+  return days === 1 ? '1 day' : `${days} days`;
+}
+
 export function liveSeconds(startedAt: string | null | undefined, nowMs = Date.now()): number | null {
   if (!startedAt) return null;
   const t = Date.parse(startedAt);

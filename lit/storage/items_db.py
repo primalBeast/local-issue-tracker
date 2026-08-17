@@ -69,6 +69,12 @@ def items_db_path(project_path: Path) -> Path:
     return project_path / "items.sqlite"
 
 
+def _hydrate_waiting_since(item: dict[str, Any]) -> None:
+    started = (item.get("waiting") or {}).get("current_started_at")
+    if started:
+        item.setdefault("fields", {})["waiting_since"] = str(started)[:10]
+
+
 def _row_to_item(row: sqlite3.Row, fields: dict[str, Any] | None = None) -> dict[str, Any]:
     data = fields if fields is not None else json.loads(row["fields_json"])
     return {
@@ -168,6 +174,7 @@ def list_items(
             fields = lean_fields(fields, field_defs)
         item = _row_to_item(r, fields)
         item["waiting"] = compute_waiting_summary(waiting_map.get(r["id"], []), include_history=False)
+        _hydrate_waiting_since(item)
         items.append(item)
     return items
 
@@ -179,6 +186,7 @@ def get_item(conn: sqlite3.Connection, item_id: str) -> dict[str, Any] | None:
     periods = list_waiting_for_items(conn, [item_id]).get(item_id, [])
     item = _row_to_item(row)
     item["waiting"] = compute_waiting_summary(periods, include_history=True)
+    _hydrate_waiting_since(item)
     return item
 
 

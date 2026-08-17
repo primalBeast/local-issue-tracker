@@ -37,6 +37,8 @@ export type FieldDef = {
   placeholder?: string;
   filterable?: boolean;
   show_in_list?: boolean;
+  /** Optional All Items column title (falls back to label). */
+  list_label?: string;
   show_in_compact?: boolean;
   visible_when?: { field: string; equals: unknown };
   help_text?: string;
@@ -129,6 +131,11 @@ export const api = {
   projects: () => req<Project[]>('/api/projects'),
   project: (slug: string) => req<Project>(`/api/projects/${slug}`),
   fields: (slug: string) => req<FieldsDoc>(`/api/projects/${slug}/fields`),
+  putFields: (slug: string, body: FieldsDoc) =>
+    req<FieldsDoc>(`/api/projects/${slug}/fields`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   items: (slug: string) => req<Item[]>(`/api/projects/${slug}/items`),
   item: (slug: string, id: string) => req<Item>(`/api/projects/${slug}/items/${id}`),
   createItem: (slug: string, fields: Record<string, unknown>) =>
