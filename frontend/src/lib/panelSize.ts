@@ -3,7 +3,7 @@ import type { FieldRow } from './fieldLayout';
 
 /** Visible text lines inside the Notes editor on a new item panel. */
 export const NOTES_MIN_LINES = 3;
-export const NOTES_LINE_PX = 19;
+export const NOTES_LINE_PX = 23;
 export const NOTES_EDITOR_PAD_PX = 16;
 export const NOTES_TOOLBAR_PX = 34;
 export const NOTES_LABEL_PX = 18;

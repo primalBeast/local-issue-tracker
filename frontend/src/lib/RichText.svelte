@@ -17,6 +17,7 @@
   }: Props = $props();
 
   let el: HTMLDivElement;
+  let wrapEl = $state<HTMLDivElement | null>(null);
   let editor = $state<Editor | null>(null);
   let toolbarTick = $state(0);
   let showHelp = $state(false);
@@ -56,10 +57,8 @@
         const StrikeWithShortcuts = Strike.extend({
           addKeyboardShortcuts() {
             return {
-              'Mod-Shift-s': () => this.editor.commands.toggleStrike(),
-              'Mod-Shift-S': () => this.editor.commands.toggleStrike(),
-              'Mod-Shift-x': () => this.editor.commands.toggleStrike(),
-              'Mod-Shift-X': () => this.editor.commands.toggleStrike(),
+              'Ctrl-q': () => this.editor.commands.toggleStrike(),
+              'Ctrl-Q': () => this.editor.commands.toggleStrike(),
             };
           },
         });
@@ -120,9 +119,31 @@
     void toolbarTick;
     return editor?.isActive(name) ?? false;
   }
+
+  function isStrikeHotkey(e: KeyboardEvent): boolean {
+    if (!e.ctrlKey || e.metaKey || e.altKey) return false;
+    return e.code === 'KeyQ' || e.key === 'q' || e.key === 'Q';
+  }
+
+  function onStrikeHotkey(e: KeyboardEvent) {
+    if (!isStrikeHotkey(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!editor) return;
+    editor.chain().focus().toggleStrike().run();
+    toolbarTick += 1;
+  }
+
+  $effect(() => {
+    const wrap = wrapEl;
+    if (!wrap) return;
+    wrap.addEventListener('keydown', onStrikeHotkey, true);
+    return () => wrap.removeEventListener('keydown', onStrikeHotkey, true);
+  });
 </script>
 
-<div class="rte-wrap" class:fill>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="rte-wrap" class:fill role="group" aria-label="Notes editor" bind:this={wrapEl}>
   {#if editorError}
     <div class="empty-hint" style="padding:8px">Notes editor failed to load. The rest of the app still works.</div>
   {:else if !editor}
@@ -161,7 +182,7 @@
         type="button"
         class="rte-btn"
         class:active={isActive('strike')}
-        title="Strikethrough (⌘⇧X or ⌘⇧S / Ctrl+Shift+X or Ctrl+Shift+S)"
+        title="Strikethrough (Ctrl+Q)"
         onclick={() => run(() => editor!.chain().focus().toggleStrike().run())}
       >
         <span class="s">S</span>
@@ -192,7 +213,7 @@
             <tr><td>Bold</td><td><kbd>⌘B</kbd> / <kbd>Ctrl+B</kbd></td></tr>
             <tr><td>Italic</td><td><kbd>⌘I</kbd> / <kbd>Ctrl+I</kbd></td></tr>
             <tr><td>Underline</td><td><kbd>⌘U</kbd> / <kbd>Ctrl+U</kbd></td></tr>
-            <tr><td>Strikethrough</td><td><kbd>⌘⇧X</kbd> or <kbd>⌘⇧S</kbd><br /><kbd>Ctrl+Shift+X</kbd> or <kbd>Ctrl+Shift+S</kbd></td></tr>
+            <tr><td>Strikethrough</td><td><kbd>Ctrl+Q</kbd></td></tr>
             <tr><td>Inline code</td><td><kbd>⌘E</kbd> / <kbd>Ctrl+E</kbd></td></tr>
             <tr><td>Bullet list</td><td><kbd>⌘⇧8</kbd> / <kbd>Ctrl+Shift+8</kbd></td></tr>
             <tr><td>Numbered list</td><td><kbd>⌘⇧7</kbd> / <kbd>Ctrl+Shift+7</kbd></td></tr>
@@ -334,6 +355,8 @@
     border: none;
     background: transparent;
     border-radius: 0;
+    font-size: 16px;
+    line-height: 1.45;
   }
 
   .rte-wrap.fill .rte :global(.ProseMirror) {

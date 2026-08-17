@@ -625,6 +625,8 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   background: #0e1219;
   border: 1px solid var(--border);
   border-radius: 8px;
+  font-size: 16px;
+  line-height: 1.45;
 }
 .ProseMirror p { margin: 0 0 0.5em; }
 .ProseMirror p:last-child { margin-bottom: 0; }
