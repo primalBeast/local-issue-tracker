@@ -121,15 +121,37 @@ def test_waiting_transition(client: TestClient):
     assert len(body2["waiting"]["history"]) >= 1
 
 
+def test_theme_setting_round_trip(client: TestClient):
+    got = client.get("/api/settings")
+    assert got.status_code == 200
+    assert got.json()["theme"] == "dark"
+    assert got.json()["transparent_panels"] is False
+    patched = client.patch(
+        "/api/settings", json={"theme": "aurora", "transparent_panels": True}
+    )
+    assert patched.status_code == 200
+    assert patched.json()["theme"] == "aurora"
+    assert patched.json()["transparent_panels"] is True
+    again = client.get("/api/settings")
+    assert again.json()["theme"] == "aurora"
+    assert again.json()["transparent_panels"] is True
+
+
 def test_workspace_lww(client: TestClient):
     slug = client.get("/api/projects").json()[0]["slug"]
     ws_list = client.get(f"/api/projects/{slug}/workspaces").json()
     assert ws_list
     ws = ws_list[0]
     ws["ui"]["zoom"] = 0.8
+    ws["ui"]["theme"] = "ember"
+    ws["ui"]["transparent_panels"] = True
     saved = client.put(f"/api/projects/{slug}/workspaces/{ws['id']}", json=ws)
     assert saved.status_code == 200
     assert saved.json()["ui"]["zoom"] == 0.8
+    assert saved.json()["ui"]["theme"] == "ember"
+    assert saved.json()["ui"]["transparent_panels"] is True
+    again = client.get(f"/api/projects/{slug}/workspaces/{ws['id']}")
+    assert again.json()["ui"]["theme"] == "ember"
 
 
 def test_delete_project_confirm(client: TestClient):

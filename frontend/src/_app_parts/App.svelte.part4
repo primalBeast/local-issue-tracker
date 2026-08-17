@@ -1,6 +1,80 @@
+{#if loading}
+  <div class="empty-hint" style="padding-top:20vh">Loading Local Issue Tracker…</div>
+{:else if error}
+  <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
+{:else if project && workspace}
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        Local Issue Tracker
+      </div>
+      <select
+        style="width:auto;min-width:160px"
+        value={project.slug}
+        onchange={(e) => loadProject(e.currentTarget.value)}
+      >
+        {#each projects as p}
+          <option value={p.slug}>{p.name}</option>
+        {/each}
+      </select>
+      <button type="button" class="ghost" title="Toggle sidebar (⌘\)" onclick={toggleSidebar}>
+        {sidebarVisible ? 'Hide tabs' : 'Show tabs'}
+      </button>
+      <button type="button" class="primary" onclick={createItem}>+ Item</button>
+      <button type="button" onclick={() => openSpecial('all_items')}>All Items</button>
+      <button type="button" onclick={() => openSpecial('notes')}>Notes</button>
+      <button type="button" onclick={() => openSpecial('deliverables')}>Deliverables</button>
+      <div class="sort-controls">
+        <select
+          style="width:auto;min-width:140px"
+          value={sortBy}
+          onchange={(e) => {
+            const v = e.currentTarget.value;
+            if (isPanelSortField(v)) sortBy = v;
+          }}
+          title="Sort open item panels by"
+        >
+          {#each PANEL_SORT_OPTIONS as opt}
+            <option value={opt.id}>{opt.label}</option>
+          {/each}
+        </select>
+        <button type="button" onclick={sortOpenPanels} title="Line up panels top-to-bottom, then left-to-right">
+          Sort
+        </button>
+      </div>
+      <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
+        See All
+      </button>
+      <button type="button" class="ghost" onclick={resetLayout}>Reset layout</button>
+      <div class="theme-controls">
+        <select
+          class="theme-select"
+          value={themeId}
+          onchange={(e) => void setTheme(e.currentTarget.value)}
+          title="Theme"
+        >
+          {#each THEMES as t}
+            <option value={t.id}>{t.name}</option>
+          {/each}
+        </select>
+        <label
+          class="theme-transparent"
+          title="Clear panel fill so the board shows through — no wallpaper or solid color in the card"
+        >
+          <input
+            type="checkbox"
+            checked={transparentPanels}
+            onchange={(e) => void setTransparentPanels(e.currentTarget.checked)}
+          />
+          Transparent
+        </label>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16a</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16d</span>
       </div>
     </header>
 
@@ -110,7 +184,7 @@
                     ? 'Project Notes'
                     : 'Deliverables'
             }
-            accentBg={colors.bg || undefined}
+            accentBg={transparentPanels ? undefined : colors.bg || undefined}
             accentBorder={colors.border || undefined}
             compact={compact}
             fillBody={panel.kind === 'item' || panel.kind === 'notes'}

@@ -234,7 +234,7 @@
   .rte-wrap {
     border: 1px solid var(--border, #2a3140);
     border-radius: 8px;
-    background: #0e1219;
+    background: var(--bg-input, #0e1219);
     overflow: hidden;
   }
 
@@ -273,8 +273,8 @@
   }
 
   .rte-btn.active {
-    background: rgba(110, 168, 254, 0.15);
-    border-color: rgba(110, 168, 254, 0.4);
+    background: var(--accent-soft, rgba(110, 168, 254, 0.15));
+    border-color: color-mix(in srgb, var(--accent, #6ea8fe) 40%, transparent);
     color: var(--text, #e8eaed);
   }
 
@@ -326,7 +326,7 @@
     padding: 1px 5px;
     border-radius: 4px;
     border: 1px solid var(--border, #2a3140);
-    background: #12151c;
+    background: var(--bg-elevated, #12151c);
     font-family: var(--mono, ui-monospace, monospace);
     font-size: 10.5px;
     color: var(--text, #e8eaed);

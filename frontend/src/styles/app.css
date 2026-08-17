@@ -4,6 +4,10 @@
   --bg-elevated: #12151c;
   --bg-panel: #161a22;
   --bg-panel-2: #1c212c;
+  --bg-input: #0e1219;
+  --bg-hover: #232937;
+  --bg-chrome: #12151c;
+  --bg-sidebar: #0d1016;
   --border: #2a3140;
   --border-strong: #3a4458;
   --text: #e8eaed;
@@ -15,6 +19,22 @@
   --success: #4ade80;
   --warning: #fbbf24;
   --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --primary-from: #4f7cff;
+  --primary-to: #3b6cf0;
+  --primary-border: #5b7fff;
+  --focus-ring: rgba(110, 168, 254, 0.15);
+  --accent-soft: rgba(110, 168, 254, 0.12);
+  --brand-glow: rgba(110, 168, 254, 0.35);
+  --panel-glass: #161a22;
+  --chrome-glass: #12151c;
+  --sidebar-glass: #0d1016;
+  --canvas-glow-1: radial-gradient(1200px 600px at 10% -10%, rgba(110, 168, 254, 0.08), transparent 50%);
+  --canvas-glow-2: radial-gradient(900px 500px at 100% 0%, rgba(139, 92, 246, 0.07), transparent 45%);
+  --wallpaper: none;
+  --wallpaper-veil: none;
+  --grid-dot: rgba(255, 255, 255, 0.07);
+  --glass-blur: 0px;
+  --glass-saturate: 1;
   --radius: 12px;
   --font: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
   --mono: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
@@ -31,7 +51,12 @@ body,
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: var(--wallpaper-veil), var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
   color: var(--text);
   font-family: var(--font);
   font-size: 13.5px;
@@ -59,14 +84,14 @@ button {
 
 button:hover {
   border-color: var(--border-strong);
-  background: #232937;
+  background: var(--bg-hover);
 }
 
 button:active { transform: translateY(1px); }
 
 button.primary {
-  background: linear-gradient(180deg, #4f7cff, #3b6cf0);
-  border-color: #5b7fff;
+  background: linear-gradient(180deg, var(--primary-from), var(--primary-to));
+  border-color: var(--primary-border);
   color: white;
 }
 
@@ -87,7 +112,7 @@ input,
 select,
 textarea {
   width: 100%;
-  background: #0e1219;
+  background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 7px 9px;
@@ -98,7 +123,7 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.15);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 label.field-label {
@@ -179,6 +204,7 @@ label.field-label {
   grid-template-rows: var(--topbar-h) 1fr;
   height: 100%;
   width: 100%;
+  background: transparent;
 }
 
 .topbar {
@@ -188,7 +214,16 @@ label.field-label {
   gap: 12px;
   padding: 0 14px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, #12151c, #0f1218);
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--chrome-glass), var(--chrome-glass)),
+    var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   z-index: 50;
 }
 
@@ -204,8 +239,8 @@ label.field-label {
   width: 22px;
   height: 22px;
   border-radius: 7px;
-  background: linear-gradient(135deg, #6ea8fe, #8b5cf6);
-  box-shadow: 0 0 16px rgba(110, 168, 254, 0.35);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 16px var(--brand-glow);
 }
 
 .topbar-spacer { flex: 1; }
@@ -234,10 +269,49 @@ label.field-label {
   letter-spacing: 0.02em;
 }
 
+.theme-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-select {
+  width: auto;
+  min-width: 172px;
+}
+
+.theme-transparent {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+}
+
+.theme-transparent input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.theme-transparent:hover { color: var(--text); }
+
 .sidebar {
   width: var(--sidebar-w);
   border-right: 1px solid var(--border);
-  background: #0d1016;
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--sidebar-glass), var(--sidebar-glass)),
+    var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -278,13 +352,13 @@ label.field-label {
 .ws-tab.ws-tab-main { cursor: pointer; font-weight: 650; }
 .ws-tab.active {
   color: var(--text);
-  background: rgba(110, 168, 254, 0.12);
-  border-color: rgba(110, 168, 254, 0.35);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 .ws-tab-dragging { opacity: 0.45; }
 .ws-tab-drag-over {
-  border-color: rgba(110, 168, 254, 0.65);
-  background: rgba(110, 168, 254, 0.18);
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+  background: var(--accent-soft);
 }
 
 .board-editor {
@@ -292,7 +366,16 @@ label.field-label {
   z-index: 2000;
   width: 220px;
   padding: 12px;
-  background: #161a22;
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--panel-glass), var(--panel-glass)),
+    var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   box-shadow: var(--shadow);
@@ -312,12 +395,12 @@ label.field-label {
 .color-swatch.swatch-none {
   background:
     linear-gradient(135deg, transparent 46%, #ef4444 46%, #ef4444 54%, transparent 54%),
-    #1c212c !important;
+    var(--bg-panel-2) !important;
   border-color: var(--border);
 }
 .color-swatch.selected {
   border-color: #fff;
-  box-shadow: 0 0 0 2px rgba(110, 168, 254, 0.5);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 .color-swatch:hover { transform: scale(1.08); }
 
@@ -326,10 +409,16 @@ label.field-label {
   overflow: hidden;
   cursor: grab;
   touch-action: none;
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(110, 168, 254, 0.08), transparent 50%),
-    radial-gradient(900px 500px at 100% 0%, rgba(139, 92, 246, 0.07), transparent 45%),
-    var(--bg);
+  background-color: var(--bg);
+  background-image:
+    var(--wallpaper-veil),
+    var(--canvas-glow-1),
+    var(--canvas-glow-2),
+    var(--wallpaper);
+  background-size: auto, auto, auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, scroll, scroll, fixed;
 }
 
 .canvas-wrap.is-panning,
@@ -344,7 +433,7 @@ body.lit-canvas-panning * {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1.2px);
+  background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1.2px);
   background-size: calc(20px * var(--zoom, 1)) calc(20px * var(--zoom, 1));
   background-position: var(--pan-x, 0px) var(--pan-y, 0px);
 }
@@ -361,7 +450,16 @@ body.lit-canvas-panning * {
   cursor: default;
   min-width: 200px;
   min-height: 120px;
-  background: var(--bg-panel);
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--panel-glass), var(--panel-glass)),
+    var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -373,8 +471,27 @@ body.lit-canvas-panning * {
 
 .panel:focus-within,
 .panel.active {
-  border-color: rgba(110, 168, 254, 0.55);
-  box-shadow: var(--shadow), 0 0 0 1px rgba(110, 168, 254, 0.2);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: var(--shadow), 0 0 0 1px var(--focus-ring);
+}
+
+html[data-transparent-panels="1"] .panel,
+html[data-transparent-panels="1"] .panel:focus-within,
+html[data-transparent-panels="1"] .panel.active {
+  background: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+html[data-transparent-panels="1"] .panel:focus-within,
+html[data-transparent-panels="1"] .panel.active {
+  box-shadow: 0 0 0 1px var(--focus-ring);
+}
+
+html[data-transparent-panels="1"] .panel-header {
+  background: transparent;
 }
 
 .panel-header {
@@ -596,7 +713,16 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   position: fixed;
   bottom: 18px;
   right: 18px;
-  background: #1a2030;
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--panel-glass), var(--panel-glass)),
+    var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--border-strong);
   padding: 10px 14px;
   border-radius: 10px;
@@ -669,7 +795,7 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   min-height: calc(1.4em * 3 + 16px);
   outline: none;
   padding: 8px;
-  background: #0e1219;
+  background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 16px;

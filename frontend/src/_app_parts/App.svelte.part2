@@ -1,3 +1,70 @@
+  async function ensureDetail(id: string) {
+    if (detailCache[id]) return detailCache[id];
+    if (!project) return null;
+    const full = await api.item(project.slug, id);
+    detailCache = { ...detailCache, [id]: full };
+    return full;
+  }
+
+  /** Deep clone without relying on structuredClone(proxy) (Svelte $state). */
+  function cloneWorkspace(ws: Workspace): Workspace {
+    return JSON.parse(JSON.stringify(ws)) as Workspace;
+  }
+
+  /** Keep the workspaces list in sync with the in-memory current workspace. */
+  function flushCurrentWorkspaceToList() {
+    if (!workspace) return;
+    const snap = cloneWorkspace(workspace);
+    const idx = workspaces.findIndex((w) => w.id === snap.id);
+    if (idx >= 0) {
+      workspaces = workspaces.map((w) => (w.id === snap.id ? snap : w));
+    } else {
+      workspaces = [...workspaces, snap];
+    }
+  }
+
+  function scheduleWorkspaceSave() {
+    if (!project || !workspace) return;
+    // Always mirror latest local state into the list immediately
+    const id = workspace.id;
+    flushCurrentWorkspaceToList();
+
+    if (saveTimer) clearTimeout(saveTimer);
+    const slug = project.slug;
+    saveTimer = setTimeout(async () => {
+      const toSave = workspaces.find((w) => w.id === id);
+      if (!toSave) return;
+      try {
+        const saved = await api.putWorkspace(slug, id, toSave);
+        workspaces = workspaces.map((w) => (w.id === id ? saved : w));
+        // Do not replace the live workspace if the user has already switched away
+        if (workspace?.id === id) {
+          workspace = {
+            ...cloneWorkspace(workspace),
+            updated_at: saved.updated_at,
+          };
+        }
+      } catch (e) {
+        showToast('Failed to save layout');
+        console.error(e);
+      }
+    }, 400);
+  }
+
+  function updateWorkspace(mutator: (ws: Workspace) => void) {
+    if (!workspace) return;
+    const next = cloneWorkspace(workspace);
+    mutator(next);
+    workspace = next;
+    scheduleWorkspaceSave();
+  }
+
+  function toggleSidebar() {
+    updateWorkspace((ws) => {
+      ws.ui.sidebar_visible = !ws.ui.sidebar_visible;
+    });
+  }
+
   async function selectWorkspace(id: string) {
     if (!project) return;
     if (workspace?.id === id) return;
@@ -15,6 +82,7 @@
     if (workspace.sort?.field && isPanelSortField(workspace.sort.field)) {
       sortBy = workspace.sort.field;
     }
+    applyBoardAppearance(workspace);
     void rememberLastWorkspace(id);
 
     // Refresh from server in the background (do not block UI)
@@ -23,6 +91,7 @@
       if (workspace?.id !== id) return; // user already switched again
       workspace = fresh;
       workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? fresh : w)));
+      applyBoardAppearance(workspace);
       for (const p of fresh.panels || []) {
         if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
       }
@@ -323,28 +392,3 @@
     });
   }
 
-  function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
-    if (!workspace) return;
-    const existing = workspace.panels.find((p) => p.kind === kind);
-    if (existing) {
-      focusPanel(existing.id);
-      return;
-    }
-    const sizes = {
-      all_items: { w: 560, h: 640 },
-      notes: { w: 400, h: 420 },
-      deliverables: { w: 400, h: 360 },
-    }[kind];
-    const origin = visibleWorldOrigin();
-    updateWorkspace((ws) => {
-      ws.panels.push({
-        id: `panel-${kind}-${Date.now().toString(36)}`,
-        kind,
-        x: snapToGrid(origin.x + 60, ws.ui.zoom),
-        y: snapToGrid(origin.y + 60, ws.ui.zoom),
-        width: sizes.w,
-        height: sizes.h,
-        z_index: maxZ() + 1,
-      });
-    });
-  }

@@ -1,3 +1,28 @@
+  function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === kind);
+    if (existing) {
+      focusPanel(existing.id);
+      return;
+    }
+    const sizes = {
+      all_items: { w: 560, h: 640 },
+      notes: { w: 400, h: 420 },
+      deliverables: { w: 400, h: 360 },
+    }[kind];
+    const origin = visibleWorldOrigin();
+    updateWorkspace((ws) => {
+      ws.panels.push({
+        id: `panel-${kind}-${Date.now().toString(36)}`,
+        kind,
+        x: snapToGrid(origin.x + 60, ws.ui.zoom),
+        y: snapToGrid(origin.y + 60, ws.ui.zoom),
+        width: sizes.w,
+        height: sizes.h,
+        z_index: maxZ() + 1,
+      });
+    });
+  }
 
   async function createItem() {
     if (!project) return;
@@ -237,6 +262,10 @@
       );
       workspaces = sortWorkspaces([...workspaces, cloneWorkspace(w)]);
       workspace = cloneWorkspace(w);
+      updateWorkspace((ws) => {
+        ws.ui.theme = themeId;
+        ws.ui.transparent_panels = transparentPanels;
+      });
       void rememberLastWorkspace(w.id);
     } catch (e) {
       showToast('Failed to create workspace');
@@ -297,54 +326,3 @@
   }
 </script>
 
-{#if loading}
-  <div class="empty-hint" style="padding-top:20vh">Loading Local Issue Tracker…</div>
-{:else if error}
-  <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
-{:else if project && workspace}
-  <div class="app-shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark"></div>
-        Local Issue Tracker
-      </div>
-      <select
-        style="width:auto;min-width:160px"
-        value={project.slug}
-        onchange={(e) => loadProject(e.currentTarget.value)}
-      >
-        {#each projects as p}
-          <option value={p.slug}>{p.name}</option>
-        {/each}
-      </select>
-      <button type="button" class="ghost" title="Toggle sidebar (⌘\)" onclick={toggleSidebar}>
-        {sidebarVisible ? 'Hide tabs' : 'Show tabs'}
-      </button>
-      <button type="button" class="primary" onclick={createItem}>+ Item</button>
-      <button type="button" onclick={() => openSpecial('all_items')}>All Items</button>
-      <button type="button" onclick={() => openSpecial('notes')}>Notes</button>
-      <button type="button" onclick={() => openSpecial('deliverables')}>Deliverables</button>
-      <div class="sort-controls">
-        <select
-          style="width:auto;min-width:140px"
-          value={sortBy}
-          onchange={(e) => {
-            const v = e.currentTarget.value;
-            if (isPanelSortField(v)) sortBy = v;
-          }}
-          title="Sort open item panels by"
-        >
-          {#each PANEL_SORT_OPTIONS as opt}
-            <option value={opt.id}>{opt.label}</option>
-          {/each}
-        </select>
-        <button type="button" onclick={sortOpenPanels} title="Line up panels top-to-bottom, then left-to-right">
-          Sort
-        </button>
-      </div>
-      <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
-        See All
-      </button>
-      <button type="button" class="ghost" onclick={resetLayout}>Reset layout</button>
-      <div class="topbar-spacer"></div>
-      <div class="topbar-meta">

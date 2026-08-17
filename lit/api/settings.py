@@ -14,6 +14,7 @@ class SettingsPatch(BaseModel):
     last_project_slug: str | None = None
     last_workspace_by_project: dict[str, str] | None = None
     theme: str | None = None
+    transparent_panels: bool | None = None
     backup_retention_days: int | None = Field(default=None, ge=1, le=365)
     window: dict[str, Any] | None = None
 
@@ -34,6 +35,7 @@ async def update_settings(request: Request) -> dict[str, Any]:
         "last_project_slug",
         "last_workspace_by_project",
         "theme",
+        "transparent_panels",
         "backup_retention_days",
         "window",
         "seeded_sample",

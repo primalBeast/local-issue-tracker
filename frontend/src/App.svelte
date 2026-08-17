@@ -33,6 +33,16 @@
     zoomFromWheelDelta,
   } from './lib/viewport';
   import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
+  import {
+    appearanceFromWorkspace,
+    applyTheme,
+    applyTransparentPanels,
+    parseTransparentPanels,
+    resolveTheme,
+    THEME_STORAGE_KEY,
+    THEMES,
+    TRANSPARENT_PANELS_KEY,
+  } from './lib/themes';
 
   let projects = $state<Project[]>([]);
   let project = $state<Project | null>(null);
@@ -104,6 +114,12 @@
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
   let panning = $state(false);
   let sortBy = $state<PanelSortField>('ticket_key');
+  const initialTheme = resolveTheme(readStoredTheme());
+  const initialTransparent = readStoredTransparentPanels();
+  let themeId = $state(initialTheme.id);
+  let transparentPanels = $state(initialTransparent);
+  applyTheme(initialTheme.id);
+  applyTransparentPanels(initialTransparent);
   let canvasWrapEl = $state<HTMLElement | null>(null);
   const canvasPan = {
     pointerId: -1,
@@ -191,6 +207,12 @@
         return;
       }
       const settings = await api.settings();
+      adoptTheme((settings.theme as string) || readStoredTheme());
+      adoptTransparentPanels(
+        settings.transparent_panels !== undefined
+          ? settings.transparent_panels
+          : readStoredTransparentPanels()
+      );
       const slug =
         (settings.last_project_slug as string) || projects[0].slug;
       await loadProject(slug);
@@ -198,6 +220,92 @@
       error = e instanceof Error ? e.message : String(e);
     } finally {
       loading = false;
+    }
+  }
+
+  function readStoredTheme(): string | null {
+    try {
+      return localStorage.getItem(THEME_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  function writeStoredTheme(id: string) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, id);
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function readStoredTransparentPanels(): boolean {
+    try {
+      return parseTransparentPanels(localStorage.getItem(TRANSPARENT_PANELS_KEY));
+    } catch {
+      return false;
+    }
+  }
+
+  function writeStoredTransparentPanels(on: boolean) {
+    try {
+      localStorage.setItem(TRANSPARENT_PANELS_KEY, on ? '1' : '0');
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function adoptTransparentPanels(raw: unknown) {
+    const on = applyTransparentPanels(parseTransparentPanels(raw));
+    transparentPanels = on;
+    writeStoredTransparentPanels(on);
+    return on;
+  }
+
+  async function setTransparentPanels(on: boolean) {
+    adoptTransparentPanels(on);
+    updateWorkspace((ws) => {
+      ws.ui.transparent_panels = on;
+    });
+    try {
+      await api.patchSettings({ transparent_panels: on });
+    } catch (e) {
+      console.error('Failed to persist transparent panels', e);
+    }
+  }
+
+  function adoptTheme(id: string | null | undefined) {
+    const theme = applyTheme(id);
+    themeId = theme.id;
+    writeStoredTheme(theme.id);
+    return theme;
+  }
+
+  async function setTheme(id: string) {
+    const theme = adoptTheme(id);
+    updateWorkspace((ws) => {
+      ws.ui.theme = theme.id;
+    });
+    try {
+      await api.patchSettings({ theme: theme.id });
+    } catch (e) {
+      console.error('Failed to persist theme', e);
+    }
+  }
+
+  function applyBoardAppearance(ws: Workspace) {
+    const look = appearanceFromWorkspace(
+      ws.ui,
+      readStoredTheme(),
+      readStoredTransparentPanels()
+    );
+    adoptTheme(look.theme);
+    adoptTransparentPanels(look.transparent);
+    if (ws.ui.theme == null || ws.ui.transparent_panels == null) {
+      updateWorkspace((w) => {
+        if (w.ui.theme == null) w.ui.theme = look.theme;
+        if (w.ui.transparent_panels == null) w.ui.transparent_panels = look.transparent;
+      });
     }
   }
 
@@ -273,6 +381,7 @@
     }
 
     if (workspace) {
+      applyBoardAppearance(workspace);
       // Sync both stores to whatever we actually opened
       writeLocalLastWorkspace(slug, workspace.id);
       for (const p of workspace.panels) {
@@ -365,6 +474,7 @@
     if (workspace.sort?.field && isPanelSortField(workspace.sort.field)) {
       sortBy = workspace.sort.field;
     }
+    applyBoardAppearance(workspace);
     void rememberLastWorkspace(id);
 
     // Refresh from server in the background (do not block UI)
@@ -373,6 +483,7 @@
       if (workspace?.id !== id) return; // user already switched again
       workspace = fresh;
       workspaces = sortWorkspaces(workspaces.map((w) => (w.id === id ? fresh : w)));
+      applyBoardAppearance(workspace);
       for (const p of fresh.panels || []) {
         if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
       }
@@ -937,6 +1048,10 @@
       );
       workspaces = sortWorkspaces([...workspaces, cloneWorkspace(w)]);
       workspace = cloneWorkspace(w);
+      updateWorkspace((ws) => {
+        ws.ui.theme = themeId;
+        ws.ui.transparent_panels = transparentPanels;
+      });
       void rememberLastWorkspace(w.id);
     } catch (e) {
       showToast('Failed to create workspace');
@@ -1046,11 +1161,34 @@
         See All
       </button>
       <button type="button" class="ghost" onclick={resetLayout}>Reset layout</button>
+      <div class="theme-controls">
+        <select
+          class="theme-select"
+          value={themeId}
+          onchange={(e) => void setTheme(e.currentTarget.value)}
+          title="Theme"
+        >
+          {#each THEMES as t}
+            <option value={t.id}>{t.name}</option>
+          {/each}
+        </select>
+        <label
+          class="theme-transparent"
+          title="Clear panel fill so the board shows through — no wallpaper or solid color in the card"
+        >
+          <input
+            type="checkbox"
+            checked={transparentPanels}
+            onchange={(e) => void setTransparentPanels(e.currentTarget.checked)}
+          />
+          Transparent
+        </label>
+      </div>
       <div class="topbar-spacer"></div>
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16a</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16d</span>
       </div>
     </header>
 
@@ -1160,7 +1298,7 @@
                     ? 'Project Notes'
                     : 'Deliverables'
             }
-            accentBg={colors.bg || undefined}
+            accentBg={transparentPanels ? undefined : colors.bg || undefined}
             accentBorder={colors.border || undefined}
             compact={compact}
             fillBody={panel.kind === 'item' || panel.kind === 'notes'}

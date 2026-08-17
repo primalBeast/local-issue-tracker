@@ -33,6 +33,16 @@
     zoomFromWheelDelta,
   } from './lib/viewport';
   import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
+  import {
+    appearanceFromWorkspace,
+    applyTheme,
+    applyTransparentPanels,
+    parseTransparentPanels,
+    resolveTheme,
+    THEME_STORAGE_KEY,
+    THEMES,
+    TRANSPARENT_PANELS_KEY,
+  } from './lib/themes';
 
   let projects = $state<Project[]>([]);
   let project = $state<Project | null>(null);
@@ -104,6 +114,12 @@
   let sidebarVisible = $derived(workspace?.ui.sidebar_visible ?? true);
   let panning = $state(false);
   let sortBy = $state<PanelSortField>('ticket_key');
+  const initialTheme = resolveTheme(readStoredTheme());
+  const initialTransparent = readStoredTransparentPanels();
+  let themeId = $state(initialTheme.id);
+  let transparentPanels = $state(initialTransparent);
+  applyTheme(initialTheme.id);
+  applyTransparentPanels(initialTransparent);
   let canvasWrapEl = $state<HTMLElement | null>(null);
   const canvasPan = {
     pointerId: -1,
@@ -191,6 +207,12 @@
         return;
       }
       const settings = await api.settings();
+      adoptTheme((settings.theme as string) || readStoredTheme());
+      adoptTransparentPanels(
+        settings.transparent_panels !== undefined
+          ? settings.transparent_panels
+          : readStoredTransparentPanels()
+      );
       const slug =
         (settings.last_project_slug as string) || projects[0].slug;
       await loadProject(slug);
@@ -198,6 +220,92 @@
       error = e instanceof Error ? e.message : String(e);
     } finally {
       loading = false;
+    }
+  }
+
+  function readStoredTheme(): string | null {
+    try {
+      return localStorage.getItem(THEME_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  function writeStoredTheme(id: string) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, id);
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function readStoredTransparentPanels(): boolean {
+    try {
+      return parseTransparentPanels(localStorage.getItem(TRANSPARENT_PANELS_KEY));
+    } catch {
+      return false;
+    }
+  }
+
+  function writeStoredTransparentPanels(on: boolean) {
+    try {
+      localStorage.setItem(TRANSPARENT_PANELS_KEY, on ? '1' : '0');
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function adoptTransparentPanels(raw: unknown) {
+    const on = applyTransparentPanels(parseTransparentPanels(raw));
+    transparentPanels = on;
+    writeStoredTransparentPanels(on);
+    return on;
+  }
+
+  async function setTransparentPanels(on: boolean) {
+    adoptTransparentPanels(on);
+    updateWorkspace((ws) => {
+      ws.ui.transparent_panels = on;
+    });
+    try {
+      await api.patchSettings({ transparent_panels: on });
+    } catch (e) {
+      console.error('Failed to persist transparent panels', e);
+    }
+  }
+
+  function adoptTheme(id: string | null | undefined) {
+    const theme = applyTheme(id);
+    themeId = theme.id;
+    writeStoredTheme(theme.id);
+    return theme;
+  }
+
+  async function setTheme(id: string) {
+    const theme = adoptTheme(id);
+    updateWorkspace((ws) => {
+      ws.ui.theme = theme.id;
+    });
+    try {
+      await api.patchSettings({ theme: theme.id });
+    } catch (e) {
+      console.error('Failed to persist theme', e);
+    }
+  }
+
+  function applyBoardAppearance(ws: Workspace) {
+    const look = appearanceFromWorkspace(
+      ws.ui,
+      readStoredTheme(),
+      readStoredTransparentPanels()
+    );
+    adoptTheme(look.theme);
+    adoptTransparentPanels(look.transparent);
+    if (ws.ui.theme == null || ws.ui.transparent_panels == null) {
+      updateWorkspace((w) => {
+        if (w.ui.theme == null) w.ui.theme = look.theme;
+        if (w.ui.transparent_panels == null) w.ui.transparent_panels = look.transparent;
+      });
     }
   }
 
@@ -273,78 +381,12 @@
     }
 
     if (workspace) {
+      applyBoardAppearance(workspace);
       // Sync both stores to whatever we actually opened
       writeLocalLastWorkspace(slug, workspace.id);
       for (const p of workspace.panels) {
         if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
       }
     }
-  }
-
-  async function ensureDetail(id: string) {
-    if (detailCache[id]) return detailCache[id];
-    if (!project) return null;
-    const full = await api.item(project.slug, id);
-    detailCache = { ...detailCache, [id]: full };
-    return full;
-  }
-
-  /** Deep clone without relying on structuredClone(proxy) (Svelte $state). */
-  function cloneWorkspace(ws: Workspace): Workspace {
-    return JSON.parse(JSON.stringify(ws)) as Workspace;
-  }
-
-  /** Keep the workspaces list in sync with the in-memory current workspace. */
-  function flushCurrentWorkspaceToList() {
-    if (!workspace) return;
-    const snap = cloneWorkspace(workspace);
-    const idx = workspaces.findIndex((w) => w.id === snap.id);
-    if (idx >= 0) {
-      workspaces = workspaces.map((w) => (w.id === snap.id ? snap : w));
-    } else {
-      workspaces = [...workspaces, snap];
-    }
-  }
-
-  function scheduleWorkspaceSave() {
-    if (!project || !workspace) return;
-    // Always mirror latest local state into the list immediately
-    const id = workspace.id;
-    flushCurrentWorkspaceToList();
-
-    if (saveTimer) clearTimeout(saveTimer);
-    const slug = project.slug;
-    saveTimer = setTimeout(async () => {
-      const toSave = workspaces.find((w) => w.id === id);
-      if (!toSave) return;
-      try {
-        const saved = await api.putWorkspace(slug, id, toSave);
-        workspaces = workspaces.map((w) => (w.id === id ? saved : w));
-        // Do not replace the live workspace if the user has already switched away
-        if (workspace?.id === id) {
-          workspace = {
-            ...cloneWorkspace(workspace),
-            updated_at: saved.updated_at,
-          };
-        }
-      } catch (e) {
-        showToast('Failed to save layout');
-        console.error(e);
-      }
-    }, 400);
-  }
-
-  function updateWorkspace(mutator: (ws: Workspace) => void) {
-    if (!workspace) return;
-    const next = cloneWorkspace(workspace);
-    mutator(next);
-    workspace = next;
-    scheduleWorkspaceSave();
-  }
-
-  function toggleSidebar() {
-    updateWorkspace((ws) => {
-      ws.ui.sidebar_visible = !ws.ui.sidebar_visible;
-    });
   }
 

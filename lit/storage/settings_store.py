@@ -14,6 +14,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     # project_slug -> workspace_id of last selected board
     "last_workspace_by_project": {},
     "theme": "dark",
+    "transparent_panels": False,
     "backup_retention_days": 30,
     "seeded_sample": False,
     "window": {"last_host": "127.0.0.1", "last_port": 8765},

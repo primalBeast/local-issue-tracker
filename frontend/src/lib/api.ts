@@ -97,6 +97,8 @@ export type Workspace = {
     sidebar_visible: boolean;
     zoom: number;
     viewport_scroll: { x: number; y: number };
+    theme?: string;
+    transparent_panels?: boolean;
   };
   filters: {
     active: Record<string, unknown>;
