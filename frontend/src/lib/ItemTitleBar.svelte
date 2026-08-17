@@ -9,26 +9,28 @@
   let { ticketKey, description, onTicketKey, onDescription }: Props = $props();
 
   let descTrimmed = $derived(String(description ?? '').trim());
-  let userOpen = $state(false);
-  let open = $derived(!descTrimmed || userOpen);
+  /** Stay open while typing. Only collapse after leaving the editor with a description. */
+  let editing = $state(!String(description ?? '').trim());
 
   function keyLabel(): string {
     return String(ticketKey ?? '').trim() || 'Untitled';
   }
 
-  function heading(): string {
-    return descTrimmed ? `${keyLabel()}  ${descTrimmed}` : keyLabel();
-  }
-
   function toggle(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!descTrimmed) return;
-    userOpen = !userOpen;
+    if (!descTrimmed) {
+      editing = true;
+      return;
+    }
+    editing = !editing;
   }
 
-  function onDescBlur() {
-    if (String(description ?? '').trim()) userOpen = false;
+  function onEditorFocusOut(e: FocusEvent) {
+    const root = e.currentTarget as HTMLElement;
+    const next = e.relatedTarget as Node | null;
+    if (next && root.contains(next)) return;
+    if (String(description ?? '').trim()) editing = false;
   }
 </script>
 
@@ -41,17 +43,21 @@
     <button
       type="button"
       class="ghost item-title-toggle"
-      class:open
+      class:open={editing}
       title={descTrimmed ? 'Edit ticket number and description' : 'Add a description'}
-      aria-expanded={open}
+      aria-expanded={editing}
       onclick={toggle}
     >
       ▾
     </button>
   </div>
-  {#if open}
+  {#if editing}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="item-title-editor" onpointerdown={(e) => e.stopPropagation()}>
+    <div
+      class="item-title-editor"
+      onpointerdown={(e) => e.stopPropagation()}
+      onfocusout={onEditorFocusOut}
+    >
       <label class="item-title-field">
         <span class="field-label">Ticket number</span>
         <input
@@ -70,7 +76,6 @@
           placeholder="Short description"
           autocomplete="off"
           oninput={(e) => onDescription(e.currentTarget.value)}
-          onblur={onDescBlur}
         />
       </label>
     </div>
