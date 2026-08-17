@@ -1,3 +1,65 @@
+  function maxZ(): number {
+    if (!workspace?.panels.length) return 1;
+    return Math.max(...workspace.panels.map((p) => p.z_index || 0));
+  }
+
+  function focusPanel(id: string) {
+    updateWorkspace((ws) => {
+      const p = ws.panels.find((x) => x.id === id);
+      if (!p) return;
+      p.z_index = maxZ() + 1;
+    });
+  }
+
+  function movePanel(id: string, patch: Partial<Panel>) {
+    updateWorkspace((ws) => {
+      const p = ws.panels.find((x) => x.id === id);
+      if (!p) return;
+      Object.assign(p, patch);
+    });
+  }
+
+  function closePanel(id: string) {
+    updateWorkspace((ws) => {
+      ws.panels = ws.panels.filter((p) => p.id !== id);
+    });
+  }
+
+  function openItemPanel(itemId: string) {
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
+    if (existing) {
+      focusPanel(existing.id);
+      return;
+    }
+    void ensureDetail(itemId);
+    const defaults = project?.default_item_panel || {};
+    const panelW = Math.max(200, Number(defaults.width) || 720);
+    const existingItem = detailCache[itemId] || items.find((i) => i.id === itemId);
+    const headerEditor =
+      !existingItem || !itemDescription(existingItem) ? HEADER_TITLE_EDITOR_PX : 0;
+    const panelH = Math.max(
+      minItemPanelHeight(bodyFieldRows) + headerEditor,
+      Number(defaults.height) || 480
+    );
+    const origin = visibleWorldOrigin();
+    updateWorkspace((ws) => {
+      const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
+      const stagger = (ws.panels.length % 5) * 30;
+      ws.panels.push({
+        id: `panel-item-${itemId.slice(0, 8)}-${Date.now().toString(36)}`,
+        kind: 'item',
+        item_id: itemId,
+        x: snapToGrid(origin.x + 80 + stagger, ws.ui.zoom),
+        y: snapToGrid(origin.y + 80 + stagger, ws.ui.zoom),
+        width: panelW,
+        height: panelH,
+        z_index: z,
+        collapsed: false,
+      });
+    });
+  }
+
   function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
     if (!workspace) return;
     const existing = workspace.panels.find((p) => p.kind === kind);
@@ -263,7 +325,7 @@
       workspaces = sortWorkspaces([...workspaces, cloneWorkspace(w)]);
       workspace = cloneWorkspace(w);
       updateWorkspace((ws) => {
-        ws.ui.theme = themeId;
+        ws.ui.theme = committedThemeId;
         ws.ui.transparent_panels = transparentPanels;
       });
       void rememberLastWorkspace(w.id);

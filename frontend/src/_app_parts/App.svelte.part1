@@ -35,13 +35,17 @@
   import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
   import {
     appearanceFromWorkspace,
+    applyPanelTransparency,
     applyTheme,
     applyTransparentPanels,
+    parseTransparencyMap,
     parseTransparentPanels,
     resolveTheme,
     THEME_STORAGE_KEY,
     THEMES,
+    TRANSPARENCY_BY_THEME_KEY,
     TRANSPARENT_PANELS_KEY,
+    transparencyForTheme,
   } from './lib/themes';
 
   let projects = $state<Project[]>([]);
@@ -116,10 +120,19 @@
   let sortBy = $state<PanelSortField>('ticket_key');
   const initialTheme = resolveTheme(readStoredTheme());
   const initialTransparent = readStoredTransparentPanels();
+  const initialTransparencyMap = readStoredTransparencyMap();
   let themeId = $state(initialTheme.id);
+  let committedThemeId = $state(initialTheme.id);
+  let highlightedThemeId = $state(initialTheme.id);
+  let themeMenuOpen = $state(false);
   let transparentPanels = $state(initialTransparent);
+  let transparencyByTheme = $state<Record<string, number>>(initialTransparencyMap);
+  const initialPanelTransparency = transparencyForTheme(initialTheme.id, initialTransparencyMap);
+  let panelTransparency = $state(initialPanelTransparency);
+  let transparencySaveTimer: ReturnType<typeof setTimeout> | null = null;
   applyTheme(initialTheme.id);
   applyTransparentPanels(initialTransparent);
+  applyPanelTransparency(initialPanelTransparency);
   let canvasWrapEl = $state<HTMLElement | null>(null);
   const canvasPan = {
     pointerId: -1,
@@ -165,7 +178,14 @@
         e.preventDefault();
         toggleSidebar();
       }
-      if (e.key === 'Escape') boardEditor = null;
+      if (e.key === 'Escape') {
+        if (themeMenuOpen) {
+          e.preventDefault();
+          closeThemeMenu(true);
+          return;
+        }
+        boardEditor = null;
+      }
       if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+' || e.key === 'Add')) {
         e.preventDefault();
         zoomByKeyboard(1.12);
@@ -182,8 +202,11 @@
     // Only close board editor when clicking outside it — do not interfere
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
-      if (!boardEditor) return;
       const t = e.target as HTMLElement | null;
+      if (themeMenuOpen && !t?.closest?.('.theme-picker')) {
+        closeThemeMenu(true);
+      }
+      if (!boardEditor) return;
       if (t?.closest?.('.board-editor')) return;
       if (t?.closest?.('.ws-tab')) return; // tab open/context menu owns the click
       boardEditor = null;
@@ -213,6 +236,11 @@
           ? settings.transparent_panels
           : readStoredTransparentPanels()
       );
+      const serverMap = parseTransparencyMap(settings.transparency_by_theme);
+      const mergedMap = { ...readStoredTransparencyMap(), ...serverMap };
+      transparencyByTheme = mergedMap;
+      writeStoredTransparencyMap(mergedMap);
+      adoptTransparencyForTheme(themeId, mergedMap);
       const slug =
         (settings.last_project_slug as string) || projects[0].slug;
       await loadProject(slug);
@@ -255,6 +283,42 @@
     }
   }
 
+  function readStoredTransparencyMap(): Record<string, number> {
+    try {
+      return parseTransparencyMap(JSON.parse(localStorage.getItem(TRANSPARENCY_BY_THEME_KEY) || '{}'));
+    } catch {
+      return {};
+    }
+  }
+
+  function writeStoredTransparencyMap(map: Record<string, number>) {
+    try {
+      localStorage.setItem(TRANSPARENCY_BY_THEME_KEY, JSON.stringify(map));
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function adoptTransparencyForTheme(id: string, map?: Record<string, number>) {
+    const n = applyPanelTransparency(transparencyForTheme(id, map ?? transparencyByTheme));
+    panelTransparency = n;
+    return n;
+  }
+
+  function setPanelTransparency(amount: number) {
+    const n = applyPanelTransparency(amount);
+    panelTransparency = n;
+    const next = { ...transparencyByTheme, [themeId]: n };
+    transparencyByTheme = next;
+    writeStoredTransparencyMap(next);
+    if (transparencySaveTimer) clearTimeout(transparencySaveTimer);
+    transparencySaveTimer = setTimeout(() => {
+      void api.patchSettings({ transparency_by_theme: next }).catch((e) => {
+        console.error('Failed to persist theme transparency', e);
+      });
+    }, 280);
+  }
+
   function adoptTransparentPanels(raw: unknown) {
     const on = applyTransparentPanels(parseTransparentPanels(raw));
     transparentPanels = on;
@@ -277,12 +341,81 @@
   function adoptTheme(id: string | null | undefined) {
     const theme = applyTheme(id);
     themeId = theme.id;
+    highlightedThemeId = theme.id;
     writeStoredTheme(theme.id);
+    adoptTransparencyForTheme(theme.id);
     return theme;
+  }
+
+  function previewTheme(id: string) {
+    const theme = applyTheme(id);
+    themeId = theme.id;
+    highlightedThemeId = theme.id;
+    adoptTransparencyForTheme(theme.id);
+    return theme;
+  }
+
+  function openThemeMenu() {
+    themeMenuOpen = true;
+    highlightedThemeId = committedThemeId;
+  }
+
+  function closeThemeMenu(revert: boolean) {
+    if (revert) previewTheme(committedThemeId);
+    themeMenuOpen = false;
+  }
+
+  function moveThemeHighlight(delta: number) {
+    if (!themeMenuOpen) openThemeMenu();
+    const idx = THEMES.findIndex((t) => t.id === highlightedThemeId);
+    const next = THEMES[(Math.max(idx, 0) + delta + THEMES.length) % THEMES.length];
+    previewTheme(next.id);
+  }
+
+  function onThemePickerKey(e: KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      moveThemeHighlight(1);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveThemeHighlight(-1);
+      return;
+    }
+    if (e.key === 'Home') {
+      e.preventDefault();
+      if (!themeMenuOpen) openThemeMenu();
+      previewTheme(THEMES[0].id);
+      return;
+    }
+    if (e.key === 'End') {
+      e.preventDefault();
+      if (!themeMenuOpen) openThemeMenu();
+      previewTheme(THEMES[THEMES.length - 1].id);
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (themeMenuOpen) void setTheme(highlightedThemeId);
+      return;
+    }
+    if (e.key === ' ') {
+      e.preventDefault();
+      if (themeMenuOpen) void setTheme(highlightedThemeId);
+      else openThemeMenu();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeThemeMenu(true);
+    }
   }
 
   async function setTheme(id: string) {
     const theme = adoptTheme(id);
+    committedThemeId = theme.id;
+    themeMenuOpen = false;
     updateWorkspace((ws) => {
       ws.ui.theme = theme.id;
     });
@@ -300,93 +433,14 @@
       readStoredTransparentPanels()
     );
     adoptTheme(look.theme);
+    committedThemeId = look.theme;
+    themeMenuOpen = false;
     adoptTransparentPanels(look.transparent);
     if (ws.ui.theme == null || ws.ui.transparent_panels == null) {
       updateWorkspace((w) => {
         if (w.ui.theme == null) w.ui.theme = look.theme;
         if (w.ui.transparent_panels == null) w.ui.transparent_panels = look.transparent;
       });
-    }
-  }
-
-  function localLastWsKey(slug: string) {
-    return `lit:lastWorkspace:${slug}`;
-  }
-
-  function readLocalLastWorkspace(slug: string): string | null {
-    try {
-      return localStorage.getItem(localLastWsKey(slug));
-    } catch {
-      return null;
-    }
-  }
-
-  function writeLocalLastWorkspace(slug: string, wsId: string) {
-    try {
-      localStorage.setItem(localLastWsKey(slug), wsId);
-    } catch {
-      /* ignore quota / private mode */
-    }
-  }
-
-  async function rememberLastWorkspace(wsId: string) {
-    if (!project) return;
-    // Always persist client-side so a plain browser reload restores the board
-    // even if the settings API fails or an old server is still running.
-    writeLocalLastWorkspace(project.slug, wsId);
-    try {
-      await api.patchSettings({
-        last_project_slug: project.slug,
-        last_workspace_by_project: { [project.slug]: wsId },
-      });
-    } catch (e) {
-      console.error('Failed to persist last workspace to server settings', e);
-    }
-  }
-
-  async function loadProject(slug: string) {
-    project = await api.project(slug);
-    fieldsDoc = await api.fields(slug);
-    items = await api.items(slug);
-    workspaces = sortWorkspaces(await api.workspaces(slug));
-    notesContent = (await api.notes(slug)).content;
-    deliverables = (await api.deliverables(slug)).items || [];
-    detailCache = {};
-
-    // Prefer server settings, fall back to localStorage
-    let lastWsId: string | null = null;
-    try {
-      const settings = await api.settings();
-      const lastMap = (settings.last_workspace_by_project || {}) as Record<string, string>;
-      lastWsId = lastMap[slug] || null;
-    } catch (e) {
-      console.error(e);
-    }
-    if (!lastWsId) {
-      lastWsId = readLocalLastWorkspace(slug);
-    }
-
-    const preferred =
-      (lastWsId && workspaces.find((w) => w.id === lastWsId)) || workspaces[0] || null;
-    workspace = preferred ? cloneWorkspace(preferred) : null;
-    if (workspace?.sort?.field && isPanelSortField(workspace.sort.field)) {
-      sortBy = workspace.sort.field;
-    }
-
-    // Do not overwrite last_workspace when only updating last_project_slug
-    try {
-      await api.patchSettings({ last_project_slug: slug });
-    } catch (e) {
-      console.error(e);
-    }
-
-    if (workspace) {
-      applyBoardAppearance(workspace);
-      // Sync both stores to whatever we actually opened
-      writeLocalLastWorkspace(slug, workspace.id);
-      for (const p of workspace.panels) {
-        if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
-      }
     }
   }
 

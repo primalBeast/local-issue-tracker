@@ -15,6 +15,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "last_workspace_by_project": {},
     "theme": "dark",
     "transparent_panels": False,
+    "transparency_by_theme": {},
     "backup_retention_days": 30,
     "seeded_sample": False,
     "window": {"last_host": "127.0.0.1", "last_port": 8765},
@@ -50,6 +51,18 @@ def patch_settings(updates: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(existing, dict):
                 existing = {}
             data["last_workspace_by_project"] = {**existing, **v}
+        elif k == "transparency_by_theme" and isinstance(v, dict):
+            existing = data.get("transparency_by_theme")
+            if not isinstance(existing, dict):
+                existing = {}
+            merged = dict(existing)
+            for theme_id, raw in v.items():
+                try:
+                    n = float(raw)
+                except (TypeError, ValueError):
+                    continue
+                merged[str(theme_id)] = max(0.0, min(1.0, n))
+            data["transparency_by_theme"] = merged
         else:
             data[k] = v
     return save_settings(data)

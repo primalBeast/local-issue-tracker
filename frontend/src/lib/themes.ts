@@ -9,7 +9,17 @@ export type ThemeId =
   | 'neon'
   | 'glacier'
   | 'copper'
-  | 'nebula';
+  | 'nebula'
+  | 'verdant'
+  | 'merlot'
+  | 'dune'
+  | 'cobalt'
+  | 'graphite'
+  | 'honey'
+  | 'iris'
+  | 'pearl'
+  | 'lacquer'
+  | 'celadon';
 
 export type Theme = {
   id: ThemeId;
@@ -20,6 +30,9 @@ export type Theme = {
 
 export const THEME_STORAGE_KEY = 'lit:theme';
 export const TRANSPARENT_PANELS_KEY = 'lit:transparent-panels';
+export const TRANSPARENCY_BY_THEME_KEY = 'lit:transparency-by-theme';
+/** Fully see-through. Matches the original Transparent checkbox. */
+export const DEFAULT_PANEL_TRANSPARENCY = 1;
 
 const MIDNIGHT_VARS: Record<string, string> = {
   '--bg': '#0b0d12',
@@ -54,7 +67,6 @@ const MIDNIGHT_VARS: Record<string, string> = {
   '--canvas-glow-2': 'radial-gradient(900px 500px at 100% 0%, rgba(139, 92, 246, 0.07), transparent 45%)',
   '--wallpaper': 'none',
   '--wallpaper-veil': 'none',
-  '--grid-dot': 'rgba(255, 255, 255, 0.07)',
   '--glass-blur': '0px',
   '--glass-saturate': '1',
 };
@@ -196,6 +208,97 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,4,14,0.55) 0%, rgba(6,4,14,0.22) 42%, rgba(6,4,12,0.52) 100%)',
   }),
+  themed('verdant', 'Verdant Hollow', 'verdant.jpg', '#4ade80', '#a3e635', {
+    '--text': '#ecfdf3',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(163, 230, 53, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(6, 16, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,12,8,0.52) 0%, rgba(4,12,8,0.2) 44%, rgba(4,10,8,0.5) 100%)',
+  }),
+  themed('merlot', 'Merlot Salon', 'merlot.jpg', '#fb7185', '#f59e0b', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(245, 158, 11, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(22, 8, 12, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,4,8,0.55) 0%, rgba(14,4,8,0.22) 42%, rgba(12,4,8,0.52) 100%)',
+  }),
+  themed('dune', 'Dune Mirage', 'dune.jpg', '#fbbf24', '#fb923c', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(251, 146, 60, 0.16)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(22, 14, 6, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(16,10,4,0.5) 0%, rgba(16,10,4,0.18) 44%, rgba(14,8,4,0.48) 100%)',
+  }),
+  themed('cobalt', 'Cobalt Harbor', 'cobalt.jpg', '#60a5fa', '#f59e0b', {
+    '--text': '#eff6ff',
+    '--focus-ring': 'rgba(96, 165, 250, 0.22)',
+    '--accent-soft': 'rgba(245, 158, 11, 0.14)',
+    '--brand-glow': 'rgba(96, 165, 250, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 24, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,18,0.55) 0%, rgba(4,8,18,0.22) 42%, rgba(4,8,16,0.52) 100%)',
+  }),
+  themed('graphite', 'Graphite Forge', 'graphite.jpg', '#fb923c', '#94a3b8', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.16)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 14, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,8,10,0.55) 0%, rgba(8,8,10,0.22) 42%, rgba(8,8,10,0.52) 100%)',
+  }),
+  themed('honey', 'Honey Library', 'honey.jpg', '#fbbf24', '#d97706', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(217, 119, 6, 0.16)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(20, 14, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,8,2,0.52) 0%, rgba(14,8,2,0.2) 44%, rgba(12,8,4,0.5) 100%)',
+  }),
+  themed('iris', 'Iris Storm', 'iris.jpg', '#a78bfa', '#818cf8', {
+    '--text': '#f5f3ff',
+    '--focus-ring': 'rgba(167, 139, 250, 0.22)',
+    '--accent-soft': 'rgba(129, 140, 248, 0.16)',
+    '--brand-glow': 'rgba(167, 139, 250, 0.45)',
+    '--panel-glass': 'rgba(10, 8, 22, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,4,16,0.55) 0%, rgba(6,4,16,0.22) 42%, rgba(6,6,16,0.52) 100%)',
+  }),
+  themed('pearl', 'Pearl Fog', 'pearl.jpg', '#e2e8f0', '#fcd34d', {
+    '--text': '#f8fafc',
+    '--text-muted': '#cbd5e1',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(252, 211, 77, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
+    '--panel-glass': 'rgba(12, 14, 18, 0.52)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,10,12,0.46) 0%, rgba(8,10,12,0.16) 45%, rgba(8,10,12,0.44) 100%)',
+  }),
+  themed('lacquer', 'Lacquer Night', 'lacquer.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.42)',
+    '--panel-glass': 'rgba(16, 6, 8, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,6,0.55) 0%, rgba(10,4,6,0.22) 42%, rgba(8,4,6,0.52) 100%)',
+  }),
+  themed('celadon', 'Celadon Court', 'celadon.jpg', '#5eead4', '#86efac', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(94, 234, 212, 0.22)',
+    '--accent-soft': 'rgba(134, 239, 172, 0.14)',
+    '--brand-glow': 'rgba(94, 234, 212, 0.4)',
+    '--panel-glass': 'rgba(6, 16, 14, 0.56)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,12,10,0.5) 0%, rgba(4,12,10,0.18) 45%, rgba(4,12,10,0.48) 100%)',
+  }),
 ];
 
 const ALIASES: Record<string, ThemeId> = {
@@ -248,4 +351,37 @@ export function applyTransparentPanels(on: boolean): boolean {
     document.documentElement.dataset.transparentPanels = on ? '1' : '0';
   }
   return on;
+}
+
+export function clampTransparency(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  if (!Number.isFinite(n)) return DEFAULT_PANEL_TRANSPARENCY;
+  return Math.min(1, Math.max(0, n));
+}
+
+export function parseTransparencyMap(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!(key in ALIASES) && !THEMES.some((t) => t.id === key)) continue;
+    out[resolveTheme(key).id] = clampTransparency(value);
+  }
+  return out;
+}
+
+export function transparencyForTheme(
+  id: string | null | undefined,
+  map: Record<string, number> | null | undefined
+): number {
+  const themeId = resolveTheme(id).id;
+  const stored = map?.[themeId];
+  return stored === undefined ? DEFAULT_PANEL_TRANSPARENCY : clampTransparency(stored);
+}
+
+export function applyPanelTransparency(amount: unknown): number {
+  const n = clampTransparency(amount);
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.setProperty('--panel-transparency', String(n));
+  }
+  return n;
 }

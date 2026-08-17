@@ -35,13 +35,17 @@
   import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
   import {
     appearanceFromWorkspace,
+    applyPanelTransparency,
     applyTheme,
     applyTransparentPanels,
+    parseTransparencyMap,
     parseTransparentPanels,
     resolveTheme,
     THEME_STORAGE_KEY,
     THEMES,
+    TRANSPARENCY_BY_THEME_KEY,
     TRANSPARENT_PANELS_KEY,
+    transparencyForTheme,
   } from './lib/themes';
 
   let projects = $state<Project[]>([]);
@@ -116,10 +120,19 @@
   let sortBy = $state<PanelSortField>('ticket_key');
   const initialTheme = resolveTheme(readStoredTheme());
   const initialTransparent = readStoredTransparentPanels();
+  const initialTransparencyMap = readStoredTransparencyMap();
   let themeId = $state(initialTheme.id);
+  let committedThemeId = $state(initialTheme.id);
+  let highlightedThemeId = $state(initialTheme.id);
+  let themeMenuOpen = $state(false);
   let transparentPanels = $state(initialTransparent);
+  let transparencyByTheme = $state<Record<string, number>>(initialTransparencyMap);
+  const initialPanelTransparency = transparencyForTheme(initialTheme.id, initialTransparencyMap);
+  let panelTransparency = $state(initialPanelTransparency);
+  let transparencySaveTimer: ReturnType<typeof setTimeout> | null = null;
   applyTheme(initialTheme.id);
   applyTransparentPanels(initialTransparent);
+  applyPanelTransparency(initialPanelTransparency);
   let canvasWrapEl = $state<HTMLElement | null>(null);
   const canvasPan = {
     pointerId: -1,
@@ -165,7 +178,14 @@
         e.preventDefault();
         toggleSidebar();
       }
-      if (e.key === 'Escape') boardEditor = null;
+      if (e.key === 'Escape') {
+        if (themeMenuOpen) {
+          e.preventDefault();
+          closeThemeMenu(true);
+          return;
+        }
+        boardEditor = null;
+      }
       if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+' || e.key === 'Add')) {
         e.preventDefault();
         zoomByKeyboard(1.12);
@@ -182,8 +202,11 @@
     // Only close board editor when clicking outside it — do not interfere
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
-      if (!boardEditor) return;
       const t = e.target as HTMLElement | null;
+      if (themeMenuOpen && !t?.closest?.('.theme-picker')) {
+        closeThemeMenu(true);
+      }
+      if (!boardEditor) return;
       if (t?.closest?.('.board-editor')) return;
       if (t?.closest?.('.ws-tab')) return; // tab open/context menu owns the click
       boardEditor = null;
@@ -213,6 +236,11 @@
           ? settings.transparent_panels
           : readStoredTransparentPanels()
       );
+      const serverMap = parseTransparencyMap(settings.transparency_by_theme);
+      const mergedMap = { ...readStoredTransparencyMap(), ...serverMap };
+      transparencyByTheme = mergedMap;
+      writeStoredTransparencyMap(mergedMap);
+      adoptTransparencyForTheme(themeId, mergedMap);
       const slug =
         (settings.last_project_slug as string) || projects[0].slug;
       await loadProject(slug);
@@ -255,6 +283,42 @@
     }
   }
 
+  function readStoredTransparencyMap(): Record<string, number> {
+    try {
+      return parseTransparencyMap(JSON.parse(localStorage.getItem(TRANSPARENCY_BY_THEME_KEY) || '{}'));
+    } catch {
+      return {};
+    }
+  }
+
+  function writeStoredTransparencyMap(map: Record<string, number>) {
+    try {
+      localStorage.setItem(TRANSPARENCY_BY_THEME_KEY, JSON.stringify(map));
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function adoptTransparencyForTheme(id: string, map?: Record<string, number>) {
+    const n = applyPanelTransparency(transparencyForTheme(id, map ?? transparencyByTheme));
+    panelTransparency = n;
+    return n;
+  }
+
+  function setPanelTransparency(amount: number) {
+    const n = applyPanelTransparency(amount);
+    panelTransparency = n;
+    const next = { ...transparencyByTheme, [themeId]: n };
+    transparencyByTheme = next;
+    writeStoredTransparencyMap(next);
+    if (transparencySaveTimer) clearTimeout(transparencySaveTimer);
+    transparencySaveTimer = setTimeout(() => {
+      void api.patchSettings({ transparency_by_theme: next }).catch((e) => {
+        console.error('Failed to persist theme transparency', e);
+      });
+    }, 280);
+  }
+
   function adoptTransparentPanels(raw: unknown) {
     const on = applyTransparentPanels(parseTransparentPanels(raw));
     transparentPanels = on;
@@ -277,12 +341,81 @@
   function adoptTheme(id: string | null | undefined) {
     const theme = applyTheme(id);
     themeId = theme.id;
+    highlightedThemeId = theme.id;
     writeStoredTheme(theme.id);
+    adoptTransparencyForTheme(theme.id);
     return theme;
+  }
+
+  function previewTheme(id: string) {
+    const theme = applyTheme(id);
+    themeId = theme.id;
+    highlightedThemeId = theme.id;
+    adoptTransparencyForTheme(theme.id);
+    return theme;
+  }
+
+  function openThemeMenu() {
+    themeMenuOpen = true;
+    highlightedThemeId = committedThemeId;
+  }
+
+  function closeThemeMenu(revert: boolean) {
+    if (revert) previewTheme(committedThemeId);
+    themeMenuOpen = false;
+  }
+
+  function moveThemeHighlight(delta: number) {
+    if (!themeMenuOpen) openThemeMenu();
+    const idx = THEMES.findIndex((t) => t.id === highlightedThemeId);
+    const next = THEMES[(Math.max(idx, 0) + delta + THEMES.length) % THEMES.length];
+    previewTheme(next.id);
+  }
+
+  function onThemePickerKey(e: KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      moveThemeHighlight(1);
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveThemeHighlight(-1);
+      return;
+    }
+    if (e.key === 'Home') {
+      e.preventDefault();
+      if (!themeMenuOpen) openThemeMenu();
+      previewTheme(THEMES[0].id);
+      return;
+    }
+    if (e.key === 'End') {
+      e.preventDefault();
+      if (!themeMenuOpen) openThemeMenu();
+      previewTheme(THEMES[THEMES.length - 1].id);
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (themeMenuOpen) void setTheme(highlightedThemeId);
+      return;
+    }
+    if (e.key === ' ') {
+      e.preventDefault();
+      if (themeMenuOpen) void setTheme(highlightedThemeId);
+      else openThemeMenu();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeThemeMenu(true);
+    }
   }
 
   async function setTheme(id: string) {
     const theme = adoptTheme(id);
+    committedThemeId = theme.id;
+    themeMenuOpen = false;
     updateWorkspace((ws) => {
       ws.ui.theme = theme.id;
     });
@@ -300,6 +433,8 @@
       readStoredTransparentPanels()
     );
     adoptTheme(look.theme);
+    committedThemeId = look.theme;
+    themeMenuOpen = false;
     adoptTransparentPanels(look.transparent);
     if (ws.ui.theme == null || ws.ui.transparent_panels == null) {
       updateWorkspace((w) => {
@@ -1049,7 +1184,7 @@
       workspaces = sortWorkspaces([...workspaces, cloneWorkspace(w)]);
       workspace = cloneWorkspace(w);
       updateWorkspace((ws) => {
-        ws.ui.theme = themeId;
+        ws.ui.theme = committedThemeId;
         ws.ui.transparent_panels = transparentPanels;
       });
       void rememberLastWorkspace(w.id);
@@ -1162,19 +1297,43 @@
       </button>
       <button type="button" class="ghost" onclick={resetLayout}>Reset layout</button>
       <div class="theme-controls">
-        <select
-          class="theme-select"
-          value={themeId}
-          onchange={(e) => void setTheme(e.currentTarget.value)}
-          title="Theme"
-        >
-          {#each THEMES as t}
-            <option value={t.id}>{t.name}</option>
-          {/each}
-        </select>
+        <div class="theme-picker">
+          <button
+            type="button"
+            class="theme-select"
+            aria-haspopup="listbox"
+            aria-expanded={themeMenuOpen}
+            title="Theme — arrows preview, Enter saves for this board"
+            onclick={() => {
+              if (themeMenuOpen) closeThemeMenu(true);
+              else openThemeMenu();
+            }}
+            onkeydown={onThemePickerKey}
+          >
+            {THEMES.find((t) => t.id === themeId)?.name ?? 'Theme'}
+          </button>
+          {#if themeMenuOpen}
+            <ul class="theme-menu" role="listbox" aria-label="Theme">
+              {#each THEMES as t}
+                <li
+                  role="option"
+                  aria-selected={t.id === committedThemeId}
+                  class:active={t.id === highlightedThemeId}
+                  onpointerenter={() => previewTheme(t.id)}
+                  onpointerdown={(e) => {
+                    e.preventDefault();
+                    void setTheme(t.id);
+                  }}
+                >
+                  {t.name}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
         <label
           class="theme-transparent"
-          title="Clear panel fill so the board shows through — no wallpaper or solid color in the card"
+          title="See through panel fill — no wallpaper painted in the card"
         >
           <input
             type="checkbox"
@@ -1183,12 +1342,28 @@
           />
           Transparent
         </label>
+        {#if transparentPanels}
+          <label
+            class="theme-transparency"
+            title="How see-through the panel fill is for this theme"
+          >
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={Math.round(panelTransparency * 100)}
+              oninput={(e) => setPanelTransparency(Number(e.currentTarget.value) / 100)}
+            />
+            <span class="theme-transparency-val">{Math.round(panelTransparency * 100)}%</span>
+          </label>
+        {/if}
       </div>
       <div class="topbar-spacer"></div>
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16d</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16i</span>
       </div>
     </header>
 
@@ -1269,12 +1444,9 @@
       aria-label="Unlimited workspace. Drag empty space to pan. Scroll or Ctrl+scroll zooms toward the pointer."
       bind:this={canvasWrapEl}
       class:is-panning={panning}
-      style:--pan-x="{pan.x}px"
-      style:--pan-y="{pan.y}px"
       style:--zoom={zoom}
       onpointerdown={onCanvasPointerDown}
     >
-      <div class="canvas-grid" aria-hidden="true"></div>
       <div class="canvas" style:transform={`translate(${pan.x}px, ${pan.y}px) scale(${zoom})`}>
         {#each workspace.panels as panel (panel.id)}
           {@const item = itemForPanel(panel)}

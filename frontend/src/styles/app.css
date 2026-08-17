@@ -32,9 +32,9 @@
   --canvas-glow-2: radial-gradient(900px 500px at 100% 0%, rgba(139, 92, 246, 0.07), transparent 45%);
   --wallpaper: none;
   --wallpaper-veil: none;
-  --grid-dot: rgba(255, 255, 255, 0.07);
   --glass-blur: 0px;
   --glass-saturate: 1;
+  --panel-transparency: 1;
   --radius: 12px;
   --font: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
   --mono: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
@@ -275,9 +275,46 @@ label.field-label {
   gap: 8px;
 }
 
+.theme-picker {
+  position: relative;
+}
+
 .theme-select {
   width: auto;
   min-width: 172px;
+  text-align: left;
+  background: var(--bg-input);
+}
+
+.theme-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 80;
+  min-width: 100%;
+  max-height: min(70vh, 440px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--chrome-glass);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+.theme-menu li {
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.theme-menu li.active {
+  background: var(--accent-soft);
+  color: var(--text);
 }
 
 .theme-transparent {
@@ -298,6 +335,29 @@ label.field-label {
 }
 
 .theme-transparent:hover { color: var(--text); }
+
+.theme-transparency {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.theme-transparency input[type="range"] {
+  width: 92px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.theme-transparency-val {
+  min-width: 2.6em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
 
 .sidebar {
   width: var(--sidebar-w);
@@ -429,15 +489,6 @@ body.lit-canvas-panning * {
   -webkit-user-select: none !important;
 }
 
-.canvas-grid {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1.2px);
-  background-size: calc(20px * var(--zoom, 1)) calc(20px * var(--zoom, 1));
-  background-position: var(--pan-x, 0px) var(--pan-y, 0px);
-}
-
 .canvas {
   position: absolute;
   inset: 0;
@@ -460,7 +511,8 @@ body.lit-canvas-panning * {
   background-attachment: scroll, fixed;
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  border: 1px solid var(--border);
+  --panel-border: calc(1px / var(--zoom, 1));
+  border: var(--panel-border) solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   display: flex;
@@ -472,22 +524,27 @@ body.lit-canvas-panning * {
 .panel:focus-within,
 .panel.active {
   border-color: color-mix(in srgb, var(--accent) 60%, transparent);
-  box-shadow: var(--shadow), 0 0 0 1px var(--focus-ring);
+  box-shadow: var(--shadow), 0 0 0 var(--panel-border) var(--focus-ring);
 }
 
 html[data-transparent-panels="1"] .panel,
 html[data-transparent-panels="1"] .panel:focus-within,
 html[data-transparent-panels="1"] .panel.active {
-  background: transparent !important;
+  --fill-strength: calc(1 - var(--panel-transparency, 1));
+  background: color-mix(
+    in srgb,
+    var(--panel-glass) calc(var(--fill-strength) * 100%),
+    transparent
+  ) !important;
   background-image: none !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  backdrop-filter: blur(calc(var(--glass-blur) * var(--fill-strength))) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * var(--fill-strength))) saturate(var(--glass-saturate));
   box-shadow: none;
 }
 
 html[data-transparent-panels="1"] .panel:focus-within,
 html[data-transparent-panels="1"] .panel.active {
-  box-shadow: 0 0 0 1px var(--focus-ring);
+  box-shadow: 0 0 0 var(--panel-border) var(--focus-ring);
 }
 
 html[data-transparent-panels="1"] .panel-header {
@@ -499,7 +556,7 @@ html[data-transparent-panels="1"] .panel-header {
   align-items: flex-start;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: calc(1px / var(--zoom, 1)) solid rgba(255, 255, 255, 0.05);
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -631,7 +688,7 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 }
 
 .compact-id {
-  font-size: 40px;
+  font-size: 64px;
   font-weight: 750;
   letter-spacing: -0.03em;
   text-align: center;

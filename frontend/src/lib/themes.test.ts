@@ -2,16 +2,24 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { appearanceFromWorkspace, parseTransparentPanels, resolveTheme, THEMES } from './themes';
+import {
+  appearanceFromWorkspace,
+  clampTransparency,
+  parseTransparencyMap,
+  parseTransparentPanels,
+  resolveTheme,
+  THEMES,
+  transparencyForTheme,
+} from './themes';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe('themes', () => {
-  it('includes the midnight default plus ten wallpapers', () => {
+  it('includes the midnight default plus twenty wallpapers', () => {
     expect(THEMES[0].id).toBe('midnight');
     expect(THEMES[0].name.toLowerCase()).toContain('default');
-    expect(THEMES).toHaveLength(11);
-    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(10);
+    expect(THEMES).toHaveLength(21);
+    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(20);
   });
 
   it('maps the legacy dark setting to midnight', () => {
@@ -63,5 +71,17 @@ describe('themes', () => {
       theme: 'neon',
       transparent: false,
     });
+  });
+
+  it('clamps and looks up per-theme transparency', () => {
+    expect(clampTransparency(0.4)).toBe(0.4);
+    expect(clampTransparency(-2)).toBe(0);
+    expect(clampTransparency(3)).toBe(1);
+    expect(clampTransparency('nope')).toBe(1);
+    const map = parseTransparencyMap({ aurora: 0.25, dark: 0.8, junk: 'x' });
+    expect(map.aurora).toBe(0.25);
+    expect(map.midnight).toBe(0.8);
+    expect(transparencyForTheme('ember', map)).toBe(1);
+    expect(transparencyForTheme('aurora', map)).toBe(0.25);
   });
 });

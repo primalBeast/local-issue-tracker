@@ -15,6 +15,7 @@ class SettingsPatch(BaseModel):
     last_workspace_by_project: dict[str, str] | None = None
     theme: str | None = None
     transparent_panels: bool | None = None
+    transparency_by_theme: dict[str, float] | None = None
     backup_retention_days: int | None = Field(default=None, ge=1, le=365)
     window: dict[str, Any] | None = None
 
@@ -36,6 +37,7 @@ async def update_settings(request: Request) -> dict[str, Any]:
         "last_workspace_by_project",
         "theme",
         "transparent_panels",
+        "transparency_by_theme",
         "backup_retention_days",
         "window",
         "seeded_sample",

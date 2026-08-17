@@ -135,6 +135,12 @@ def test_theme_setting_round_trip(client: TestClient):
     again = client.get("/api/settings")
     assert again.json()["theme"] == "aurora"
     assert again.json()["transparent_panels"] is True
+    by_theme = client.patch(
+        "/api/settings", json={"transparency_by_theme": {"aurora": 0.35, "ember": 2}}
+    )
+    assert by_theme.status_code == 200
+    assert by_theme.json()["transparency_by_theme"]["aurora"] == 0.35
+    assert by_theme.json()["transparency_by_theme"]["ember"] == 1.0
 
 
 def test_workspace_lww(client: TestClient):

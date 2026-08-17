@@ -1,3 +1,84 @@
+  function localLastWsKey(slug: string) {
+    return `lit:lastWorkspace:${slug}`;
+  }
+
+  function readLocalLastWorkspace(slug: string): string | null {
+    try {
+      return localStorage.getItem(localLastWsKey(slug));
+    } catch {
+      return null;
+    }
+  }
+
+  function writeLocalLastWorkspace(slug: string, wsId: string) {
+    try {
+      localStorage.setItem(localLastWsKey(slug), wsId);
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+
+  async function rememberLastWorkspace(wsId: string) {
+    if (!project) return;
+    // Always persist client-side so a plain browser reload restores the board
+    // even if the settings API fails or an old server is still running.
+    writeLocalLastWorkspace(project.slug, wsId);
+    try {
+      await api.patchSettings({
+        last_project_slug: project.slug,
+        last_workspace_by_project: { [project.slug]: wsId },
+      });
+    } catch (e) {
+      console.error('Failed to persist last workspace to server settings', e);
+    }
+  }
+
+  async function loadProject(slug: string) {
+    project = await api.project(slug);
+    fieldsDoc = await api.fields(slug);
+    items = await api.items(slug);
+    workspaces = sortWorkspaces(await api.workspaces(slug));
+    notesContent = (await api.notes(slug)).content;
+    deliverables = (await api.deliverables(slug)).items || [];
+    detailCache = {};
+
+    // Prefer server settings, fall back to localStorage
+    let lastWsId: string | null = null;
+    try {
+      const settings = await api.settings();
+      const lastMap = (settings.last_workspace_by_project || {}) as Record<string, string>;
+      lastWsId = lastMap[slug] || null;
+    } catch (e) {
+      console.error(e);
+    }
+    if (!lastWsId) {
+      lastWsId = readLocalLastWorkspace(slug);
+    }
+
+    const preferred =
+      (lastWsId && workspaces.find((w) => w.id === lastWsId)) || workspaces[0] || null;
+    workspace = preferred ? cloneWorkspace(preferred) : null;
+    if (workspace?.sort?.field && isPanelSortField(workspace.sort.field)) {
+      sortBy = workspace.sort.field;
+    }
+
+    // Do not overwrite last_workspace when only updating last_project_slug
+    try {
+      await api.patchSettings({ last_project_slug: slug });
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (workspace) {
+      applyBoardAppearance(workspace);
+      // Sync both stores to whatever we actually opened
+      writeLocalLastWorkspace(slug, workspace.id);
+      for (const p of workspace.panels) {
+        if (p.kind === 'item' && p.item_id) await ensureDetail(p.item_id);
+      }
+    }
+  }
+
   async function ensureDetail(id: string) {
     if (detailCache[id]) return detailCache[id];
     if (!project) return null;
@@ -328,67 +409,5 @@
 
   function visibleWorldOrigin(): { x: number; y: number } {
     return screenToWorld(pan, zoom || 1, { x: 0, y: 0 });
-  }
-
-  function maxZ(): number {
-    if (!workspace?.panels.length) return 1;
-    return Math.max(...workspace.panels.map((p) => p.z_index || 0));
-  }
-
-  function focusPanel(id: string) {
-    updateWorkspace((ws) => {
-      const p = ws.panels.find((x) => x.id === id);
-      if (!p) return;
-      p.z_index = maxZ() + 1;
-    });
-  }
-
-  function movePanel(id: string, patch: Partial<Panel>) {
-    updateWorkspace((ws) => {
-      const p = ws.panels.find((x) => x.id === id);
-      if (!p) return;
-      Object.assign(p, patch);
-    });
-  }
-
-  function closePanel(id: string) {
-    updateWorkspace((ws) => {
-      ws.panels = ws.panels.filter((p) => p.id !== id);
-    });
-  }
-
-  function openItemPanel(itemId: string) {
-    if (!workspace) return;
-    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
-    if (existing) {
-      focusPanel(existing.id);
-      return;
-    }
-    void ensureDetail(itemId);
-    const defaults = project?.default_item_panel || {};
-    const panelW = Math.max(200, Number(defaults.width) || 720);
-    const existingItem = detailCache[itemId] || items.find((i) => i.id === itemId);
-    const headerEditor =
-      !existingItem || !itemDescription(existingItem) ? HEADER_TITLE_EDITOR_PX : 0;
-    const panelH = Math.max(
-      minItemPanelHeight(bodyFieldRows) + headerEditor,
-      Number(defaults.height) || 480
-    );
-    const origin = visibleWorldOrigin();
-    updateWorkspace((ws) => {
-      const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
-      const stagger = (ws.panels.length % 5) * 30;
-      ws.panels.push({
-        id: `panel-item-${itemId.slice(0, 8)}-${Date.now().toString(36)}`,
-        kind: 'item',
-        item_id: itemId,
-        x: snapToGrid(origin.x + 80 + stagger, ws.ui.zoom),
-        y: snapToGrid(origin.y + 80 + stagger, ws.ui.zoom),
-        width: panelW,
-        height: panelH,
-        z_index: z,
-        collapsed: false,
-      });
-    });
   }
 
