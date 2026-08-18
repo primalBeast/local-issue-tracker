@@ -1,3 +1,11 @@
+  function readLocalLastWorkspace(slug: string): string | null {
+    try {
+      return localStorage.getItem(localLastWsKey(slug));
+    } catch {
+      return null;
+    }
+  }
+
   function writeLocalLastWorkspace(slug: string, wsId: string) {
     try {
       localStorage.setItem(localLastWsKey(slug), wsId);

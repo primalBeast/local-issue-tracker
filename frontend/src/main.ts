@@ -4,6 +4,7 @@ import {
   applyPanelTransparency,
   applyTheme,
   applyTransparentPanels,
+  DEFAULT_PANEL_TRANSPARENCY,
   parseTransparencyMap,
   parseTransparentPanels,
   THEME_STORAGE_KEY,
@@ -21,7 +22,7 @@ try {
 } catch {
   applyTheme(null);
   applyTransparentPanels(false);
-  applyPanelTransparency(1);
+  applyPanelTransparency(DEFAULT_PANEL_TRANSPARENCY);
 }
 
 const app = mount(App, { target: document.getElementById('app')! });

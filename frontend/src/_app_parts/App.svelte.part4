@@ -56,14 +56,13 @@
           {THEMES.find((t) => t.id === (themeMenuOpen ? themeId : committedThemeId))?.name ?? 'Theme'}
         </button>
         {#if themeMenuOpen}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
           <div
             class="theme-dialog"
             role="dialog"
             tabindex="-1"
             aria-label="Themes"
             onclick={(e) => e.stopPropagation()}
-            onkeydown={(e) => e.stopPropagation()}
           >
             <div class="theme-dialog-head">
               <div class="board-editor-title" style="margin:0">Themes</div>
@@ -121,7 +120,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-17e</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-17h</span>
       </div>
     </header>
 
@@ -156,66 +155,74 @@
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="project-editor" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
         <div class="board-editor-title">Project</div>
-        <label class="field-label" for="project-name-input">Name</label>
-        <input
-          id="project-name-input"
-          type="text"
-          bind:value={projectEditor.name}
-          onkeydown={(e) => {
-            if (e.key === 'Enter') void saveProjectEditor();
-            if (e.key === 'Escape') projectEditor = null;
-          }}
-        />
-        <label class="field-label" for="project-prefix-input" style="margin-top:10px">Ticket prefix</label>
-        <input
-          id="project-prefix-input"
-          type="text"
-          bind:value={projectEditor.ticket_prefix}
-          placeholder="NEW-"
-          onkeydown={(e) => {
-            if (e.key === 'Enter') void saveProjectEditor();
-            if (e.key === 'Escape') projectEditor = null;
-          }}
-        />
-        <div class="board-editor-actions">
-          <button type="button" class="ghost" onclick={() => (projectEditor = null)}>Cancel</button>
-          <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
-        </div>
 
-        <div class="field-label" style="margin-top:14px">Open project</div>
-        <div class="project-list">
-          {#each projects as p}
-            <button
-              type="button"
-              class:current={p.slug === project.slug}
-              onclick={() => void switchProject(p.slug)}
-            >
-              {p.name}
-            </button>
-          {/each}
-        </div>
+        <section class="project-section">
+          <div class="project-section-title">This project</div>
+          <label class="field-label" for="project-name-input">Name</label>
+          <input
+            id="project-name-input"
+            type="text"
+            bind:value={projectEditor.name}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') void saveProjectEditor();
+              if (e.key === 'Escape') projectEditor = null;
+            }}
+          />
+          <label class="field-label" for="project-prefix-input" style="margin-top:10px">Ticket prefix</label>
+          <input
+            id="project-prefix-input"
+            type="text"
+            bind:value={projectEditor.ticket_prefix}
+            placeholder="NEW-"
+            onkeydown={(e) => {
+              if (e.key === 'Enter') void saveProjectEditor();
+              if (e.key === 'Escape') projectEditor = null;
+            }}
+          />
+          <div class="board-editor-actions">
+            <button type="button" class="ghost" onclick={() => (projectEditor = null)}>Cancel</button>
+            <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
+          </div>
+        </section>
 
-        <div class="field-label" style="margin-top:14px">New project</div>
-        <input
-          type="text"
-          placeholder="Name"
-          bind:value={projectEditor.newName}
-          onkeydown={(e) => {
-            if (e.key === 'Enter') void createNewProject();
-          }}
-        />
-        <input
-          type="text"
-          placeholder="Ticket prefix (NEW-)"
-          style="margin-top:6px"
-          bind:value={projectEditor.newPrefix}
-          onkeydown={(e) => {
-            if (e.key === 'Enter') void createNewProject();
-          }}
-        />
-        <div class="board-editor-actions">
-          <button type="button" class="primary" onclick={() => void createNewProject()}>Create</button>
-        </div>
+        <section class="project-section">
+          <div class="project-section-title">Open project</div>
+          <div class="project-list">
+            {#each projects as p}
+              <button
+                type="button"
+                class:current={p.slug === project.slug}
+                onclick={() => void switchProject(p.slug)}
+              >
+                {p.name}
+              </button>
+            {/each}
+          </div>
+        </section>
+
+        <section class="project-section">
+          <div class="project-section-title">New project</div>
+          <input
+            type="text"
+            placeholder="Name"
+            bind:value={projectEditor.newName}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') void createNewProject();
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Ticket prefix (NEW-)"
+            style="margin-top:6px"
+            bind:value={projectEditor.newPrefix}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') void createNewProject();
+            }}
+          />
+          <div class="board-editor-actions">
+            <button type="button" class="primary" onclick={() => void createNewProject()}>Create</button>
+          </div>
+        </section>
       </div>
     {/if}
 

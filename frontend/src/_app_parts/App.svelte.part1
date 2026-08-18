@@ -182,10 +182,17 @@
     void bootstrap();
     const onKey = (e: KeyboardEvent) => {
       if (themeMenuOpen) {
-        const tag = (e.target as HTMLElement | null)?.tagName;
-        const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-        if (e.key === 'Escape' || (!inField && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End' || e.key === 'Enter'))) {
+        const t = e.target as HTMLElement | null;
+        const isRange = t instanceof HTMLInputElement && t.type === 'range';
+        const themeKey =
+          e.key === 'Escape' ||
+          e.key === 'Enter' ||
+          e.key === 'Home' ||
+          e.key === 'End' ||
+          ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !isRange);
+        if (themeKey) {
           onThemePickerKey(e);
+          e.stopPropagation();
           return;
         }
       }
@@ -225,11 +232,11 @@
       if (t?.closest?.('.ws-tab')) return; // tab open/context menu owns the click
       boardEditor = null;
     };
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
     window.addEventListener('pointerdown', onDocPointerDown, true);
     return () => {
       clearInterval(tick);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       endCanvasPan();
     };
@@ -372,6 +379,10 @@
   function openThemeMenu() {
     themeMenuOpen = true;
     highlightedThemeId = committedThemeId;
+    queueMicrotask(() => {
+      const el = document.querySelector('.theme-dialog') as HTMLElement | null;
+      el?.focus();
+    });
   }
 
   function closeThemeMenu(revert: boolean) {
@@ -454,13 +465,5 @@
 
   function localLastWsKey(slug: string) {
     return `lit:lastWorkspace:${slug}`;
-  }
-
-  function readLocalLastWorkspace(slug: string): string | null {
-    try {
-      return localStorage.getItem(localLastWsKey(slug));
-    } catch {
-      return null;
-    }
   }
 

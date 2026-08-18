@@ -77,11 +77,11 @@ describe('themes', () => {
     expect(clampTransparency(0.4)).toBe(0.4);
     expect(clampTransparency(-2)).toBe(0);
     expect(clampTransparency(3)).toBe(1);
-    expect(clampTransparency('nope')).toBe(1);
+    expect(clampTransparency('nope')).toBe(0.66);
     const map = parseTransparencyMap({ aurora: 0.25, dark: 0.8, junk: 'x' });
     expect(map.aurora).toBe(0.25);
     expect(map.midnight).toBe(0.8);
-    expect(transparencyForTheme('ember', map)).toBe(1);
+    expect(transparencyForTheme('ember', map)).toBe(0.66);
     expect(transparencyForTheme('aurora', map)).toBe(0.25);
   });
 });

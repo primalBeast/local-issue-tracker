@@ -31,8 +31,8 @@ export type Theme = {
 export const THEME_STORAGE_KEY = 'lit:theme';
 export const TRANSPARENT_PANELS_KEY = 'lit:transparent-panels';
 export const TRANSPARENCY_BY_THEME_KEY = 'lit:transparency-by-theme';
-/** Fully see-through. Matches the original Transparent checkbox. */
-export const DEFAULT_PANEL_TRANSPARENCY = 1;
+/** First-time slider value when a theme has no saved transparency. */
+export const DEFAULT_PANEL_TRANSPARENCY = 0.66;
 
 const MIDNIGHT_VARS: Record<string, string> = {
   '--bg': '#0b0d12',

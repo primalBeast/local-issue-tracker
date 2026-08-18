@@ -34,7 +34,7 @@
   --wallpaper-veil: none;
   --glass-blur: 0px;
   --glass-saturate: 1;
-  --panel-transparency: 1;
+  --panel-transparency: 0.66;
   --radius: 12px;
   --font: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
   --mono: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
@@ -489,8 +489,11 @@ button.brand:active { transform: none; }
   z-index: 2000;
   top: calc(var(--topbar-h) + 8px);
   left: 14px;
-  width: 280px;
+  width: 300px;
   padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   background-color: transparent;
   background-image:
     linear-gradient(var(--panel-glass), var(--panel-glass)),
@@ -506,13 +509,28 @@ button.brand:active { transform: none; }
   box-shadow: var(--shadow);
 }
 
+.project-section {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-input) 70%, transparent);
+}
+
+.project-section-title {
+  font-weight: 650;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
 .project-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
   max-height: 160px;
   overflow: auto;
-  margin-top: 6px;
 }
 
 .project-list button {
