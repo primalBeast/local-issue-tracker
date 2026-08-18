@@ -181,16 +181,19 @@
     const tick = setInterval(() => (nowTick = Date.now()), 1000);
     void bootstrap();
     const onKey = (e: KeyboardEvent) => {
+      if (themeMenuOpen) {
+        const tag = (e.target as HTMLElement | null)?.tagName;
+        const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        if (e.key === 'Escape' || (!inField && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End' || e.key === 'Enter'))) {
+          onThemePickerKey(e);
+          return;
+        }
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         e.preventDefault();
         toggleSidebar();
       }
       if (e.key === 'Escape') {
-        if (themeMenuOpen) {
-          e.preventDefault();
-          closeThemeMenu(true);
-          return;
-        }
         if (projectEditor) {
           projectEditor = null;
           return;
@@ -214,9 +217,6 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
-      if (themeMenuOpen && !t?.closest?.('.theme-picker')) {
-        closeThemeMenu(true);
-      }
       if (projectEditor && !t?.closest?.('.project-editor') && !t?.closest?.('.brand')) {
         projectEditor = null;
       }
@@ -412,12 +412,6 @@
     if (e.key === 'Enter') {
       e.preventDefault();
       if (themeMenuOpen) void setTheme(highlightedThemeId);
-      return;
-    }
-    if (e.key === ' ') {
-      e.preventDefault();
-      if (themeMenuOpen) void setTheme(highlightedThemeId);
-      else openThemeMenu();
       return;
     }
     if (e.key === 'Escape') {

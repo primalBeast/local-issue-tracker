@@ -181,16 +181,19 @@
     const tick = setInterval(() => (nowTick = Date.now()), 1000);
     void bootstrap();
     const onKey = (e: KeyboardEvent) => {
+      if (themeMenuOpen) {
+        const tag = (e.target as HTMLElement | null)?.tagName;
+        const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+        if (e.key === 'Escape' || (!inField && (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End' || e.key === 'Enter'))) {
+          onThemePickerKey(e);
+          return;
+        }
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         e.preventDefault();
         toggleSidebar();
       }
       if (e.key === 'Escape') {
-        if (themeMenuOpen) {
-          e.preventDefault();
-          closeThemeMenu(true);
-          return;
-        }
         if (projectEditor) {
           projectEditor = null;
           return;
@@ -214,9 +217,6 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
-      if (themeMenuOpen && !t?.closest?.('.theme-picker')) {
-        closeThemeMenu(true);
-      }
       if (projectEditor && !t?.closest?.('.project-editor') && !t?.closest?.('.brand')) {
         projectEditor = null;
       }
@@ -412,12 +412,6 @@
     if (e.key === 'Enter') {
       e.preventDefault();
       if (themeMenuOpen) void setTheme(highlightedThemeId);
-      return;
-    }
-    if (e.key === ' ') {
-      e.preventDefault();
-      if (themeMenuOpen) void setTheme(highlightedThemeId);
-      else openThemeMenu();
       return;
     }
     if (e.key === 'Escape') {
@@ -1165,21 +1159,6 @@
     });
   }
 
-  function resetLayout() {
-    updateWorkspace((ws) => {
-      ws.ui.viewport_scroll = defaultPan();
-      let x = 40;
-      let y = 40;
-      for (const p of ws.panels) {
-        p.x = x;
-        p.y = y;
-        x += 40;
-        y += 30;
-      }
-    });
-    showToast('Layout reset');
-  }
-
   async function newWorkspace() {
     if (!project) return;
     // Save current board into the list (and debounce server save) before leaving
@@ -1372,75 +1351,86 @@
       <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
         See All
       </button>
-      <button type="button" class="ghost" onclick={resetLayout}>Reset layout</button>
       <div class="theme-controls">
-        <div class="theme-picker">
-          <button
-            type="button"
-            class="theme-select"
-            aria-haspopup="listbox"
-            aria-expanded={themeMenuOpen}
-            title="Theme — arrows preview, Enter saves for this board"
-            onclick={() => {
-              if (themeMenuOpen) closeThemeMenu(true);
-              else openThemeMenu();
-            }}
-            onkeydown={onThemePickerKey}
+        <button
+          type="button"
+          class="theme-select"
+          aria-haspopup="dialog"
+          aria-expanded={themeMenuOpen}
+          title="Themes"
+          onclick={() => {
+            if (!themeMenuOpen) openThemeMenu();
+          }}
+        >
+          {THEMES.find((t) => t.id === (themeMenuOpen ? themeId : committedThemeId))?.name ?? 'Theme'}
+        </button>
+        {#if themeMenuOpen}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="theme-dialog"
+            role="dialog"
+            tabindex="-1"
+            aria-label="Themes"
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
           >
-            {THEMES.find((t) => t.id === themeId)?.name ?? 'Theme'}
-          </button>
-          {#if themeMenuOpen}
+            <div class="theme-dialog-head">
+              <div class="board-editor-title" style="margin:0">Themes</div>
+              <button
+                type="button"
+                class="ghost theme-dialog-close"
+                title="Close"
+                onclick={() => closeThemeMenu(true)}
+              >✕</button>
+            </div>
+            <label
+              class="theme-transparent"
+              title="See through panel fill — no wallpaper painted in the card"
+            >
+              <input
+                type="checkbox"
+                checked={transparentPanels}
+                onchange={(e) => void setTransparentPanels(e.currentTarget.checked)}
+              />
+              Transparent
+            </label>
+            {#if transparentPanels}
+              <label
+                class="theme-transparency"
+                title="How see-through the panel fill is for this theme"
+              >
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={Math.round(panelTransparency * 100)}
+                  oninput={(e) => setPanelTransparency(Number(e.currentTarget.value) / 100)}
+                />
+                <span class="theme-transparency-val">{Math.round(panelTransparency * 100)}%</span>
+              </label>
+            {/if}
             <ul class="theme-menu" role="listbox" aria-label="Theme">
               {#each THEMES as t}
                 <li
                   role="option"
                   aria-selected={t.id === committedThemeId}
                   class:active={t.id === highlightedThemeId}
-                  onpointerenter={() => previewTheme(t.id)}
-                  onpointerdown={(e) => {
-                    e.preventDefault();
-                    void setTheme(t.id);
-                  }}
+                  onpointerdown={() => previewTheme(t.id)}
+                  ondblclick={() => void setTheme(t.id)}
                 >
                   {t.name}
                 </li>
               {/each}
             </ul>
-          {/if}
-        </div>
-        <label
-          class="theme-transparent"
-          title="See through panel fill — no wallpaper painted in the card"
-        >
-          <input
-            type="checkbox"
-            checked={transparentPanels}
-            onchange={(e) => void setTransparentPanels(e.currentTarget.checked)}
-          />
-          Transparent
-        </label>
-        {#if transparentPanels}
-          <label
-            class="theme-transparency"
-            title="How see-through the panel fill is for this theme"
-          >
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value={Math.round(panelTransparency * 100)}
-              oninput={(e) => setPanelTransparency(Number(e.currentTarget.value) / 100)}
-            />
-            <span class="theme-transparency-val">{Math.round(panelTransparency * 100)}%</span>
-          </label>
+          </div>
         {/if}
       </div>
       <div class="topbar-spacer"></div>
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-17b</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-17e</span>
       </div>
     </header>
 

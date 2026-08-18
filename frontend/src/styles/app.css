@@ -284,13 +284,10 @@ button.brand:active { transform: none; }
 }
 
 .theme-controls {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.theme-picker {
-  position: relative;
 }
 
 .theme-select {
@@ -300,23 +297,54 @@ button.brand:active { transform: none; }
   background: var(--bg-input);
 }
 
-.theme-menu {
+.theme-dialog {
   position: absolute;
-  top: calc(100% + 4px);
+  z-index: 2000;
+  top: calc(100% + 6px);
   left: 0;
-  z-index: 80;
-  min-width: 100%;
-  max-height: min(70vh, 440px);
+  width: 280px;
+  padding: 12px;
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--panel-glass), var(--panel-glass)),
+    var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.theme-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.theme-dialog-close {
+  min-width: 28px;
+  height: 26px;
+  padding: 0;
+  line-height: 1;
+}
+
+.theme-menu {
+  max-height: min(60vh, 380px);
   overflow-y: auto;
   margin: 0;
   padding: 4px;
   list-style: none;
-  background: var(--chrome-glass);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  background: var(--bg-input);
 }
 
 .theme-menu li {
@@ -351,7 +379,7 @@ button.brand:active { transform: none; }
 .theme-transparent:hover { color: var(--text); }
 
 .theme-transparency {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
@@ -361,7 +389,8 @@ button.brand:active { transform: none; }
 }
 
 .theme-transparency input[type="range"] {
-  width: 92px;
+  flex: 1;
+  width: auto;
   margin: 0;
   padding: 0;
   accent-color: var(--accent);

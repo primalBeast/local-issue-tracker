@@ -230,21 +230,6 @@
     });
   }
 
-  function resetLayout() {
-    updateWorkspace((ws) => {
-      ws.ui.viewport_scroll = defaultPan();
-      let x = 40;
-      let y = 40;
-      for (const p of ws.panels) {
-        p.x = x;
-        p.y = y;
-        x += 40;
-        y += 30;
-      }
-    });
-    showToast('Layout reset');
-  }
-
   async function newWorkspace() {
     if (!project) return;
     // Save current board into the list (and debounce server save) before leaving
