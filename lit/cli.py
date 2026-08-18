@@ -28,6 +28,7 @@ def _setup_logging(verbose: bool = False) -> None:
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
+    _setup_logging(args.verbose)
     cfg = AppConfig(
         data_dir=Path(args.data_dir) if args.data_dir else AppConfig().data_dir,
         host=args.host,
@@ -37,7 +38,6 @@ def cmd_serve(args: argparse.Namespace) -> int:
         dev_cors=args.reload or args.dev_cors,
     )
     set_config(cfg)
-    _setup_logging(args.verbose)
 
     if cfg.host not in ("127.0.0.1", "localhost", "::1"):
         logging.getLogger("lit").warning(
@@ -95,9 +95,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 def cmd_init_project(args: argparse.Namespace) -> int:
+    _setup_logging(args.verbose)
     cfg = AppConfig(data_dir=Path(args.data_dir) if args.data_dir else AppConfig().data_dir)
     set_config(cfg)
-    _setup_logging(args.verbose)
     ensure_data_layout()
     try:
         proj = create_project(args.slug, name=args.name, template=args.template)
@@ -112,9 +112,9 @@ def cmd_init_project(args: argparse.Namespace) -> int:
 
 
 def cmd_backup_now(args: argparse.Namespace) -> int:
+    _setup_logging(args.verbose)
     cfg = AppConfig(data_dir=Path(args.data_dir) if args.data_dir else AppConfig().data_dir)
     set_config(cfg)
-    _setup_logging(args.verbose)
     ensure_data_layout()
     if args.project:
         m = backup_project(args.project, force=args.force)

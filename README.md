@@ -81,7 +81,7 @@ directory with default fields and a Main Board workspace.
 |----------|------------------------|
 | macOS | `~/Library/Application Support/LocalIssueTracker` |
 | Linux | `~/.local/share/local-issue-tracker` |
-| Windows | `%APPDATA%\\LocalIssueTracker` |
+| Windows | `%OneDrive%\\Local Issue Tracker` (falls back to `%APPDATA%\\LocalIssueTracker`) |
 
 Override with:
 

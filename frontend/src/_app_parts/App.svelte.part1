@@ -33,6 +33,7 @@
     zoomFromWheelDelta,
   } from './lib/viewport';
   import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
+  import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import {
     appearanceFromWorkspace,
     applyPanelTransparency,
@@ -82,6 +83,12 @@
     tab_color: string | null;
     x: number;
     y: number;
+  } | null>(null);
+  let projectEditor = $state<{
+    name: string;
+    ticket_prefix: string;
+    newName: string;
+    newPrefix: string;
   } | null>(null);
 
   const TAB_COLOR_SWATCHES: (string | null)[] = [
@@ -184,6 +191,10 @@
           closeThemeMenu(true);
           return;
         }
+        if (projectEditor) {
+          projectEditor = null;
+          return;
+        }
         boardEditor = null;
       }
       if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+' || e.key === 'Add')) {
@@ -205,6 +216,9 @@
       const t = e.target as HTMLElement | null;
       if (themeMenuOpen && !t?.closest?.('.theme-picker')) {
         closeThemeMenu(true);
+      }
+      if (projectEditor && !t?.closest?.('.project-editor') && !t?.closest?.('.brand')) {
+        projectEditor = null;
       }
       if (!boardEditor) return;
       if (t?.closest?.('.board-editor')) return;
@@ -441,6 +455,18 @@
         if (w.ui.theme == null) w.ui.theme = look.theme;
         if (w.ui.transparent_panels == null) w.ui.transparent_panels = look.transparent;
       });
+    }
+  }
+
+  function localLastWsKey(slug: string) {
+    return `lit:lastWorkspace:${slug}`;
+  }
+
+  function readLocalLastWorkspace(slug: string): string | null {
+    try {
+      return localStorage.getItem(localLastWsKey(slug));
+    } catch {
+      return null;
     }
   }
 

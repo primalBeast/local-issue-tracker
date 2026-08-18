@@ -22,6 +22,7 @@ class ProjectCreate(BaseModel):
     slug: str
     name: str | None = None
     template: str = "issue-tracker"
+    ticket_prefix: str | None = None
 
 
 class ProjectPatch(BaseModel):
@@ -30,6 +31,7 @@ class ProjectPatch(BaseModel):
     color_coding: dict[str, Any] | None = None
     primary_identifier_field: str | None = None
     compact_mode_zoom_threshold: float | None = None
+    ticket_prefix: str | None = None
 
 
 class ProjectDelete(BaseModel):
@@ -48,7 +50,12 @@ def create(body: ProjectCreate) -> dict[str, Any]:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     try:
-        proj = create_project(body.slug, name=body.name, template=body.template)
+        proj = create_project(
+            body.slug,
+            name=body.name,
+            template=body.template,
+            ticket_prefix=body.ticket_prefix,
+        )
     except FileExistsError:
         raise HTTPException(status_code=409, detail="Project already exists") from None
     except FileNotFoundError as e:

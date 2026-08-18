@@ -11,6 +11,7 @@ export type Project = {
     palette: Record<string, string>;
   };
   primary_identifier_field: string;
+  ticket_prefix?: string;
   compact_mode_zoom_threshold: number;
   /** Default size for newly opened item panels (user can still resize freely). */
   default_item_panel?: {
@@ -132,6 +133,10 @@ export const api = {
     req('/api/settings', { method: 'PATCH', body: JSON.stringify(body) }),
   projects: () => req<Project[]>('/api/projects'),
   project: (slug: string) => req<Project>(`/api/projects/${slug}`),
+  createProject: (body: { slug: string; name?: string; ticket_prefix?: string }) =>
+    req<Project>('/api/projects', { method: 'POST', body: JSON.stringify(body) }),
+  patchProject: (slug: string, body: Record<string, unknown>) =>
+    req<Project>(`/api/projects/${slug}`, { method: 'PATCH', body: JSON.stringify(body) }),
   fields: (slug: string) => req<FieldsDoc>(`/api/projects/${slug}/fields`),
   putFields: (slug: string, body: FieldsDoc) =>
     req<FieldsDoc>(`/api/projects/${slug}/fields`, {

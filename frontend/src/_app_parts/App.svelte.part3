@@ -1,65 +1,3 @@
-  function maxZ(): number {
-    if (!workspace?.panels.length) return 1;
-    return Math.max(...workspace.panels.map((p) => p.z_index || 0));
-  }
-
-  function focusPanel(id: string) {
-    updateWorkspace((ws) => {
-      const p = ws.panels.find((x) => x.id === id);
-      if (!p) return;
-      p.z_index = maxZ() + 1;
-    });
-  }
-
-  function movePanel(id: string, patch: Partial<Panel>) {
-    updateWorkspace((ws) => {
-      const p = ws.panels.find((x) => x.id === id);
-      if (!p) return;
-      Object.assign(p, patch);
-    });
-  }
-
-  function closePanel(id: string) {
-    updateWorkspace((ws) => {
-      ws.panels = ws.panels.filter((p) => p.id !== id);
-    });
-  }
-
-  function openItemPanel(itemId: string) {
-    if (!workspace) return;
-    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
-    if (existing) {
-      focusPanel(existing.id);
-      return;
-    }
-    void ensureDetail(itemId);
-    const defaults = project?.default_item_panel || {};
-    const panelW = Math.max(200, Number(defaults.width) || 720);
-    const existingItem = detailCache[itemId] || items.find((i) => i.id === itemId);
-    const headerEditor =
-      !existingItem || !itemDescription(existingItem) ? HEADER_TITLE_EDITOR_PX : 0;
-    const panelH = Math.max(
-      minItemPanelHeight(bodyFieldRows) + headerEditor,
-      Number(defaults.height) || 480
-    );
-    const origin = visibleWorldOrigin();
-    updateWorkspace((ws) => {
-      const z = Math.max(0, ...ws.panels.map((p) => p.z_index)) + 1;
-      const stagger = (ws.panels.length % 5) * 30;
-      ws.panels.push({
-        id: `panel-item-${itemId.slice(0, 8)}-${Date.now().toString(36)}`,
-        kind: 'item',
-        item_id: itemId,
-        x: snapToGrid(origin.x + 80 + stagger, ws.ui.zoom),
-        y: snapToGrid(origin.y + 80 + stagger, ws.ui.zoom),
-        width: panelW,
-        height: panelH,
-        z_index: z,
-        collapsed: false,
-      });
-    });
-  }
-
   function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
     if (!workspace) return;
     const existing = workspace.panels.find((p) => p.kind === kind);
@@ -89,9 +27,9 @@
   async function createItem() {
     if (!project) return;
     try {
-      const n = items.length + 1;
+      const keys = items.map((it) => String(it.fields[keyField()] ?? ''));
       const item = await api.createItem(project.slug, {
-        ticket_key: `NEW-${n}`,
+        ticket_key: nextTicketKey(keys, project.ticket_prefix),
         title: '',
         priority: 5,
         urgency: 5,
@@ -374,6 +312,73 @@
       showToast('Board updated');
     } catch (err) {
       showToast('Failed to update board');
+      console.error(err);
+    }
+  }
+
+  function openProjectEditor() {
+    if (!project) return;
+    if (projectEditor) {
+      projectEditor = null;
+      return;
+    }
+    projectEditor = {
+      name: project.name,
+      ticket_prefix: project.ticket_prefix || 'NEW-',
+      newName: '',
+      newPrefix: 'NEW-',
+    };
+  }
+
+  async function saveProjectEditor() {
+    if (!project || !projectEditor) return;
+    const name = projectEditor.name.trim();
+    if (!name) {
+      showToast('Project name is required');
+      return;
+    }
+    const ticket_prefix = normalizeTicketPrefix(projectEditor.ticket_prefix);
+    try {
+      const saved = await api.patchProject(project.slug, { name, ticket_prefix });
+      project = saved;
+      projects = projects.map((p) => (p.slug === saved.slug ? saved : p));
+      projectEditor = { ...projectEditor, name: saved.name, ticket_prefix: saved.ticket_prefix || ticket_prefix };
+      showToast('Project updated');
+    } catch (err) {
+      showToast('Failed to update project');
+      console.error(err);
+    }
+  }
+
+  async function switchProject(slug: string) {
+    if (!project || slug === project.slug) {
+      projectEditor = null;
+      return;
+    }
+    projectEditor = null;
+    await loadProject(slug);
+  }
+
+  async function createNewProject() {
+    if (!projectEditor) return;
+    const name = projectEditor.newName.trim();
+    if (!name) {
+      showToast('New project needs a name');
+      return;
+    }
+    const ticket_prefix = normalizeTicketPrefix(projectEditor.newPrefix);
+    const slug = uniqueSlug(
+      slugFromName(name),
+      projects.map((p) => p.slug)
+    );
+    try {
+      const created = await api.createProject({ slug, name, ticket_prefix });
+      projects = [...projects, created];
+      projectEditor = null;
+      await loadProject(created.slug);
+      showToast('Project created');
+    } catch (err) {
+      showToast('Failed to create project');
       console.error(err);
     }
   }

@@ -42,6 +42,8 @@ def load_project(slug: str) -> dict[str, Any]:
         raise FileNotFoundError(slug)
     data = read_json(path)
     data["slug"] = slug  # path is source of truth
+    if not data.get("ticket_prefix"):
+        data["ticket_prefix"] = "NEW-"
     return data
 
 
@@ -245,7 +247,12 @@ def delete_workspace(slug: str, workspace_id: str) -> bool:
     return True
 
 
-def _copy_template(template_name: str, slug: str, name: str | None = None) -> Path:
+def _copy_template(
+    template_name: str,
+    slug: str,
+    name: str | None = None,
+    ticket_prefix: str | None = None,
+) -> Path:
     src = templates_dir() / template_name
     if not src.is_dir():
         raise FileNotFoundError(f"Template not found: {template_name}")
@@ -260,6 +267,10 @@ def _copy_template(template_name: str, slug: str, name: str | None = None) -> Pa
     proj["id"] = str(uuid.uuid4())
     proj["slug"] = slug
     proj["name"] = name or proj.get("name") or slug
+    if ticket_prefix:
+        proj["ticket_prefix"] = ticket_prefix
+    elif not proj.get("ticket_prefix"):
+        proj["ticket_prefix"] = "NEW-"
     now = _now()
     proj["created_at"] = now
     proj["updated_at"] = now
@@ -292,12 +303,13 @@ def create_project(
     *,
     name: str | None = None,
     template: str = "issue-tracker",
+    ticket_prefix: str | None = None,
 ) -> dict[str, Any]:
     validate_slug(slug)
     ensure_data_layout()
     if (projects_dir() / slug).exists():
         raise FileExistsError(slug)
-    _copy_template(template, slug, name=name)
+    _copy_template(template, slug, name=name, ticket_prefix=ticket_prefix)
     return load_project(slug)
 
 

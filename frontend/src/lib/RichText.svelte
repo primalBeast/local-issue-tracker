@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import type { Editor } from '@tiptap/core';
+  import { formatNoteDateStamp } from './noteDate';
 
   interface Props {
     value?: unknown;
@@ -59,6 +60,7 @@
             return {
               'Ctrl-q': () => this.editor.commands.toggleStrike(),
               'Ctrl-Q': () => this.editor.commands.toggleStrike(),
+              'Mod-;': () => this.editor.commands.insertContent(formatNoteDateStamp()),
             };
           },
         });
@@ -92,6 +94,9 @@
         editor = ed;
         // TipTap may normalize initial doc; treat that as baseline (do not emit)
         lastEmitted = serialize(ed.getJSON());
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => scrollNotesToEnd());
+        });
       } catch (e) {
         if (!cancelled) {
           editorError = e instanceof Error ? e.message : String(e);
@@ -120,25 +125,50 @@
     return editor?.isActive(name) ?? false;
   }
 
+  function scrollNotesToEnd() {
+    const wrap = wrapEl;
+    if (!wrap) return;
+    const rte = wrap.querySelector('.rte') as HTMLElement | null;
+    const pm = wrap.querySelector('.ProseMirror') as HTMLElement | null;
+    const body = wrap.closest('.panel-body') as HTMLElement | null;
+    for (const node of [rte, pm, body]) {
+      if (node) node.scrollTop = node.scrollHeight;
+    }
+  }
+
   function isStrikeHotkey(e: KeyboardEvent): boolean {
     if (!e.ctrlKey || e.metaKey || e.altKey) return false;
     return e.code === 'KeyQ' || e.key === 'q' || e.key === 'Q';
   }
 
-  function onStrikeHotkey(e: KeyboardEvent) {
-    if (!isStrikeHotkey(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (!editor) return;
-    editor.chain().focus().toggleStrike().run();
-    toolbarTick += 1;
+  function isDateHotkey(e: KeyboardEvent): boolean {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return false;
+    return e.code === 'Semicolon' || e.key === ';';
+  }
+
+  function onNotesHotkey(e: KeyboardEvent) {
+    if (isStrikeHotkey(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!editor) return;
+      editor.chain().focus().toggleStrike().run();
+      toolbarTick += 1;
+      return;
+    }
+    if (isDateHotkey(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!editor) return;
+      editor.chain().focus().insertContent(formatNoteDateStamp()).run();
+      toolbarTick += 1;
+    }
   }
 
   $effect(() => {
     const wrap = wrapEl;
     if (!wrap) return;
-    wrap.addEventListener('keydown', onStrikeHotkey, true);
-    return () => wrap.removeEventListener('keydown', onStrikeHotkey, true);
+    wrap.addEventListener('keydown', onNotesHotkey, true);
+    return () => wrap.removeEventListener('keydown', onNotesHotkey, true);
   });
 </script>
 
@@ -214,6 +244,7 @@
             <tr><td>Italic</td><td><kbd>⌘I</kbd> / <kbd>Ctrl+I</kbd></td></tr>
             <tr><td>Underline</td><td><kbd>⌘U</kbd> / <kbd>Ctrl+U</kbd></td></tr>
             <tr><td>Strikethrough</td><td><kbd>Ctrl+Q</kbd></td></tr>
+            <tr><td>Insert date</td><td><kbd>⌘;</kbd> / <kbd>Ctrl+;</kbd> → <code>m/d - </code></td></tr>
             <tr><td>Inline code</td><td><kbd>⌘E</kbd> / <kbd>Ctrl+E</kbd></td></tr>
             <tr><td>Bullet list</td><td><kbd>⌘⇧8</kbd> / <kbd>Ctrl+Shift+8</kbd></td></tr>
             <tr><td>Numbered list</td><td><kbd>⌘⇧7</kbd> / <kbd>Ctrl+Shift+7</kbd></td></tr>

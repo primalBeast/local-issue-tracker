@@ -235,6 +235,20 @@ label.field-label {
   gap: 8px;
 }
 
+button.brand {
+  background: transparent;
+  border-color: transparent;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+button.brand:hover {
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
+button.brand:active { transform: none; }
+
 .brand-mark {
   width: 22px;
   height: 22px;
@@ -439,6 +453,47 @@ label.field-label {
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   box-shadow: var(--shadow);
+}
+
+.project-editor {
+  position: fixed;
+  z-index: 2000;
+  top: calc(var(--topbar-h) + 8px);
+  left: 14px;
+  width: 280px;
+  padding: 12px;
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--panel-glass), var(--panel-glass)),
+    var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow: auto;
+  margin-top: 6px;
+}
+
+.project-list button {
+  text-align: left;
+  background: var(--bg-input);
+}
+
+.project-list button.current {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .board-editor-title { font-weight: 650; margin-bottom: 10px; letter-spacing: -0.01em; }

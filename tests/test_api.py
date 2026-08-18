@@ -160,6 +160,27 @@ def test_workspace_lww(client: TestClient):
     assert again.json()["ui"]["theme"] == "ember"
 
 
+def test_project_name_and_ticket_prefix(client: TestClient):
+    slug = client.get("/api/projects").json()[0]["slug"]
+    got = client.get(f"/api/projects/{slug}")
+    assert got.status_code == 200
+    assert got.json()["ticket_prefix"] == "NEW-"
+    patched = client.patch(
+        f"/api/projects/{slug}",
+        json={"name": "Shop Tracker", "ticket_prefix": "SHOP-"},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["name"] == "Shop Tracker"
+    assert patched.json()["ticket_prefix"] == "SHOP-"
+    created = client.post(
+        "/api/projects",
+        json={"slug": "other-proj", "name": "Other", "ticket_prefix": "OT-"},
+    )
+    assert created.status_code == 201
+    assert created.json()["name"] == "Other"
+    assert created.json()["ticket_prefix"] == "OT-"
+
+
 def test_delete_project_confirm(client: TestClient):
     created = client.post("/api/projects", json={"slug": "temp-proj", "name": "Temp"})
     assert created.status_code == 201

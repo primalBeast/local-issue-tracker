@@ -2,7 +2,7 @@
 
 Step-by-step guide to download everything you need and run the app in a browser on Windows 11.
 
-The app is **100% local**. It does not send data to the cloud. You only need a browser and a small Python toolchain.
+The app is **100% local** — it does not upload your tickets to a server. On Windows it stores files in your OneDrive folder so Windows can sync them if OneDrive is signed in. You only need a browser and a small Python toolchain.
 
 ---
 
@@ -165,14 +165,16 @@ On first start the app seeds a sample **Issue Tracker** project with:
 ### Where data is stored (Windows)
 
 ```text
-%APPDATA%\LocalIssueTracker\
+%OneDrive%\Local Issue Tracker\
 ```
 
 Typical full path:
 
 ```text
-C:\Users\<YourName>\AppData\Roaming\LocalIssueTracker\
+C:\Users\<YourName>\OneDrive\Local Issue Tracker\
 ```
+
+Projects live under `Local Issue Tracker\projects\<slug>\`. An older AppData copy is moved here automatically on first start. If OneDrive is not available, the app falls back to `%APPDATA%\LocalIssueTracker\`.
 
 Optional override (PowerShell session):
 

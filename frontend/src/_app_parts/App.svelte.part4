@@ -5,19 +5,15 @@
 {:else if project && workspace}
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark"></div>
-        Local Issue Tracker
-      </div>
-      <select
-        style="width:auto;min-width:160px"
-        value={project.slug}
-        onchange={(e) => loadProject(e.currentTarget.value)}
+      <button
+        type="button"
+        class="brand"
+        title="Project settings — name, ticket prefix, switch or create"
+        onclick={openProjectEditor}
       >
-        {#each projects as p}
-          <option value={p.slug}>{p.name}</option>
-        {/each}
-      </select>
+        <div class="brand-mark"></div>
+        {project.name}
+      </button>
       <button type="button" class="ghost" title="Toggle sidebar (⌘\)" onclick={toggleSidebar}>
         {sidebarVisible ? 'Hide tabs' : 'Show tabs'}
       </button>
@@ -114,7 +110,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16i</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-17b</span>
       </div>
     </header>
 
@@ -144,6 +140,73 @@
       {/each}
       <button type="button" class="ws-tab" onclick={() => void newWorkspace()} title="New workspace">+</button>
     </aside>
+
+    {#if projectEditor}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="project-editor" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+        <div class="board-editor-title">Project</div>
+        <label class="field-label" for="project-name-input">Name</label>
+        <input
+          id="project-name-input"
+          type="text"
+          bind:value={projectEditor.name}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void saveProjectEditor();
+            if (e.key === 'Escape') projectEditor = null;
+          }}
+        />
+        <label class="field-label" for="project-prefix-input" style="margin-top:10px">Ticket prefix</label>
+        <input
+          id="project-prefix-input"
+          type="text"
+          bind:value={projectEditor.ticket_prefix}
+          placeholder="NEW-"
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void saveProjectEditor();
+            if (e.key === 'Escape') projectEditor = null;
+          }}
+        />
+        <div class="board-editor-actions">
+          <button type="button" class="ghost" onclick={() => (projectEditor = null)}>Cancel</button>
+          <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
+        </div>
+
+        <div class="field-label" style="margin-top:14px">Open project</div>
+        <div class="project-list">
+          {#each projects as p}
+            <button
+              type="button"
+              class:current={p.slug === project.slug}
+              onclick={() => void switchProject(p.slug)}
+            >
+              {p.name}
+            </button>
+          {/each}
+        </div>
+
+        <div class="field-label" style="margin-top:14px">New project</div>
+        <input
+          type="text"
+          placeholder="Name"
+          bind:value={projectEditor.newName}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void createNewProject();
+          }}
+        />
+        <input
+          type="text"
+          placeholder="Ticket prefix (NEW-)"
+          style="margin-top:6px"
+          bind:value={projectEditor.newPrefix}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void createNewProject();
+          }}
+        />
+        <div class="board-editor-actions">
+          <button type="button" class="primary" onclick={() => void createNewProject()}>Create</button>
+        </div>
+      </div>
+    {/if}
 
     {#if boardEditor}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -406,7 +469,7 @@
                 <div class="empty-hint">No items match filters. Create one or clear filters.</div>
               {/if}
             {:else if panel.kind === 'notes'}
-              {#key project.slug}
+              {#key `${project.slug}:${workspace.id}`}
                 <div class="field-row field-row-fill">
                   <RichText fill value={notesContent} onchange={(json) => void saveNotes(json)} />
                 </div>

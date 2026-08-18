@@ -33,6 +33,7 @@
     zoomFromWheelDelta,
   } from './lib/viewport';
   import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
+  import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import {
     appearanceFromWorkspace,
     applyPanelTransparency,
@@ -82,6 +83,12 @@
     tab_color: string | null;
     x: number;
     y: number;
+  } | null>(null);
+  let projectEditor = $state<{
+    name: string;
+    ticket_prefix: string;
+    newName: string;
+    newPrefix: string;
   } | null>(null);
 
   const TAB_COLOR_SWATCHES: (string | null)[] = [
@@ -184,6 +191,10 @@
           closeThemeMenu(true);
           return;
         }
+        if (projectEditor) {
+          projectEditor = null;
+          return;
+        }
         boardEditor = null;
       }
       if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+' || e.key === 'Add')) {
@@ -205,6 +216,9 @@
       const t = e.target as HTMLElement | null;
       if (themeMenuOpen && !t?.closest?.('.theme-picker')) {
         closeThemeMenu(true);
+      }
+      if (projectEditor && !t?.closest?.('.project-editor') && !t?.closest?.('.brand')) {
+        projectEditor = null;
       }
       if (!boardEditor) return;
       if (t?.closest?.('.board-editor')) return;
@@ -948,9 +962,9 @@
   async function createItem() {
     if (!project) return;
     try {
-      const n = items.length + 1;
+      const keys = items.map((it) => String(it.fields[keyField()] ?? ''));
       const item = await api.createItem(project.slug, {
-        ticket_key: `NEW-${n}`,
+        ticket_key: nextTicketKey(keys, project.ticket_prefix),
         title: '',
         priority: 5,
         urgency: 5,
@@ -1237,6 +1251,73 @@
     }
   }
 
+  function openProjectEditor() {
+    if (!project) return;
+    if (projectEditor) {
+      projectEditor = null;
+      return;
+    }
+    projectEditor = {
+      name: project.name,
+      ticket_prefix: project.ticket_prefix || 'NEW-',
+      newName: '',
+      newPrefix: 'NEW-',
+    };
+  }
+
+  async function saveProjectEditor() {
+    if (!project || !projectEditor) return;
+    const name = projectEditor.name.trim();
+    if (!name) {
+      showToast('Project name is required');
+      return;
+    }
+    const ticket_prefix = normalizeTicketPrefix(projectEditor.ticket_prefix);
+    try {
+      const saved = await api.patchProject(project.slug, { name, ticket_prefix });
+      project = saved;
+      projects = projects.map((p) => (p.slug === saved.slug ? saved : p));
+      projectEditor = { ...projectEditor, name: saved.name, ticket_prefix: saved.ticket_prefix || ticket_prefix };
+      showToast('Project updated');
+    } catch (err) {
+      showToast('Failed to update project');
+      console.error(err);
+    }
+  }
+
+  async function switchProject(slug: string) {
+    if (!project || slug === project.slug) {
+      projectEditor = null;
+      return;
+    }
+    projectEditor = null;
+    await loadProject(slug);
+  }
+
+  async function createNewProject() {
+    if (!projectEditor) return;
+    const name = projectEditor.newName.trim();
+    if (!name) {
+      showToast('New project needs a name');
+      return;
+    }
+    const ticket_prefix = normalizeTicketPrefix(projectEditor.newPrefix);
+    const slug = uniqueSlug(
+      slugFromName(name),
+      projects.map((p) => p.slug)
+    );
+    try {
+      const created = await api.createProject({ slug, name, ticket_prefix });
+      projects = [...projects, created];
+      projectEditor = null;
+      await loadProject(created.slug);
+      showToast('Project created');
+    } catch (err) {
+      showToast('Failed to create project');
+      console.error(err);
+    }
+  }
+
   function tabStyle(w: Workspace): string {
     const c = w.tab_color;
     if (!c) return '';
@@ -1254,19 +1335,15 @@
 {:else if project && workspace}
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark"></div>
-        Local Issue Tracker
-      </div>
-      <select
-        style="width:auto;min-width:160px"
-        value={project.slug}
-        onchange={(e) => loadProject(e.currentTarget.value)}
+      <button
+        type="button"
+        class="brand"
+        title="Project settings — name, ticket prefix, switch or create"
+        onclick={openProjectEditor}
       >
-        {#each projects as p}
-          <option value={p.slug}>{p.name}</option>
-        {/each}
-      </select>
+        <div class="brand-mark"></div>
+        {project.name}
+      </button>
       <button type="button" class="ghost" title="Toggle sidebar (⌘\)" onclick={toggleSidebar}>
         {sidebarVisible ? 'Hide tabs' : 'Show tabs'}
       </button>
@@ -1363,7 +1440,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-16i</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-17b</span>
       </div>
     </header>
 
@@ -1393,6 +1470,73 @@
       {/each}
       <button type="button" class="ws-tab" onclick={() => void newWorkspace()} title="New workspace">+</button>
     </aside>
+
+    {#if projectEditor}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="project-editor" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+        <div class="board-editor-title">Project</div>
+        <label class="field-label" for="project-name-input">Name</label>
+        <input
+          id="project-name-input"
+          type="text"
+          bind:value={projectEditor.name}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void saveProjectEditor();
+            if (e.key === 'Escape') projectEditor = null;
+          }}
+        />
+        <label class="field-label" for="project-prefix-input" style="margin-top:10px">Ticket prefix</label>
+        <input
+          id="project-prefix-input"
+          type="text"
+          bind:value={projectEditor.ticket_prefix}
+          placeholder="NEW-"
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void saveProjectEditor();
+            if (e.key === 'Escape') projectEditor = null;
+          }}
+        />
+        <div class="board-editor-actions">
+          <button type="button" class="ghost" onclick={() => (projectEditor = null)}>Cancel</button>
+          <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
+        </div>
+
+        <div class="field-label" style="margin-top:14px">Open project</div>
+        <div class="project-list">
+          {#each projects as p}
+            <button
+              type="button"
+              class:current={p.slug === project.slug}
+              onclick={() => void switchProject(p.slug)}
+            >
+              {p.name}
+            </button>
+          {/each}
+        </div>
+
+        <div class="field-label" style="margin-top:14px">New project</div>
+        <input
+          type="text"
+          placeholder="Name"
+          bind:value={projectEditor.newName}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void createNewProject();
+          }}
+        />
+        <input
+          type="text"
+          placeholder="Ticket prefix (NEW-)"
+          style="margin-top:6px"
+          bind:value={projectEditor.newPrefix}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void createNewProject();
+          }}
+        />
+        <div class="board-editor-actions">
+          <button type="button" class="primary" onclick={() => void createNewProject()}>Create</button>
+        </div>
+      </div>
+    {/if}
 
     {#if boardEditor}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -1655,7 +1799,7 @@
                 <div class="empty-hint">No items match filters. Create one or clear filters.</div>
               {/if}
             {:else if panel.kind === 'notes'}
-              {#key project.slug}
+              {#key `${project.slug}:${workspace.id}`}
                 <div class="field-row field-row-fill">
                   <RichText fill value={notesContent} onchange={(json) => void saveNotes(json)} />
                 </div>

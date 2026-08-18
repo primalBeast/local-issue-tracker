@@ -22,6 +22,7 @@
     }
   },
   "primary_identifier_field": "ticket_key",
+  "ticket_prefix": "NEW-",
   "compact_mode_zoom_threshold": 0.33,
   "default_item_panel": {
     "width": 720,
