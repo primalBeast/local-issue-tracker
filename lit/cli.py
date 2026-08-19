@@ -16,6 +16,7 @@ from lit.locking import acquire_data_lock, release_data_lock
 from lit.storage.backup import backup_all_projects, backup_project
 from lit.storage.project_fs import create_project, ensure_data_layout, list_project_slugs, maybe_seed_sample
 from lit.storage.settings_store import load_settings, patch_settings
+from lit.storage.text_snapshot import seconds_until_next_hour, snapshot_all_projects
 
 
 def _setup_logging(verbose: bool = False) -> None:
@@ -57,14 +58,19 @@ def cmd_serve(args: argparse.Namespace) -> int:
     except Exception:
         logging.getLogger("lit").exception("Startup backup check failed")
 
-    # Hourly backup poller
+    # On the hour: daily folder backup (skips if today exists) + readable text/md dump.
     def _backup_loop() -> None:
+        log = logging.getLogger("lit")
         while True:
-            time.sleep(3600)
+            time.sleep(seconds_until_next_hour())
             try:
                 backup_all_projects(force=False)
             except Exception:
-                logging.getLogger("lit").exception("Scheduled backup failed")
+                log.exception("Scheduled backup failed")
+            try:
+                snapshot_all_projects()
+            except Exception:
+                log.exception("Hourly text snapshot failed")
 
     t = threading.Thread(target=_backup_loop, name="lit-backup", daemon=True)
     t.start()
