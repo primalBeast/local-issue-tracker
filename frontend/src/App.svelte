@@ -32,7 +32,7 @@
     screenToWorld,
     zoomFromWheelDelta,
   } from './lib/viewport';
-  import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
+  import { formatWaitingDays, liveSeconds } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import {
     appearanceFromWorkspace,
@@ -64,17 +64,18 @@
   let nowTick = $state(Date.now());
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   let itemSaveTimers: Record<string, ReturnType<typeof setTimeout>> = {};
-  /** Pointer-based tab reorder. Selection is via click (never gated on drag). */
+  /** Pointer-based tab reorder. Click still selects unless a drag happened. */
   let dragWsId = $state<string | null>(null);
-  let dragOverWsId = $state<string | null>(null);
   const tabDrag = {
     id: null as string | null,
     startX: 0,
     startY: 0,
     dragging: false,
+    dirty: false,
     /** When true, the next click is from a completed drag — ignore it. */
     suppressClick: false,
     pointerId: -1,
+    origList: null as Workspace[] | null,
   };
   /** Board rename / tab color editor (right-click a tab). */
   let boardEditor = $state<{
@@ -84,6 +85,7 @@
     x: number;
     y: number;
   } | null>(null);
+  let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
   let projectEditor = $state<{
     name: string;
     ticket_prefix: string;
@@ -141,6 +143,7 @@
   applyTransparentPanels(initialTransparent);
   applyPanelTransparency(initialPanelTransparency);
   let canvasWrapEl = $state<HTMLElement | null>(null);
+  let serverOk = $state(true);
   const canvasPan = {
     pointerId: -1,
     startX: 0,
@@ -155,16 +158,10 @@
   }
 
   function sortWorkspaces(list: Workspace[]): Workspace[] {
-    const main = list.filter(isMainBoard);
-    const rest = list
-      .filter((w) => !isMainBoard(w))
-      .sort(
-        (a, b) =>
-          (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
-      );
-    // Main boards first (stable by name/id), then the rest by order
-    main.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-    return [...main, ...rest];
+    return [...list].sort(
+      (a, b) =>
+        (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
+    );
   }
 
   let filteredItems = $derived(
@@ -179,6 +176,8 @@
 
   onMount(() => {
     const tick = setInterval(() => (nowTick = Date.now()), 1000);
+    const healthTick = setInterval(() => void pingServer(), 4000);
+    void pingServer();
     void bootstrap();
     const onKey = (e: KeyboardEvent) => {
       if (themeMenuOpen) {
@@ -201,8 +200,17 @@
         toggleSidebar();
       }
       if (e.key === 'Escape') {
+        if (tabDrag.dragging || tabDrag.id) {
+          e.preventDefault();
+          cancelTabDrag();
+          return;
+        }
+        if (boardRemoveConfirm) {
+          boardRemoveConfirm = null;
+          return;
+        }
         if (projectEditor) {
-          projectEditor = null;
+          void closeProjectEditor(true);
           return;
         }
         boardEditor = null;
@@ -224,8 +232,12 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
+      if (boardRemoveConfirm) {
+        if (!t?.closest?.('.confirm-dialog')) boardRemoveConfirm = null;
+        return;
+      }
       if (projectEditor && !t?.closest?.('.project-editor') && !t?.closest?.('.brand')) {
-        projectEditor = null;
+        void closeProjectEditor(true);
       }
       if (!boardEditor) return;
       if (t?.closest?.('.board-editor')) return;
@@ -236,11 +248,22 @@
     window.addEventListener('pointerdown', onDocPointerDown, true);
     return () => {
       clearInterval(tick);
+      clearInterval(healthTick);
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       endCanvasPan();
+      resetTabDrag();
     };
   });
+
+  async function pingServer() {
+    try {
+      const h = await api.health();
+      serverOk = h.status === 'ok';
+    } catch {
+      serverOk = false;
+    }
+  }
 
   async function bootstrap() {
     try {
@@ -463,6 +486,26 @@
     }
   }
 
+  function prefixStorageKey(slug: string) {
+    return `lit:ticketPrefix:${slug}`;
+  }
+
+  function readStoredPrefix(slug: string): string | null {
+    try {
+      return localStorage.getItem(prefixStorageKey(slug));
+    } catch {
+      return null;
+    }
+  }
+
+  function writeStoredPrefix(slug: string, prefix: string) {
+    try {
+      localStorage.setItem(prefixStorageKey(slug), prefix);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function localLastWsKey(slug: string) {
     return `lit:lastWorkspace:${slug}`;
   }
@@ -500,6 +543,21 @@
 
   async function loadProject(slug: string) {
     project = await api.project(slug);
+    const serverPrefix = project.ticket_prefix;
+    const localPrefix = readStoredPrefix(slug);
+    if (serverPrefix && serverPrefix !== 'NEW-') {
+      writeStoredPrefix(slug, serverPrefix);
+    } else if (localPrefix && localPrefix !== (serverPrefix || 'NEW-')) {
+      project = { ...project, ticket_prefix: localPrefix };
+      try {
+        const saved = await api.patchProject(slug, { ticket_prefix: localPrefix });
+        project = { ...saved, ticket_prefix: saved.ticket_prefix || localPrefix };
+      } catch (e) {
+        console.error(e);
+      }
+    } else if (serverPrefix) {
+      writeStoredPrefix(slug, serverPrefix);
+    }
     fieldsDoc = await api.fields(slug);
     items = await api.items(slug);
     workspaces = sortWorkspaces(await api.workspaces(slug));
@@ -647,7 +705,7 @@
     }
   }
 
-  async function persistWorkspaceOrders(list: Workspace[]) {
+  async function persistWorkspaceOrders(list: Workspace[], fallback?: Workspace[] | null) {
     if (!project) return;
     try {
       const savedList = await Promise.all(
@@ -665,30 +723,43 @@
         }
       }
     } catch (e) {
+      if (fallback) workspaces = sortWorkspaces(fallback.map(cloneWorkspace));
       showToast('Failed to save board order');
       console.error(e);
     }
   }
 
-  function reorderWorkspaceBefore(fromId: string, overId: string) {
-    if (fromId === overId) return;
-    const from = workspaces.find((w) => w.id === fromId);
-    const over = workspaces.find((w) => w.id === overId);
-    if (!from || !over || isMainBoard(from) || isMainBoard(over)) return;
+  function withTabOrders(list: Workspace[]): Workspace[] {
+    return list.map((w, i) => {
+      const next = cloneWorkspace(w);
+      next.order = i + 1;
+      return next;
+    });
+  }
 
-    const main = workspaces.filter(isMainBoard).map(cloneWorkspace);
-    let rest = workspaces.filter((w) => !isMainBoard(w)).map(cloneWorkspace);
-    const fromIdx = rest.findIndex((w) => w.id === fromId);
-    const toIdx = rest.findIndex((w) => w.id === overId);
-    if (fromIdx < 0 || toIdx < 0) return;
-    const [moved] = rest.splice(fromIdx, 1);
-    rest.splice(toIdx, 0, moved);
+  function tabInsertBeforeAtClientY(clientY: number): number {
+    const tabs = Array.from(
+      document.querySelectorAll<HTMLElement>('.sidebar .ws-tab[data-ws-id]')
+    );
+    for (let i = 0; i < tabs.length; i++) {
+      const r = tabs[i].getBoundingClientRect();
+      if (clientY < r.top + r.height / 2) return i;
+    }
+    return tabs.length;
+  }
 
-    for (const m of main) m.order = 0;
-    rest = rest.map((w, i) => ({ ...w, order: i + 1 }));
-    const next = sortWorkspaces([...main, ...rest]);
-    workspaces = next;
-    void persistWorkspaceOrders(next);
+  function moveWorkspaceToInsertBefore(fromId: string, insertBefore: number) {
+    const fromIdx = workspaces.findIndex((w) => w.id === fromId);
+    if (fromIdx < 0) return;
+    let dest = insertBefore;
+    if (fromIdx < dest) dest -= 1;
+    dest = Math.max(0, Math.min(dest, workspaces.length - 1));
+    if (dest === fromIdx) return;
+    const next = workspaces.map(cloneWorkspace);
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(dest, 0, moved);
+    workspaces = withTabOrders(next);
+    tabDrag.dirty = true;
   }
 
   function clearTabWindowListeners() {
@@ -700,70 +771,84 @@
   function resetTabDrag() {
     tabDrag.id = null;
     tabDrag.dragging = false;
+    tabDrag.dirty = false;
     tabDrag.pointerId = -1;
+    tabDrag.origList = null;
     dragWsId = null;
-    dragOverWsId = null;
+    document.body.classList.remove('lit-tab-dragging');
     clearTabWindowListeners();
   }
 
-  /** Board select — always works via normal click. Drag only reorders. */
+  function cancelTabDrag() {
+    if (tabDrag.origList) {
+      workspaces = sortWorkspaces(tabDrag.origList.map(cloneWorkspace));
+    }
+    resetTabDrag();
+    if (workspace) scheduleWorkspaceSave();
+  }
+
+  /** Board select — click opens; a completed drag does not. */
   function onTabClick(id: string) {
+    if (tabDrag.suppressClick) {
+      tabDrag.suppressClick = false;
+      return;
+    }
     void selectWorkspace(id);
   }
 
   function onTabPointerDown(e: PointerEvent, id: string) {
     if (e.button !== 0) return;
-    // Arm a potential reorder only; selection is always via onclick.
+    flushCurrentWorkspaceToList();
     tabDrag.id = id;
     tabDrag.startX = e.clientX;
     tabDrag.startY = e.clientY;
     tabDrag.dragging = false;
+    tabDrag.dirty = false;
     tabDrag.suppressClick = false;
     tabDrag.pointerId = e.pointerId;
+    tabDrag.origList = workspaces.map(cloneWorkspace);
     clearTabWindowListeners();
     window.addEventListener('pointermove', onTabWindowMove, true);
     window.addEventListener('pointerup', onTabWindowUp, true);
     window.addEventListener('pointercancel', onTabWindowUp, true);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   }
 
   function onTabWindowMove(e: PointerEvent) {
     if (tabDrag.pointerId !== e.pointerId || !tabDrag.id) return;
-    const w = workspaces.find((x) => x.id === tabDrag.id);
-    // Main board is pinned — never reorder
-    if (!w || isMainBoard(w)) return;
+    if (workspaces.length < 2) return;
 
     const dx = Math.abs(e.clientX - tabDrag.startX);
     const dy = Math.abs(e.clientY - tabDrag.startY);
-    if (!tabDrag.dragging && (dx > 12 || dy > 12)) {
+    if (!tabDrag.dragging && (dx > 6 || dy > 6)) {
       tabDrag.dragging = true;
       dragWsId = tabDrag.id;
+      tabDrag.suppressClick = true;
+      document.body.classList.add('lit-tab-dragging');
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
     }
     if (!tabDrag.dragging) return;
-
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const tabEl = el?.closest?.('[data-ws-id]') as HTMLElement | null;
-    const overId = tabEl?.dataset?.wsId ?? null;
-    if (!overId || overId === tabDrag.id) {
-      dragOverWsId = null;
-      return;
-    }
-    const over = workspaces.find((x) => x.id === overId);
-    if (!over || isMainBoard(over)) {
-      dragOverWsId = null;
-      return;
-    }
-    dragOverWsId = overId;
+    e.preventDefault();
+    moveWorkspaceToInsertBefore(tabDrag.id, tabInsertBeforeAtClientY(e.clientY));
   }
 
   function onTabWindowUp(e: PointerEvent) {
     if (tabDrag.pointerId !== e.pointerId) return;
     const wasDrag = tabDrag.dragging;
-    const fromId = tabDrag.id;
-    const dropId = dragOverWsId;
+    const dirty = tabDrag.dirty;
+    const snapshot = tabDrag.origList;
+    const list = workspaces;
     resetTabDrag();
-    // Reorder only — never suppress the click that selects the board
-    if (wasDrag && fromId && dropId) {
-      reorderWorkspaceBefore(fromId, dropId);
+    if (wasDrag) {
+      e.preventDefault();
+      if (dirty) void persistWorkspaceOrders(list, snapshot);
     }
   }
 
@@ -969,7 +1054,10 @@
     try {
       const keys = items.map((it) => String(it.fields[keyField()] ?? ''));
       const item = await api.createItem(project.slug, {
-        ticket_key: nextTicketKey(keys, project.ticket_prefix),
+        ticket_key: nextTicketKey(
+          keys,
+          project.ticket_prefix || readStoredPrefix(project.slug)
+        ),
         title: '',
         priority: 5,
         urgency: 5,
@@ -1176,10 +1264,7 @@
     flushCurrentWorkspaceToList();
     scheduleWorkspaceSave();
     try {
-      const maxOrder = Math.max(
-        0,
-        ...workspaces.filter((w) => !isMainBoard(w)).map((w) => w.order ?? 0)
-      );
+      const maxOrder = Math.max(0, ...workspaces.map((w) => w.order ?? 0));
       const w = await api.createWorkspace(
         project.slug,
         `Board ${workspaces.filter((x) => !isMainBoard(x)).length + 1}`,
@@ -1241,46 +1326,130 @@
     }
   }
 
+  function askRemoveBoard() {
+    if (!project || !boardEditor) return;
+    const id = boardEditor.id;
+    const name = boardEditor.name.trim() || 'this board';
+    if (id === 'ws-main') {
+      showToast('Main Board cannot be removed');
+      return;
+    }
+    if (workspaces.length <= 1) {
+      showToast('Cannot remove the last board');
+      return;
+    }
+    boardRemoveConfirm = { id, name };
+    boardEditor = null;
+  }
+
+  async function confirmRemoveBoard() {
+    if (!project || !boardRemoveConfirm) return;
+    const id = boardRemoveConfirm.id;
+    const slug = project.slug;
+    if (id === 'ws-main') {
+      showToast('Main Board cannot be removed');
+      boardRemoveConfirm = null;
+      return;
+    }
+    const remaining = sortWorkspaces(workspaces.filter((w) => w.id !== id));
+    if (!remaining.length) {
+      showToast('Cannot remove the last board');
+      boardRemoveConfirm = null;
+      return;
+    }
+
+    // Drop a pending save of the deleted board so it cannot be written back.
+    if (saveTimer && workspace?.id === id) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+
+    const wasCurrent = workspace?.id === id;
+    workspaces = remaining;
+    boardRemoveConfirm = null;
+    boardEditor = null;
+
+    // Switch locally — do not call selectWorkspace, which flushes the
+    // still-in-memory deleted board back into the tab list.
+    if (wasCurrent) {
+      const next = remaining[0];
+      workspace = cloneWorkspace(next);
+      if (workspace.sort?.field && isPanelSortField(workspace.sort.field)) {
+        sortBy = workspace.sort.field;
+      }
+      applyBoardAppearance(workspace);
+      void rememberLastWorkspace(next.id);
+    }
+
+    try {
+      await api.deleteWorkspace(slug, id);
+      showToast('Board removed');
+    } catch (err) {
+      showToast('Failed to remove board');
+      console.error(err);
+    }
+  }
+
   function openProjectEditor() {
     if (!project) return;
     if (projectEditor) {
-      projectEditor = null;
+      void closeProjectEditor(true);
       return;
     }
     projectEditor = {
       name: project.name,
-      ticket_prefix: project.ticket_prefix || 'NEW-',
+      ticket_prefix: project.ticket_prefix || readStoredPrefix(project.slug) || 'NEW-',
       newName: '',
       newPrefix: 'NEW-',
     };
   }
 
-  async function saveProjectEditor() {
-    if (!project || !projectEditor) return;
-    const name = projectEditor.name.trim();
-    if (!name) {
-      showToast('Project name is required');
-      return;
+  async function persistProjectMeta(name: string, prefixRaw: string, toast: boolean) {
+    if (!project) return false;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      if (toast) showToast('Project name is required');
+      return false;
     }
-    const ticket_prefix = normalizeTicketPrefix(projectEditor.ticket_prefix);
+    const ticket_prefix = normalizeTicketPrefix(prefixRaw);
+    writeStoredPrefix(project.slug, ticket_prefix);
     try {
-      const saved = await api.patchProject(project.slug, { name, ticket_prefix });
-      project = saved;
-      projects = projects.map((p) => (p.slug === saved.slug ? saved : p));
-      projectEditor = { ...projectEditor, name: saved.name, ticket_prefix: saved.ticket_prefix || ticket_prefix };
-      showToast('Project updated');
+      await api.patchSettings({ ticket_prefix_by_project: { [project.slug]: ticket_prefix } });
+      const saved = await api.patchProject(project.slug, { name: trimmed, ticket_prefix });
+      project = { ...saved, ticket_prefix: saved.ticket_prefix || ticket_prefix };
+      writeStoredPrefix(project.slug, project.ticket_prefix || ticket_prefix);
+      projects = projects.map((p) => (p.slug === saved.slug ? project! : p));
+      if (toast) showToast('Project updated');
+      return true;
     } catch (err) {
-      showToast('Failed to update project');
+      if (toast) showToast('Failed to update project');
       console.error(err);
+      return false;
     }
   }
 
-  async function switchProject(slug: string) {
-    if (!project || slug === project.slug) {
-      projectEditor = null;
-      return;
+  async function saveProjectEditor() {
+    if (!project || !projectEditor) return;
+    const ok = await persistProjectMeta(projectEditor.name, projectEditor.ticket_prefix, true);
+    if (ok && projectEditor) {
+      projectEditor = {
+        ...projectEditor,
+        name: project.name,
+        ticket_prefix: project.ticket_prefix || projectEditor.ticket_prefix,
+      };
     }
+  }
+
+  async function closeProjectEditor(save: boolean) {
+    const ed = projectEditor;
+    if (!ed) return;
     projectEditor = null;
+    if (save) await persistProjectMeta(ed.name, ed.ticket_prefix, false);
+  }
+
+  async function switchProject(slug: string) {
+    if (projectEditor) await closeProjectEditor(true);
+    if (!project || slug === project.slug) return;
     await loadProject(slug);
   }
 
@@ -1440,7 +1609,14 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-17h</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-18e</span>
+        <span
+          class="server-dot"
+          class:ok={serverOk}
+          class:down={!serverOk}
+          title={serverOk ? 'Connected to server' : 'Server disconnected'}
+          aria-label={serverOk ? 'Connected to server' : 'Server disconnected'}
+        ></span>
       </div>
     </header>
 
@@ -1453,22 +1629,17 @@
           class:active={w.id === workspace.id}
           class:ws-tab-main={isMainBoard(w)}
           class:ws-tab-dragging={dragWsId === w.id}
-          class:ws-tab-drag-over={dragOverWsId === w.id && dragWsId !== w.id}
           style={tabStyle(w)}
           onclick={() => onTabClick(w.id)}
           onpointerdown={(e) => onTabPointerDown(e, w.id)}
           ondblclick={(e) => openBoardEditor(e, w)}
           oncontextmenu={(e) => openBoardEditor(e, w)}
-          title={
-            isMainBoard(w)
-              ? `${w.name} — click to open; right-click or double-click to rename / set colour`
-              : `${w.name} — click to open; drag to reorder; right-click or double-click to rename / set colour`
-          }
+          title={`${w.name} — click to open; drag to reorder; right-click or double-click to rename / set colour`}
         >
           {w.name}
         </button>
       {/each}
-      <button type="button" class="ws-tab" onclick={() => void newWorkspace()} title="New workspace">+</button>
+      <button type="button" class="ws-tab ws-tab-add" onclick={() => void newWorkspace()} title="New workspace">+</button>
     </aside>
 
     {#if projectEditor}
@@ -1500,7 +1671,7 @@
             }}
           />
           <div class="board-editor-actions">
-            <button type="button" class="ghost" onclick={() => (projectEditor = null)}>Cancel</button>
+            <button type="button" class="ghost" onclick={() => void closeProjectEditor(false)}>Cancel</button>
             <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
           </div>
         </section>
@@ -1543,6 +1714,11 @@
             <button type="button" class="primary" onclick={() => void createNewProject()}>Create</button>
           </div>
         </section>
+
+        <section class="project-section">
+          <div class="project-section-title">Location on disk</div>
+          <div class="project-path" title={project.data_path || ''}>{project.data_path || '—'}</div>
+        </section>
       </div>
     {/if}
 
@@ -1583,8 +1759,37 @@
           {/each}
         </div>
         <div class="board-editor-actions">
+          {#if boardEditor.id !== 'ws-main'}
+            <button type="button" class="danger" onclick={() => askRemoveBoard()}>Remove</button>
+          {/if}
+          <span class="board-editor-actions-spacer"></span>
           <button type="button" class="ghost" onclick={() => (boardEditor = null)}>Cancel</button>
           <button type="button" class="primary" onclick={() => void saveBoardEditor()}>Save</button>
+        </div>
+      </div>
+    {/if}
+
+    {#if boardRemoveConfirm}
+      <div class="confirm-backdrop" role="presentation">
+        <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+        <div
+          class="confirm-dialog"
+          role="alertdialog"
+          tabindex="-1"
+          aria-modal="true"
+          aria-labelledby="board-remove-title"
+          aria-describedby="board-remove-desc"
+          onclick={(e) => e.stopPropagation()}
+        >
+          <div class="board-editor-title" id="board-remove-title">Remove board</div>
+          <p class="confirm-dialog-body" id="board-remove-desc">
+            Remove <span class="confirm-dialog-name">{boardRemoveConfirm.name}</span> from this
+            project? This cannot be undone.
+          </p>
+          <div class="board-editor-actions">
+            <button type="button" class="ghost" onclick={() => (boardRemoveConfirm = null)}>Cancel</button>
+            <button type="button" class="danger" onclick={() => void confirmRemoveBoard()}>Remove</button>
+          </div>
         </div>
       </div>
     {/if}
@@ -1790,7 +1995,7 @@
                       <td>
                         {#if it.waiting?.is_waiting}
                           <span class="waiting-badge">
-                            {formatDuration(
+                            {formatWaitingDays(
                               liveSeconds(it.waiting.current_started_at, nowTick) ??
                                 it.waiting.current_seconds
                             )}

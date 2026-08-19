@@ -22,6 +22,8 @@
   let editor = $state<Editor | null>(null);
   let toolbarTick = $state(0);
   let showHelp = $state(false);
+  const isMac =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   let editorError = $state<string | null>(null);
 
   /** Last JSON we emitted to parent — ignore echo updates. */
@@ -185,7 +187,7 @@
         type="button"
         class="rte-btn"
         class:active={isActive('bold')}
-        title="Bold (⌘B / Ctrl+B)"
+        title={isMac ? 'Bold (⌘B)' : 'Bold (Ctrl+B)'}
         onclick={() => run(() => editor!.chain().focus().toggleBold().run())}
       >
         <strong>B</strong>
@@ -194,7 +196,7 @@
         type="button"
         class="rte-btn"
         class:active={isActive('italic')}
-        title="Italic (⌘I / Ctrl+I)"
+        title={isMac ? 'Italic (⌘I)' : 'Italic (Ctrl+I)'}
         onclick={() => run(() => editor!.chain().focus().toggleItalic().run())}
       >
         <em>I</em>
@@ -203,7 +205,7 @@
         type="button"
         class="rte-btn"
         class:active={isActive('underline')}
-        title="Underline (⌘U / Ctrl+U)"
+        title={isMac ? 'Underline (⌘U)' : 'Underline (Ctrl+U)'}
         onclick={() => run(() => editor!.chain().focus().toggleUnderline().run())}
       >
         <span class="u">U</span>
@@ -240,18 +242,33 @@
         <div class="rte-help-title">Formatting shortcuts</div>
         <table class="rte-help-table">
           <tbody>
-            <tr><td>Bold</td><td><kbd>⌘B</kbd> / <kbd>Ctrl+B</kbd></td></tr>
-            <tr><td>Italic</td><td><kbd>⌘I</kbd> / <kbd>Ctrl+I</kbd></td></tr>
-            <tr><td>Underline</td><td><kbd>⌘U</kbd> / <kbd>Ctrl+U</kbd></td></tr>
-            <tr><td>Strikethrough</td><td><kbd>Ctrl+Q</kbd></td></tr>
-            <tr><td>Insert date</td><td><kbd>⌘;</kbd> / <kbd>Ctrl+;</kbd> → <code>m/d - </code></td></tr>
-            <tr><td>Inline code</td><td><kbd>⌘E</kbd> / <kbd>Ctrl+E</kbd></td></tr>
-            <tr><td>Bullet list</td><td><kbd>⌘⇧8</kbd> / <kbd>Ctrl+Shift+8</kbd></td></tr>
-            <tr><td>Numbered list</td><td><kbd>⌘⇧7</kbd> / <kbd>Ctrl+Shift+7</kbd></td></tr>
-            <tr><td>Blockquote</td><td><kbd>⌘⇧B</kbd> / <kbd>Ctrl+Shift+B</kbd></td></tr>
-            <tr><td>Hard line break</td><td><kbd>⇧Enter</kbd> / <kbd>⌘Enter</kbd></td></tr>
-            <tr><td>Undo</td><td><kbd>⌘Z</kbd> / <kbd>Ctrl+Z</kbd></td></tr>
-            <tr><td>Redo</td><td><kbd>⌘⇧Z</kbd> / <kbd>Ctrl+Shift+Z</kbd></td></tr>
+            {#if isMac}
+              <tr><td>Bold</td><td><kbd>⌘B</kbd></td></tr>
+              <tr><td>Italic</td><td><kbd>⌘I</kbd></td></tr>
+              <tr><td>Underline</td><td><kbd>⌘U</kbd></td></tr>
+              <tr><td>Strikethrough</td><td><kbd>Ctrl+Q</kbd></td></tr>
+              <tr><td>Insert date</td><td><kbd>⌘;</kbd> → <code>m/d - </code></td></tr>
+              <tr><td>Inline code</td><td><kbd>⌘E</kbd></td></tr>
+              <tr><td>Bullet list</td><td><kbd>⌘⇧8</kbd></td></tr>
+              <tr><td>Numbered list</td><td><kbd>⌘⇧7</kbd></td></tr>
+              <tr><td>Blockquote</td><td><kbd>⌘⇧B</kbd></td></tr>
+              <tr><td>Hard line break</td><td><kbd>⇧Enter</kbd> / <kbd>⌘Enter</kbd></td></tr>
+              <tr><td>Undo</td><td><kbd>⌘Z</kbd></td></tr>
+              <tr><td>Redo</td><td><kbd>⌘⇧Z</kbd></td></tr>
+            {:else}
+              <tr><td>Bold</td><td><kbd>Ctrl+B</kbd></td></tr>
+              <tr><td>Italic</td><td><kbd>Ctrl+I</kbd></td></tr>
+              <tr><td>Underline</td><td><kbd>Ctrl+U</kbd></td></tr>
+              <tr><td>Strikethrough</td><td><kbd>Ctrl+Q</kbd></td></tr>
+              <tr><td>Insert date</td><td><kbd>Ctrl+;</kbd> → <code>m/d - </code></td></tr>
+              <tr><td>Inline code</td><td><kbd>Ctrl+E</kbd></td></tr>
+              <tr><td>Bullet list</td><td><kbd>Ctrl+Shift+8</kbd></td></tr>
+              <tr><td>Numbered list</td><td><kbd>Ctrl+Shift+7</kbd></td></tr>
+              <tr><td>Blockquote</td><td><kbd>Ctrl+Shift+B</kbd></td></tr>
+              <tr><td>Hard line break</td><td><kbd>Shift+Enter</kbd></td></tr>
+              <tr><td>Undo</td><td><kbd>Ctrl+Z</kbd></td></tr>
+              <tr><td>Redo</td><td><kbd>Ctrl+Shift+Z</kbd></td></tr>
+            {/if}
             <tr><td>Markdown-ish</td><td><code>**bold**</code> <code>*italic*</code> <code>~~strike~~</code></td></tr>
           </tbody>
         </table>

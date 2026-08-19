@@ -1,3 +1,7 @@
+  function localLastWsKey(slug: string) {
+    return `lit:lastWorkspace:${slug}`;
+  }
+
   function readLocalLastWorkspace(slug: string): string | null {
     try {
       return localStorage.getItem(localLastWsKey(slug));
@@ -31,6 +35,21 @@
 
   async function loadProject(slug: string) {
     project = await api.project(slug);
+    const serverPrefix = project.ticket_prefix;
+    const localPrefix = readStoredPrefix(slug);
+    if (serverPrefix && serverPrefix !== 'NEW-') {
+      writeStoredPrefix(slug, serverPrefix);
+    } else if (localPrefix && localPrefix !== (serverPrefix || 'NEW-')) {
+      project = { ...project, ticket_prefix: localPrefix };
+      try {
+        const saved = await api.patchProject(slug, { ticket_prefix: localPrefix });
+        project = { ...saved, ticket_prefix: saved.ticket_prefix || localPrefix };
+      } catch (e) {
+        console.error(e);
+      }
+    } else if (serverPrefix) {
+      writeStoredPrefix(slug, serverPrefix);
+    }
     fieldsDoc = await api.fields(slug);
     items = await api.items(slug);
     workspaces = sortWorkspaces(await api.workspaces(slug));
@@ -178,7 +197,7 @@
     }
   }
 
-  async function persistWorkspaceOrders(list: Workspace[]) {
+  async function persistWorkspaceOrders(list: Workspace[], fallback?: Workspace[] | null) {
     if (!project) return;
     try {
       const savedList = await Promise.all(
@@ -196,30 +215,43 @@
         }
       }
     } catch (e) {
+      if (fallback) workspaces = sortWorkspaces(fallback.map(cloneWorkspace));
       showToast('Failed to save board order');
       console.error(e);
     }
   }
 
-  function reorderWorkspaceBefore(fromId: string, overId: string) {
-    if (fromId === overId) return;
-    const from = workspaces.find((w) => w.id === fromId);
-    const over = workspaces.find((w) => w.id === overId);
-    if (!from || !over || isMainBoard(from) || isMainBoard(over)) return;
+  function withTabOrders(list: Workspace[]): Workspace[] {
+    return list.map((w, i) => {
+      const next = cloneWorkspace(w);
+      next.order = i + 1;
+      return next;
+    });
+  }
 
-    const main = workspaces.filter(isMainBoard).map(cloneWorkspace);
-    let rest = workspaces.filter((w) => !isMainBoard(w)).map(cloneWorkspace);
-    const fromIdx = rest.findIndex((w) => w.id === fromId);
-    const toIdx = rest.findIndex((w) => w.id === overId);
-    if (fromIdx < 0 || toIdx < 0) return;
-    const [moved] = rest.splice(fromIdx, 1);
-    rest.splice(toIdx, 0, moved);
+  function tabInsertBeforeAtClientY(clientY: number): number {
+    const tabs = Array.from(
+      document.querySelectorAll<HTMLElement>('.sidebar .ws-tab[data-ws-id]')
+    );
+    for (let i = 0; i < tabs.length; i++) {
+      const r = tabs[i].getBoundingClientRect();
+      if (clientY < r.top + r.height / 2) return i;
+    }
+    return tabs.length;
+  }
 
-    for (const m of main) m.order = 0;
-    rest = rest.map((w, i) => ({ ...w, order: i + 1 }));
-    const next = sortWorkspaces([...main, ...rest]);
-    workspaces = next;
-    void persistWorkspaceOrders(next);
+  function moveWorkspaceToInsertBefore(fromId: string, insertBefore: number) {
+    const fromIdx = workspaces.findIndex((w) => w.id === fromId);
+    if (fromIdx < 0) return;
+    let dest = insertBefore;
+    if (fromIdx < dest) dest -= 1;
+    dest = Math.max(0, Math.min(dest, workspaces.length - 1));
+    if (dest === fromIdx) return;
+    const next = workspaces.map(cloneWorkspace);
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(dest, 0, moved);
+    workspaces = withTabOrders(next);
+    tabDrag.dirty = true;
   }
 
   function clearTabWindowListeners() {
@@ -231,70 +263,84 @@
   function resetTabDrag() {
     tabDrag.id = null;
     tabDrag.dragging = false;
+    tabDrag.dirty = false;
     tabDrag.pointerId = -1;
+    tabDrag.origList = null;
     dragWsId = null;
-    dragOverWsId = null;
+    document.body.classList.remove('lit-tab-dragging');
     clearTabWindowListeners();
   }
 
-  /** Board select — always works via normal click. Drag only reorders. */
+  function cancelTabDrag() {
+    if (tabDrag.origList) {
+      workspaces = sortWorkspaces(tabDrag.origList.map(cloneWorkspace));
+    }
+    resetTabDrag();
+    if (workspace) scheduleWorkspaceSave();
+  }
+
+  /** Board select — click opens; a completed drag does not. */
   function onTabClick(id: string) {
+    if (tabDrag.suppressClick) {
+      tabDrag.suppressClick = false;
+      return;
+    }
     void selectWorkspace(id);
   }
 
   function onTabPointerDown(e: PointerEvent, id: string) {
     if (e.button !== 0) return;
-    // Arm a potential reorder only; selection is always via onclick.
+    flushCurrentWorkspaceToList();
     tabDrag.id = id;
     tabDrag.startX = e.clientX;
     tabDrag.startY = e.clientY;
     tabDrag.dragging = false;
+    tabDrag.dirty = false;
     tabDrag.suppressClick = false;
     tabDrag.pointerId = e.pointerId;
+    tabDrag.origList = workspaces.map(cloneWorkspace);
     clearTabWindowListeners();
     window.addEventListener('pointermove', onTabWindowMove, true);
     window.addEventListener('pointerup', onTabWindowUp, true);
     window.addEventListener('pointercancel', onTabWindowUp, true);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   }
 
   function onTabWindowMove(e: PointerEvent) {
     if (tabDrag.pointerId !== e.pointerId || !tabDrag.id) return;
-    const w = workspaces.find((x) => x.id === tabDrag.id);
-    // Main board is pinned — never reorder
-    if (!w || isMainBoard(w)) return;
+    if (workspaces.length < 2) return;
 
     const dx = Math.abs(e.clientX - tabDrag.startX);
     const dy = Math.abs(e.clientY - tabDrag.startY);
-    if (!tabDrag.dragging && (dx > 12 || dy > 12)) {
+    if (!tabDrag.dragging && (dx > 6 || dy > 6)) {
       tabDrag.dragging = true;
       dragWsId = tabDrag.id;
+      tabDrag.suppressClick = true;
+      document.body.classList.add('lit-tab-dragging');
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
     }
     if (!tabDrag.dragging) return;
-
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const tabEl = el?.closest?.('[data-ws-id]') as HTMLElement | null;
-    const overId = tabEl?.dataset?.wsId ?? null;
-    if (!overId || overId === tabDrag.id) {
-      dragOverWsId = null;
-      return;
-    }
-    const over = workspaces.find((x) => x.id === overId);
-    if (!over || isMainBoard(over)) {
-      dragOverWsId = null;
-      return;
-    }
-    dragOverWsId = overId;
+    e.preventDefault();
+    moveWorkspaceToInsertBefore(tabDrag.id, tabInsertBeforeAtClientY(e.clientY));
   }
 
   function onTabWindowUp(e: PointerEvent) {
     if (tabDrag.pointerId !== e.pointerId) return;
     const wasDrag = tabDrag.dragging;
-    const fromId = tabDrag.id;
-    const dropId = dragOverWsId;
+    const dirty = tabDrag.dirty;
+    const snapshot = tabDrag.origList;
+    const list = workspaces;
     resetTabDrag();
-    // Reorder only — never suppress the click that selects the board
-    if (wasDrag && fromId && dropId) {
-      reorderWorkspaceBefore(fromId, dropId);
+    if (wasDrag) {
+      e.preventDefault();
+      if (dirty) void persistWorkspaceOrders(list, snapshot);
     }
   }
 
@@ -465,6 +511,32 @@
         height: panelH,
         z_index: z,
         collapsed: false,
+      });
+    });
+  }
+
+  function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === kind);
+    if (existing) {
+      focusPanel(existing.id);
+      return;
+    }
+    const sizes = {
+      all_items: { w: 560, h: 640 },
+      notes: { w: 400, h: 420 },
+      deliverables: { w: 400, h: 360 },
+    }[kind];
+    const origin = visibleWorldOrigin();
+    updateWorkspace((ws) => {
+      ws.panels.push({
+        id: `panel-${kind}-${Date.now().toString(36)}`,
+        kind,
+        x: snapToGrid(origin.x + 60, ws.ui.zoom),
+        y: snapToGrid(origin.y + 60, ws.ui.zoom),
+        width: sizes.w,
+        height: sizes.h,
+        z_index: maxZ() + 1,
       });
     });
   }

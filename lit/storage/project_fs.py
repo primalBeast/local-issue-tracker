@@ -42,16 +42,27 @@ def load_project(slug: str) -> dict[str, Any]:
         raise FileNotFoundError(slug)
     data = read_json(path)
     data["slug"] = slug  # path is source of truth
-    if not data.get("ticket_prefix"):
+    prefs = load_settings().get("ticket_prefix_by_project") or {}
+    overlay = prefs.get(slug) if isinstance(prefs, dict) else None
+    if overlay:
+        data["ticket_prefix"] = overlay
+    elif not data.get("ticket_prefix"):
         data["ticket_prefix"] = "NEW-"
+    data["data_path"] = str(project_dir(slug))
     return data
 
 
 def save_project(slug: str, data: dict[str, Any]) -> dict[str, Any]:
     data = deepcopy(data)
+    data.pop("data_path", None)
     data["slug"] = slug
     data["updated_at"] = _now()
-    write_json(project_dir(slug) / "project.json", data)
+    dest = project_dir(slug)
+    write_json(dest / "project.json", data)
+    prefix = data.get("ticket_prefix")
+    if prefix:
+        patch_settings({"ticket_prefix_by_project": {slug: str(prefix)}})
+    data["data_path"] = str(dest)
     return data
 
 
@@ -62,7 +73,7 @@ URGENCY_FIELD: dict[str, Any] = {
     "required": False,
     "order": "30b",
     "default": 5,
-    "validation": {"min": 1, "max": 10, "step": 1},
+    "validation": {"step": 1},
     "show_in_list": True,
     "filterable": True,
     "width_weight": 1,
@@ -75,12 +86,11 @@ def coerce_urgency_int(value: Any) -> int:
     if isinstance(value, bool):
         return 5
     if isinstance(value, (int, float)):
-        n = int(value)
-        return max(1, min(10, n))
+        return int(value)
     if isinstance(value, str) and value in _URGENCY_LABELS:
         return _URGENCY_LABELS[value]
     try:
-        return max(1, min(10, int(value)))
+        return int(value)
     except (TypeError, ValueError):
         return 5
 
@@ -164,6 +174,29 @@ def ensure_waiting_since_field(data: dict[str, Any]) -> bool:
     return True
 
 
+def ensure_unbounded_int_fields(data: dict[str, Any]) -> bool:
+    """Drop 1–10 clamps on priority/urgency so any integer is allowed."""
+    fields = data.get("fields")
+    if not isinstance(fields, list):
+        return False
+    changed = False
+    for f in fields:
+        if not isinstance(f, dict) or f.get("id") not in ("priority", "urgency"):
+            continue
+        val = f.get("validation")
+        if not isinstance(val, dict):
+            continue
+        if "min" in val or "max" in val:
+            val.pop("min", None)
+            val.pop("max", None)
+            if not val:
+                f.pop("validation", None)
+            else:
+                f["validation"] = val
+            changed = True
+    return changed
+
+
 def load_fields(slug: str) -> dict[str, Any]:
     path = project_dir(slug) / "fields.json"
     data = read_json(path)
@@ -175,6 +208,8 @@ def load_fields(slug: str) -> dict[str, Any]:
         except Exception:
             pass
     if ensure_waiting_since_field(data):
+        changed = True
+    if ensure_unbounded_int_fields(data):
         changed = True
     if changed:
         write_json(path, data)
@@ -275,6 +310,8 @@ def _copy_template(
     proj["created_at"] = now
     proj["updated_at"] = now
     write_json(proj_path, proj)
+    if proj.get("ticket_prefix"):
+        patch_settings({"ticket_prefix_by_project": {slug: str(proj["ticket_prefix"])}})
 
     # Init empty sqlite
     db_path = items_db.items_db_path(dest)

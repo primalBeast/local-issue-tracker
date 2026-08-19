@@ -32,7 +32,7 @@
     screenToWorld,
     zoomFromWheelDelta,
   } from './lib/viewport';
-  import { formatDuration, formatWaitingDays, liveSeconds } from './lib/waiting';
+  import { formatWaitingDays, liveSeconds } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import {
     appearanceFromWorkspace,
@@ -64,17 +64,18 @@
   let nowTick = $state(Date.now());
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
   let itemSaveTimers: Record<string, ReturnType<typeof setTimeout>> = {};
-  /** Pointer-based tab reorder. Selection is via click (never gated on drag). */
+  /** Pointer-based tab reorder. Click still selects unless a drag happened. */
   let dragWsId = $state<string | null>(null);
-  let dragOverWsId = $state<string | null>(null);
   const tabDrag = {
     id: null as string | null,
     startX: 0,
     startY: 0,
     dragging: false,
+    dirty: false,
     /** When true, the next click is from a completed drag — ignore it. */
     suppressClick: false,
     pointerId: -1,
+    origList: null as Workspace[] | null,
   };
   /** Board rename / tab color editor (right-click a tab). */
   let boardEditor = $state<{
@@ -84,6 +85,7 @@
     x: number;
     y: number;
   } | null>(null);
+  let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
   let projectEditor = $state<{
     name: string;
     ticket_prefix: string;
@@ -141,6 +143,7 @@
   applyTransparentPanels(initialTransparent);
   applyPanelTransparency(initialPanelTransparency);
   let canvasWrapEl = $state<HTMLElement | null>(null);
+  let serverOk = $state(true);
   const canvasPan = {
     pointerId: -1,
     startX: 0,
@@ -155,16 +158,10 @@
   }
 
   function sortWorkspaces(list: Workspace[]): Workspace[] {
-    const main = list.filter(isMainBoard);
-    const rest = list
-      .filter((w) => !isMainBoard(w))
-      .sort(
-        (a, b) =>
-          (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
-      );
-    // Main boards first (stable by name/id), then the rest by order
-    main.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-    return [...main, ...rest];
+    return [...list].sort(
+      (a, b) =>
+        (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
+    );
   }
 
   let filteredItems = $derived(
@@ -179,6 +176,8 @@
 
   onMount(() => {
     const tick = setInterval(() => (nowTick = Date.now()), 1000);
+    const healthTick = setInterval(() => void pingServer(), 4000);
+    void pingServer();
     void bootstrap();
     const onKey = (e: KeyboardEvent) => {
       if (themeMenuOpen) {
@@ -201,8 +200,17 @@
         toggleSidebar();
       }
       if (e.key === 'Escape') {
+        if (tabDrag.dragging || tabDrag.id) {
+          e.preventDefault();
+          cancelTabDrag();
+          return;
+        }
+        if (boardRemoveConfirm) {
+          boardRemoveConfirm = null;
+          return;
+        }
         if (projectEditor) {
-          projectEditor = null;
+          void closeProjectEditor(true);
           return;
         }
         boardEditor = null;
@@ -224,8 +232,12 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
+      if (boardRemoveConfirm) {
+        if (!t?.closest?.('.confirm-dialog')) boardRemoveConfirm = null;
+        return;
+      }
       if (projectEditor && !t?.closest?.('.project-editor') && !t?.closest?.('.brand')) {
-        projectEditor = null;
+        void closeProjectEditor(true);
       }
       if (!boardEditor) return;
       if (t?.closest?.('.board-editor')) return;
@@ -236,11 +248,22 @@
     window.addEventListener('pointerdown', onDocPointerDown, true);
     return () => {
       clearInterval(tick);
+      clearInterval(healthTick);
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       endCanvasPan();
+      resetTabDrag();
     };
   });
+
+  async function pingServer() {
+    try {
+      const h = await api.health();
+      serverOk = h.status === 'ok';
+    } catch {
+      serverOk = false;
+    }
+  }
 
   async function bootstrap() {
     try {
@@ -463,7 +486,23 @@
     }
   }
 
-  function localLastWsKey(slug: string) {
-    return `lit:lastWorkspace:${slug}`;
+  function prefixStorageKey(slug: string) {
+    return `lit:ticketPrefix:${slug}`;
+  }
+
+  function readStoredPrefix(slug: string): string | null {
+    try {
+      return localStorage.getItem(prefixStorageKey(slug));
+    } catch {
+      return null;
+    }
+  }
+
+  function writeStoredPrefix(slug: string, prefix: string) {
+    try {
+      localStorage.setItem(prefixStorageKey(slug), prefix);
+    } catch {
+      /* ignore */
+    }
   }
 

@@ -12,6 +12,8 @@ export type Project = {
   };
   primary_identifier_field: string;
   ticket_prefix?: string;
+  /** Absolute folder on disk for this project. */
+  data_path?: string;
   compact_mode_zoom_threshold: number;
   /** Default size for newly opened item panels (user can still resize freely). */
   default_item_panel?: {
@@ -128,6 +130,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  health: () => req<{ status: string; version?: string }>('/health'),
   settings: () => req<Record<string, unknown>>('/api/settings'),
   patchSettings: (body: Record<string, unknown>) =>
     req('/api/settings', { method: 'PATCH', body: JSON.stringify(body) }),
@@ -175,6 +178,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name, order: order ?? 0 }),
     }),
+  deleteWorkspace: (slug: string, id: string) =>
+    req(`/api/projects/${slug}/workspaces/${id}`, { method: 'DELETE' }),
   notes: (slug: string) => req<{ content: unknown }>(`/api/projects/${slug}/notes`),
   putNotes: (slug: string, content: unknown) =>
     req(`/api/projects/${slug}/notes`, {

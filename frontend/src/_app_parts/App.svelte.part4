@@ -120,7 +120,14 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-17h</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-18e</span>
+        <span
+          class="server-dot"
+          class:ok={serverOk}
+          class:down={!serverOk}
+          title={serverOk ? 'Connected to server' : 'Server disconnected'}
+          aria-label={serverOk ? 'Connected to server' : 'Server disconnected'}
+        ></span>
       </div>
     </header>
 
@@ -133,22 +140,17 @@
           class:active={w.id === workspace.id}
           class:ws-tab-main={isMainBoard(w)}
           class:ws-tab-dragging={dragWsId === w.id}
-          class:ws-tab-drag-over={dragOverWsId === w.id && dragWsId !== w.id}
           style={tabStyle(w)}
           onclick={() => onTabClick(w.id)}
           onpointerdown={(e) => onTabPointerDown(e, w.id)}
           ondblclick={(e) => openBoardEditor(e, w)}
           oncontextmenu={(e) => openBoardEditor(e, w)}
-          title={
-            isMainBoard(w)
-              ? `${w.name} — click to open; right-click or double-click to rename / set colour`
-              : `${w.name} — click to open; drag to reorder; right-click or double-click to rename / set colour`
-          }
+          title={`${w.name} — click to open; drag to reorder; right-click or double-click to rename / set colour`}
         >
           {w.name}
         </button>
       {/each}
-      <button type="button" class="ws-tab" onclick={() => void newWorkspace()} title="New workspace">+</button>
+      <button type="button" class="ws-tab ws-tab-add" onclick={() => void newWorkspace()} title="New workspace">+</button>
     </aside>
 
     {#if projectEditor}
@@ -180,7 +182,7 @@
             }}
           />
           <div class="board-editor-actions">
-            <button type="button" class="ghost" onclick={() => (projectEditor = null)}>Cancel</button>
+            <button type="button" class="ghost" onclick={() => void closeProjectEditor(false)}>Cancel</button>
             <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
           </div>
         </section>
@@ -223,6 +225,11 @@
             <button type="button" class="primary" onclick={() => void createNewProject()}>Create</button>
           </div>
         </section>
+
+        <section class="project-section">
+          <div class="project-section-title">Location on disk</div>
+          <div class="project-path" title={project.data_path || ''}>{project.data_path || '—'}</div>
+        </section>
       </div>
     {/if}
 
@@ -263,8 +270,37 @@
           {/each}
         </div>
         <div class="board-editor-actions">
+          {#if boardEditor.id !== 'ws-main'}
+            <button type="button" class="danger" onclick={() => askRemoveBoard()}>Remove</button>
+          {/if}
+          <span class="board-editor-actions-spacer"></span>
           <button type="button" class="ghost" onclick={() => (boardEditor = null)}>Cancel</button>
           <button type="button" class="primary" onclick={() => void saveBoardEditor()}>Save</button>
+        </div>
+      </div>
+    {/if}
+
+    {#if boardRemoveConfirm}
+      <div class="confirm-backdrop" role="presentation">
+        <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+        <div
+          class="confirm-dialog"
+          role="alertdialog"
+          tabindex="-1"
+          aria-modal="true"
+          aria-labelledby="board-remove-title"
+          aria-describedby="board-remove-desc"
+          onclick={(e) => e.stopPropagation()}
+        >
+          <div class="board-editor-title" id="board-remove-title">Remove board</div>
+          <p class="confirm-dialog-body" id="board-remove-desc">
+            Remove <span class="confirm-dialog-name">{boardRemoveConfirm.name}</span> from this
+            project? This cannot be undone.
+          </p>
+          <div class="board-editor-actions">
+            <button type="button" class="ghost" onclick={() => (boardRemoveConfirm = null)}>Cancel</button>
+            <button type="button" class="danger" onclick={() => void confirmRemoveBoard()}>Remove</button>
+          </div>
         </div>
       </div>
     {/if}
@@ -470,7 +506,7 @@
                       <td>
                         {#if it.waiting?.is_waiting}
                           <span class="waiting-badge">
-                            {formatDuration(
+                            {formatWaitingDays(
                               liveSeconds(it.waiting.current_started_at, nowTick) ??
                                 it.waiting.current_seconds
                             )}

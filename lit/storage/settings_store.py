@@ -16,6 +16,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "theme": "dark",
     "transparent_panels": False,
     "transparency_by_theme": {},
+    "ticket_prefix_by_project": {},
     "backup_retention_days": 30,
     "seeded_sample": False,
     "window": {"last_host": "127.0.0.1", "last_port": 8765},
@@ -51,6 +52,11 @@ def patch_settings(updates: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(existing, dict):
                 existing = {}
             data["last_workspace_by_project"] = {**existing, **v}
+        elif k == "ticket_prefix_by_project" and isinstance(v, dict):
+            existing = data.get("ticket_prefix_by_project")
+            if not isinstance(existing, dict):
+                existing = {}
+            data["ticket_prefix_by_project"] = {**existing, **{str(sk): str(sv) for sk, sv in v.items() if sv}}
         elif k == "transparency_by_theme" and isinstance(v, dict):
             existing = data.get("transparency_by_theme")
             if not isinstance(existing, dict):

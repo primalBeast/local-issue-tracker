@@ -62,6 +62,14 @@ def test_item_crud_and_lean_list(client: TestClient):
     assert created.status_code == 201, created.text
     item = created.json()
     assert item["fields"]["ticket_key"] == "ABC-1"
+
+    wide = client.post(
+        f"/api/projects/{slug}/items",
+        json={"fields": {"ticket_key": "ABC-99", "title": "Wide", "priority": 42, "urgency": 0, "state": "Submitted"}},
+    )
+    assert wide.status_code == 201, wide.text
+    assert wide.json()["fields"]["priority"] == 42
+    assert wide.json()["fields"]["urgency"] == 0
     item_id = item["id"]
 
     patched = client.patch(
@@ -165,6 +173,7 @@ def test_project_name_and_ticket_prefix(client: TestClient):
     got = client.get(f"/api/projects/{slug}")
     assert got.status_code == 200
     assert got.json()["ticket_prefix"] == "NEW-"
+    assert got.json()["data_path"].replace("\\", "/").endswith(f"/{slug}")
     patched = client.patch(
         f"/api/projects/{slug}",
         json={"name": "Shop Tracker", "ticket_prefix": "SHOP-"},
@@ -179,6 +188,8 @@ def test_project_name_and_ticket_prefix(client: TestClient):
     assert created.status_code == 201
     assert created.json()["name"] == "Other"
     assert created.json()["ticket_prefix"] == "OT-"
+    settings = client.get("/api/settings").json()
+    assert settings["ticket_prefix_by_project"]["other-proj"] == "OT-"
 
 
 def test_delete_project_confirm(client: TestClient):

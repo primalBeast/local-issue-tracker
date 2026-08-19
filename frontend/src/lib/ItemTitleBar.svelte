@@ -76,6 +76,18 @@
           placeholder="Short description"
           autocomplete="off"
           oninput={(e) => onDescription(e.currentTarget.value)}
+          onkeydown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            editing = false;
+            const panel = (e.currentTarget as HTMLElement).closest('.panel');
+            queueMicrotask(() => {
+              const notes = panel?.querySelector(
+                '.field-row-fill .ProseMirror, .field-group-fill .ProseMirror, .rte .ProseMirror'
+              ) as HTMLElement | null;
+              notes?.focus();
+            });
+          }}
         />
       </label>
     </div>

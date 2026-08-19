@@ -1,35 +1,12 @@
-  function openSpecial(kind: 'all_items' | 'notes' | 'deliverables') {
-    if (!workspace) return;
-    const existing = workspace.panels.find((p) => p.kind === kind);
-    if (existing) {
-      focusPanel(existing.id);
-      return;
-    }
-    const sizes = {
-      all_items: { w: 560, h: 640 },
-      notes: { w: 400, h: 420 },
-      deliverables: { w: 400, h: 360 },
-    }[kind];
-    const origin = visibleWorldOrigin();
-    updateWorkspace((ws) => {
-      ws.panels.push({
-        id: `panel-${kind}-${Date.now().toString(36)}`,
-        kind,
-        x: snapToGrid(origin.x + 60, ws.ui.zoom),
-        y: snapToGrid(origin.y + 60, ws.ui.zoom),
-        width: sizes.w,
-        height: sizes.h,
-        z_index: maxZ() + 1,
-      });
-    });
-  }
-
   async function createItem() {
     if (!project) return;
     try {
       const keys = items.map((it) => String(it.fields[keyField()] ?? ''));
       const item = await api.createItem(project.slug, {
-        ticket_key: nextTicketKey(keys, project.ticket_prefix),
+        ticket_key: nextTicketKey(
+          keys,
+          project.ticket_prefix || readStoredPrefix(project.slug)
+        ),
         title: '',
         priority: 5,
         urgency: 5,
@@ -236,10 +213,7 @@
     flushCurrentWorkspaceToList();
     scheduleWorkspaceSave();
     try {
-      const maxOrder = Math.max(
-        0,
-        ...workspaces.filter((w) => !isMainBoard(w)).map((w) => w.order ?? 0)
-      );
+      const maxOrder = Math.max(0, ...workspaces.map((w) => w.order ?? 0));
       const w = await api.createWorkspace(
         project.slug,
         `Board ${workspaces.filter((x) => !isMainBoard(x)).length + 1}`,
@@ -301,46 +275,130 @@
     }
   }
 
+  function askRemoveBoard() {
+    if (!project || !boardEditor) return;
+    const id = boardEditor.id;
+    const name = boardEditor.name.trim() || 'this board';
+    if (id === 'ws-main') {
+      showToast('Main Board cannot be removed');
+      return;
+    }
+    if (workspaces.length <= 1) {
+      showToast('Cannot remove the last board');
+      return;
+    }
+    boardRemoveConfirm = { id, name };
+    boardEditor = null;
+  }
+
+  async function confirmRemoveBoard() {
+    if (!project || !boardRemoveConfirm) return;
+    const id = boardRemoveConfirm.id;
+    const slug = project.slug;
+    if (id === 'ws-main') {
+      showToast('Main Board cannot be removed');
+      boardRemoveConfirm = null;
+      return;
+    }
+    const remaining = sortWorkspaces(workspaces.filter((w) => w.id !== id));
+    if (!remaining.length) {
+      showToast('Cannot remove the last board');
+      boardRemoveConfirm = null;
+      return;
+    }
+
+    // Drop a pending save of the deleted board so it cannot be written back.
+    if (saveTimer && workspace?.id === id) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+
+    const wasCurrent = workspace?.id === id;
+    workspaces = remaining;
+    boardRemoveConfirm = null;
+    boardEditor = null;
+
+    // Switch locally — do not call selectWorkspace, which flushes the
+    // still-in-memory deleted board back into the tab list.
+    if (wasCurrent) {
+      const next = remaining[0];
+      workspace = cloneWorkspace(next);
+      if (workspace.sort?.field && isPanelSortField(workspace.sort.field)) {
+        sortBy = workspace.sort.field;
+      }
+      applyBoardAppearance(workspace);
+      void rememberLastWorkspace(next.id);
+    }
+
+    try {
+      await api.deleteWorkspace(slug, id);
+      showToast('Board removed');
+    } catch (err) {
+      showToast('Failed to remove board');
+      console.error(err);
+    }
+  }
+
   function openProjectEditor() {
     if (!project) return;
     if (projectEditor) {
-      projectEditor = null;
+      void closeProjectEditor(true);
       return;
     }
     projectEditor = {
       name: project.name,
-      ticket_prefix: project.ticket_prefix || 'NEW-',
+      ticket_prefix: project.ticket_prefix || readStoredPrefix(project.slug) || 'NEW-',
       newName: '',
       newPrefix: 'NEW-',
     };
   }
 
-  async function saveProjectEditor() {
-    if (!project || !projectEditor) return;
-    const name = projectEditor.name.trim();
-    if (!name) {
-      showToast('Project name is required');
-      return;
+  async function persistProjectMeta(name: string, prefixRaw: string, toast: boolean) {
+    if (!project) return false;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      if (toast) showToast('Project name is required');
+      return false;
     }
-    const ticket_prefix = normalizeTicketPrefix(projectEditor.ticket_prefix);
+    const ticket_prefix = normalizeTicketPrefix(prefixRaw);
+    writeStoredPrefix(project.slug, ticket_prefix);
     try {
-      const saved = await api.patchProject(project.slug, { name, ticket_prefix });
-      project = saved;
-      projects = projects.map((p) => (p.slug === saved.slug ? saved : p));
-      projectEditor = { ...projectEditor, name: saved.name, ticket_prefix: saved.ticket_prefix || ticket_prefix };
-      showToast('Project updated');
+      await api.patchSettings({ ticket_prefix_by_project: { [project.slug]: ticket_prefix } });
+      const saved = await api.patchProject(project.slug, { name: trimmed, ticket_prefix });
+      project = { ...saved, ticket_prefix: saved.ticket_prefix || ticket_prefix };
+      writeStoredPrefix(project.slug, project.ticket_prefix || ticket_prefix);
+      projects = projects.map((p) => (p.slug === saved.slug ? project! : p));
+      if (toast) showToast('Project updated');
+      return true;
     } catch (err) {
-      showToast('Failed to update project');
+      if (toast) showToast('Failed to update project');
       console.error(err);
+      return false;
     }
   }
 
-  async function switchProject(slug: string) {
-    if (!project || slug === project.slug) {
-      projectEditor = null;
-      return;
+  async function saveProjectEditor() {
+    if (!project || !projectEditor) return;
+    const ok = await persistProjectMeta(projectEditor.name, projectEditor.ticket_prefix, true);
+    if (ok && projectEditor) {
+      projectEditor = {
+        ...projectEditor,
+        name: project.name,
+        ticket_prefix: project.ticket_prefix || projectEditor.ticket_prefix,
+      };
     }
+  }
+
+  async function closeProjectEditor(save: boolean) {
+    const ed = projectEditor;
+    if (!ed) return;
     projectEditor = null;
+    if (save) await persistProjectMeta(ed.name, ed.ticket_prefix, false);
+  }
+
+  async function switchProject(slug: string) {
+    if (projectEditor) await closeProjectEditor(true);
+    if (!project || slug === project.slug) return;
     await loadProject(slug);
   }
 
