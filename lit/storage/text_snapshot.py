@@ -1,9 +1,12 @@
-"""Hourly human-readable project snapshots (.txt + .md) for disaster recovery."""
+"""Hourly full-project readable snapshots (.txt + .md) for disaster recovery.
+
+Each written file is a complete dump of every ticket and panel. A new pair is
+created only when that dump differs from the last backup (the Saved timestamp
+does not count as a change).
+"""
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import os
 import re
@@ -26,7 +29,6 @@ logger = logging.getLogger("lit.text_snapshot")
 
 SNAPSHOT_DIR_NAME = "hourly-text"
 MAX_SNAPSHOTS = 50
-HASH_NAME = "last-content.hash"
 STEM_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{4}$")
 
 _PANEL_LABELS = {
@@ -64,23 +66,25 @@ def snapshot_project(
     when = when or datetime.now().astimezone()
     stamp = when.replace(minute=0, second=0, microsecond=0)
     payload = collect_payload(slug)
-    digest = payload_hash(payload)
     dest = snapshot_dir(slug)
     dest.mkdir(parents=True, exist_ok=True)
 
-    stems = list_snapshot_stems(dest)
-    if not force and stems and _read_hash(dest) == digest:
-        logger.info("Hourly text snapshot for %s unchanged; skip", slug)
-        return None
-
-    stem = stamp.strftime("%Y-%m-%d_%H%M")
     txt_body = render_txt(payload, stamp)
     md_body = render_md(payload, stamp)
+    if not force:
+        last_txt = _latest_txt_body(dest)
+        if last_txt is not None and _body_without_saved(last_txt) == _body_without_saved(txt_body):
+            logger.info(
+                "Full snapshot for %s matches the last hourly text backup; not writing a new file",
+                slug,
+            )
+            return None
+
+    stem = stamp.strftime("%Y-%m-%d_%H%M")
     txt_path = dest / f"{stem}.txt"
     md_path = dest / f"{stem}.md"
     _write_text(txt_path, txt_body)
     _write_text(md_path, md_body)
-    _write_hash(dest, digest)
     _apply_retention(dest)
     logger.info("Wrote hourly text snapshot %s for project %s", stem, slug)
     return {"slug": slug, "stem": stem, "txt": str(txt_path), "md": str(md_path)}
@@ -145,27 +149,6 @@ def collect_payload(slug: str) -> dict[str, Any]:
         "deliverables": deliverables.get("items") or [],
         "boards": boards,
     }
-
-
-def payload_hash(payload: dict[str, Any]) -> str:
-    # Live waiting clocks must not trigger a new file every hour.
-    canonical = {
-        "project_name": payload.get("project_name"),
-        "project_slug": payload.get("project_slug"),
-        "tickets": [
-            {
-                "ticket_key": t.get("ticket_key"),
-                "fields": t.get("fields"),
-                "waiting": t.get("waiting"),
-            }
-            for t in payload.get("tickets") or []
-        ],
-        "notes": payload.get("notes"),
-        "deliverables": payload.get("deliverables"),
-        "boards": payload.get("boards"),
-    }
-    blob = json.dumps(canonical, ensure_ascii=False, sort_keys=True, default=str)
-    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
 def render_txt(payload: dict[str, Any], stamp: datetime) -> str:
@@ -321,6 +304,28 @@ def list_snapshot_stems(folder: Path) -> list[str]:
     return sorted(stems)
 
 
+def _latest_txt_body(folder: Path) -> str | None:
+    stems = list_snapshot_stems(folder)
+    if not stems:
+        return None
+    path = folder / f"{stems[-1]}.txt"
+    if not path.is_file():
+        return None
+    try:
+        return path.read_text(encoding="utf-8-sig")
+    except OSError:
+        return None
+
+
+def _body_without_saved(text: str) -> str:
+    lines = [
+        ln
+        for ln in text.replace("\r\n", "\n").splitlines()
+        if not ln.startswith("Saved:")
+    ]
+    return "\n".join(lines).strip()
+
+
 def _apply_retention(folder: Path) -> None:
     stems = list_snapshot_stems(folder)
     extra = len(stems) - MAX_SNAPSHOTS
@@ -354,13 +359,10 @@ def _ticket_field_lines(ticket: dict[str, Any], defs: list[dict[str, Any]], *, m
         seen.add(fid)
         value = fields.get(fid)
         ftype = spec.get("type") or "text"
-        if _is_empty_value(value, ftype):
-            continue
         label = spec.get("label") or fid
         if ftype == "richtext":
             body = tiptap_to_markdown(value).strip() if markdown else tiptap_to_text(value).strip()
-            if not body:
-                continue
+            body = body or "(none)"
             if markdown:
                 lines.append(f"**{label}**")
                 lines.append("")
@@ -371,9 +373,7 @@ def _ticket_field_lines(ticket: dict[str, Any], defs: list[dict[str, Any]], *, m
                 for row in body.splitlines() or [""]:
                     lines.append(f"    {row}" if row else "")
             continue
-        rendered = _format_scalar(value, ftype)
-        if not rendered:
-            continue
+        rendered = _format_scalar(value, ftype) or "(none)"
         if markdown:
             lines.append(f"- **{label}:** {rendered}")
         else:
@@ -401,22 +401,6 @@ def _format_scalar(value: Any, ftype: str) -> str:
     if value is None:
         return ""
     return str(value).strip()
-
-
-def _is_empty_value(value: Any, ftype: str) -> bool:
-    if value is None:
-        return True
-    if ftype == "checkbox":
-        return False
-    if ftype == "richtext":
-        return not tiptap_to_text(value).strip()
-    if isinstance(value, str):
-        return not value.strip()
-    if isinstance(value, list):
-        return len(value) == 0
-    if isinstance(value, dict):
-        return not value
-    return False
 
 
 def _field_sort_key(field: dict[str, Any]) -> tuple:
@@ -576,21 +560,4 @@ def _write_text(path: Path, content: str) -> None:
         f.write(content)
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp, path)
-
-
-def _read_hash(folder: Path) -> str | None:
-    path = folder / HASH_NAME
-    if not path.is_file():
-        return None
-    try:
-        return path.read_text(encoding="utf-8").strip() or None
-    except OSError:
-        return None
-
-
-def _write_hash(folder: Path, digest: str) -> None:
-    path = folder / HASH_NAME
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(digest + "\n", encoding="utf-8")
     os.replace(tmp, path)

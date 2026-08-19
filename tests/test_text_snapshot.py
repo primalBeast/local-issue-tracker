@@ -19,8 +19,6 @@ from lit.storage.project_fs import (
 )
 from lit.storage.text_snapshot import (
     MAX_SNAPSHOTS,
-    collect_payload,
-    payload_hash,
     seconds_until_next_hour,
     snapshot_dir,
     snapshot_project,
@@ -176,25 +174,31 @@ def test_snapshot_writes_txt_and_md_by_ticket(data_dir: Path) -> None:
     assert "Need" in text and "repro" in text
     assert "Board-level note" in text
     assert "Ship it" in text
+    assert "Customer Assigned To: (none)" in text
+    assert "SHOP-2" in text and "SHOP-10" in text
     assert "# Shop Tracker" in markdown
     assert "**repro**" in markdown
     assert "### SHOP-2" in markdown
 
 
-def test_skip_when_unchanged_then_write_on_change(data_dir: Path) -> None:
+def test_skip_when_unchanged_then_write_full_snapshot_on_change(data_dir: Path) -> None:
     create_project("alpha", name="Alpha")
     _seed_ticket("alpha", {"ticket_key": "A-1", "title": "First", "priority": 1, "state": "Submitted"})
+    _seed_ticket("alpha", {"ticket_key": "A-2", "title": "Second", "priority": 4, "state": "Done"})
     t0 = datetime(2026, 8, 19, 10, 0, 0)
     first = snapshot_project("alpha", when=t0)
     assert first is not None
+    first_text = Path(first["txt"]).read_text(encoding="utf-8-sig")
+    assert "A-1" in first_text and "A-2" in first_text
     assert snapshot_project("alpha", when=t0 + timedelta(hours=1)) is None
+    assert list(snapshot_dir("alpha").glob("*.txt")) == [Path(first["txt"])]
 
     defs = load_fields("alpha").get("fields") or []
     db = items_db.items_db_path(project_dir("alpha"))
 
     def _bump(conn):
         items = items_db.list_items(conn, defs, lean=False)
-        item = items[0]
+        item = next(it for it in items if it["fields"].get("ticket_key") == "A-1")
         fields = dict(item["fields"])
         fields["title"] = "Changed"
         return items_db.update_item_fields(conn, item["id"], fields, item["version"])
@@ -203,7 +207,10 @@ def test_skip_when_unchanged_then_write_on_change(data_dir: Path) -> None:
     second = snapshot_project("alpha", when=t0 + timedelta(hours=2))
     assert second is not None
     assert second["stem"] == "2026-08-19_1200"
-    assert "Changed" in Path(second["txt"]).read_text(encoding="utf-8-sig")
+    later = Path(second["txt"]).read_text(encoding="utf-8-sig")
+    assert "Changed" in later
+    assert "A-2" in later
+    assert "Second" in later
 
 
 def test_retention_keeps_fifty_pairs(data_dir: Path) -> None:
@@ -226,7 +233,7 @@ def test_retention_keeps_fifty_pairs(data_dir: Path) -> None:
     assert not (folder / "2026-01-01_0000.md").exists()
 
 
-def test_waiting_clock_does_not_change_hash(data_dir: Path) -> None:
+def test_waiting_clock_does_not_write_another_file(data_dir: Path) -> None:
     create_project("wait", name="Wait")
     _seed_ticket(
         "wait",
@@ -238,6 +245,6 @@ def test_waiting_clock_does_not_change_hash(data_dir: Path) -> None:
             "waiting_for": "Pat",
         },
     )
-    a = payload_hash(collect_payload("wait"))
-    b = payload_hash(collect_payload("wait"))
-    assert a == b
+    first = snapshot_project("wait", when=datetime(2026, 8, 19, 10, 0, 0))
+    assert first is not None
+    assert snapshot_project("wait", when=datetime(2026, 8, 19, 11, 0, 0)) is None
