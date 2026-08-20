@@ -88,6 +88,26 @@ def test_item_crud_and_lean_list(client: TestClient):
     detail = client.get(f"/api/projects/{slug}/items/{item_id}").json()
     assert "notes" in detail["fields"]
 
+    ws = client.get(f"/api/projects/{slug}/workspaces").json()[0]
+    ws["panels"] = [
+        {
+            "id": "panel-del",
+            "kind": "item",
+            "item_id": item_id,
+            "x": 0,
+            "y": 0,
+            "width": 400,
+            "height": 300,
+            "z_index": 1,
+        }
+    ]
+    assert client.put(f"/api/projects/{slug}/workspaces/{ws['id']}", json=ws).status_code == 200
+    deleted = client.delete(f"/api/projects/{slug}/items/{item_id}")
+    assert deleted.status_code == 200, deleted.text
+    assert all(x["id"] != item_id for x in client.get(f"/api/projects/{slug}/items").json())
+    after = client.get(f"/api/projects/{slug}/workspaces/{ws['id']}").json()
+    assert all(p.get("item_id") != item_id for p in after.get("panels") or [])
+
 
 def test_waiting_transition(client: TestClient):
     slug = client.get("/api/projects").json()[0]["slug"]
@@ -149,6 +169,21 @@ def test_theme_setting_round_trip(client: TestClient):
     assert by_theme.status_code == 200
     assert by_theme.json()["transparency_by_theme"]["aurora"] == 0.35
     assert by_theme.json()["transparency_by_theme"]["ember"] == 1.0
+
+
+def test_open_project_folder(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    opened: list[str] = []
+    monkeypatch.setattr(
+        "lit.api.projects.reveal_folder",
+        lambda path: opened.append(str(path)),
+    )
+    slug = client.get("/api/projects").json()[0]["slug"]
+    r = client.post(f"/api/projects/{slug}/open-folder")
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "opened"
+    assert opened and opened[0].replace("\\", "/").endswith(f"/{slug}")
+    missing = client.post("/api/projects/no-such-project/open-folder")
+    assert missing.status_code == 404
 
 
 def test_workspace_lww(client: TestClient):

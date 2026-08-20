@@ -4,9 +4,10 @@
     description: string;
     onTicketKey: (value: string) => void;
     onDescription: (value: string) => void;
+    onDelete?: () => void;
   }
 
-  let { ticketKey, description, onTicketKey, onDescription }: Props = $props();
+  let { ticketKey, description, onTicketKey, onDescription, onDelete }: Props = $props();
 
   let descTrimmed = $derived(String(description ?? '').trim());
   /** Stay open while typing. Only collapse after leaving the editor with a description. */
@@ -90,6 +91,18 @@
           }}
         />
       </label>
+      {#if onDelete}
+        <div class="item-title-editor-actions">
+          <button
+            type="button"
+            class="danger"
+            onclick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >Delete ticket</button>
+        </div>
+      {/if}
     </div>
   {/if}
 </div>

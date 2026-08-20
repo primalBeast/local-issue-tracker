@@ -86,6 +86,8 @@
     y: number;
   } | null>(null);
   let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
+  let itemDeleteConfirm = $state<{ id: string; name: string } | null>(null);
+  let itemContextMenu = $state<{ id: string; name: string; x: number; y: number } | null>(null);
   let projectEditor = $state<{
     name: string;
     ticket_prefix: string;
@@ -205,6 +207,14 @@
           cancelTabDrag();
           return;
         }
+        if (itemDeleteConfirm) {
+          itemDeleteConfirm = null;
+          return;
+        }
+        if (itemContextMenu) {
+          itemContextMenu = null;
+          return;
+        }
         if (boardRemoveConfirm) {
           boardRemoveConfirm = null;
           return;
@@ -232,6 +242,14 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
+      if (itemDeleteConfirm) {
+        if (!t?.closest?.('.confirm-dialog')) itemDeleteConfirm = null;
+        return;
+      }
+      if (itemContextMenu) {
+        if (!t?.closest?.('.item-context-menu')) itemContextMenu = null;
+        return;
+      }
       if (boardRemoveConfirm) {
         if (!t?.closest?.('.confirm-dialog')) boardRemoveConfirm = null;
         return;
@@ -405,6 +423,7 @@
     queueMicrotask(() => {
       const el = document.querySelector('.theme-dialog') as HTMLElement | null;
       el?.focus();
+      scrollThemeHighlightIntoView(highlightedThemeId);
     });
   }
 
@@ -413,11 +432,21 @@
     themeMenuOpen = false;
   }
 
+  function scrollThemeHighlightIntoView(id: string) {
+    queueMicrotask(() => {
+      const item = document.querySelector(
+        `.theme-menu [data-theme-id="${CSS.escape(id)}"]`
+      ) as HTMLElement | null;
+      item?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
   function moveThemeHighlight(delta: number) {
     if (!themeMenuOpen) openThemeMenu();
     const idx = THEMES.findIndex((t) => t.id === highlightedThemeId);
     const next = THEMES[(Math.max(idx, 0) + delta + THEMES.length) % THEMES.length];
     previewTheme(next.id);
+    scrollThemeHighlightIntoView(next.id);
   }
 
   function onThemePickerKey(e: KeyboardEvent) {
@@ -435,12 +464,15 @@
       e.preventDefault();
       if (!themeMenuOpen) openThemeMenu();
       previewTheme(THEMES[0].id);
+      scrollThemeHighlightIntoView(THEMES[0].id);
       return;
     }
     if (e.key === 'End') {
       e.preventDefault();
       if (!themeMenuOpen) openThemeMenu();
-      previewTheme(THEMES[THEMES.length - 1].id);
+      const last = THEMES[THEMES.length - 1];
+      previewTheme(last.id);
+      scrollThemeHighlightIntoView(last.id);
       return;
     }
     if (e.key === 'Enter') {
@@ -988,6 +1020,72 @@
     });
   }
 
+  function itemLabel(item: Item): string {
+    const key = String(item.fields[keyField()] ?? '').trim();
+    const title = String(item.fields.title ?? '').trim();
+    if (key && title) return `${key}  ${title}`;
+    return key || title || 'this ticket';
+  }
+
+  function openItemContextMenu(e: MouseEvent, item: Item) {
+    e.preventDefault();
+    e.stopPropagation();
+    boardEditor = null;
+    itemDeleteConfirm = null;
+    itemContextMenu = {
+      id: item.id,
+      name: itemLabel(item),
+      x: Math.min(e.clientX, window.innerWidth - 200),
+      y: Math.min(e.clientY, window.innerHeight - 90),
+    };
+  }
+
+  function askDeleteItem(item: Item) {
+    itemContextMenu = null;
+    itemDeleteConfirm = { id: item.id, name: itemLabel(item) };
+  }
+
+  function askDeleteItemById(id: string, name: string) {
+    itemContextMenu = null;
+    itemDeleteConfirm = { id, name };
+  }
+
+  function stripItemLocally(itemId: string) {
+    items = items.filter((i) => i.id !== itemId);
+    if (itemSaveTimers[itemId]) {
+      clearTimeout(itemSaveTimers[itemId]);
+      delete itemSaveTimers[itemId];
+    }
+    const nextCache = { ...detailCache };
+    delete nextCache[itemId];
+    detailCache = nextCache;
+    const drop = (ws: Workspace) => {
+      const next = cloneWorkspace(ws);
+      next.panels = (next.panels || []).filter((p) => p.item_id !== itemId);
+      return next;
+    };
+    workspaces = workspaces.map(drop);
+    if (workspace) {
+      workspace = drop(workspace);
+      scheduleWorkspaceSave();
+    }
+  }
+
+  async function confirmDeleteItem() {
+    if (!project || !itemDeleteConfirm) return;
+    const id = itemDeleteConfirm.id;
+    const slug = project.slug;
+    itemDeleteConfirm = null;
+    try {
+      await api.deleteItem(slug, id);
+      stripItemLocally(id);
+      showToast('Ticket deleted');
+    } catch (err) {
+      showToast('Failed to delete ticket');
+      console.error(err);
+    }
+  }
+
   function openItemPanel(itemId: string) {
     if (!workspace) return;
     const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
@@ -1390,6 +1488,19 @@
     }
   }
 
+  async function openProjectFolder() {
+    if (!project?.data_path) {
+      showToast('Project folder is not available');
+      return;
+    }
+    try {
+      await api.openProjectFolder(project.slug);
+    } catch (err) {
+      showToast('Could not open folder');
+      console.error(err);
+    }
+  }
+
   function openProjectEditor() {
     if (!project) return;
     if (projectEditor) {
@@ -1590,14 +1701,16 @@
               </label>
             {/if}
             <ul class="theme-menu" role="listbox" aria-label="Theme">
-              {#each THEMES as t}
+              {#each THEMES as t, i}
                 <li
                   role="option"
+                  data-theme-id={t.id}
                   aria-selected={t.id === committedThemeId}
                   class:active={t.id === highlightedThemeId}
                   onpointerdown={() => previewTheme(t.id)}
                   ondblclick={() => void setTheme(t.id)}
                 >
+                  <span class="theme-num">{i + 1}</span>
                   {t.name}
                 </li>
               {/each}
@@ -1609,7 +1722,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-18e</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-20i</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -1717,7 +1830,15 @@
 
         <section class="project-section">
           <div class="project-section-title">Location on disk</div>
-          <div class="project-path" title={project.data_path || ''}>{project.data_path || '—'}</div>
+          <div class="project-path-row">
+            <div class="project-path" title={project.data_path || ''}>{project.data_path || '—'}</div>
+            <button
+              type="button"
+              title="Open this folder in File Explorer"
+              disabled={!project.data_path}
+              onclick={() => void openProjectFolder()}
+            >Open</button>
+          </div>
         </section>
       </div>
     {/if}
@@ -1765,6 +1886,51 @@
           <span class="board-editor-actions-spacer"></span>
           <button type="button" class="ghost" onclick={() => (boardEditor = null)}>Cancel</button>
           <button type="button" class="primary" onclick={() => void saveBoardEditor()}>Save</button>
+        </div>
+      </div>
+    {/if}
+
+    {#if itemContextMenu}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="item-context-menu"
+        style:left="{itemContextMenu.x}px"
+        style:top="{itemContextMenu.y}px"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          class="danger"
+          onclick={() => {
+            if (!itemContextMenu) return;
+            askDeleteItemById(itemContextMenu.id, itemContextMenu.name);
+          }}
+        >Delete ticket</button>
+      </div>
+    {/if}
+
+    {#if itemDeleteConfirm}
+      <div class="confirm-backdrop" role="presentation">
+        <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+        <div
+          class="confirm-dialog"
+          role="alertdialog"
+          tabindex="-1"
+          aria-modal="true"
+          aria-labelledby="item-delete-title"
+          aria-describedby="item-delete-desc"
+          onclick={(e) => e.stopPropagation()}
+        >
+          <div class="board-editor-title" id="item-delete-title">Delete ticket</div>
+          <p class="confirm-dialog-body" id="item-delete-desc">
+            Delete <span class="confirm-dialog-name">{itemDeleteConfirm.name}</span>? This cannot
+            be undone.
+          </p>
+          <div class="board-editor-actions">
+            <button type="button" class="ghost" onclick={() => (itemDeleteConfirm = null)}>Cancel</button>
+            <button type="button" class="danger" onclick={() => void confirmDeleteItem()}>Delete</button>
+          </div>
         </div>
       </div>
     {/if}
@@ -1834,6 +2000,11 @@
             onfocus={() => focusPanel(panel.id)}
             onmove={(patch) => movePanel(panel.id, patch)}
             onclose={() => closePanel(panel.id)}
+            oncontext={
+              panel.kind === 'item' && item
+                ? (e) => openItemContextMenu(e, item)
+                : undefined
+            }
           >
             {#snippet titleSlot()}
               {#if panel.kind === 'item' && item && !compact}
@@ -1842,6 +2013,7 @@
                   description={String(item.fields.title ?? '')}
                   onTicketKey={(value) => scheduleItemPatch(item.id, { [keyField()]: value })}
                   onDescription={(value) => scheduleItemPatch(item.id, { title: value })}
+                  onDelete={() => askDeleteItem(item)}
                 />
               {:else}
                 <div class="panel-title">
@@ -1988,7 +2160,11 @@
                 </thead>
                 <tbody>
                   {#each filteredItems as it}
-                    <tr class="clickable" onclick={() => openItemPanel(it.id)}>
+                    <tr
+                      class="clickable"
+                      onclick={() => openItemPanel(it.id)}
+                      oncontextmenu={(e) => openItemContextMenu(e, it)}
+                    >
                       {#each listFields as f}
                         <td>{String(it.fields[f.id] ?? '')}</td>
                       {/each}

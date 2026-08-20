@@ -57,6 +57,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
         backup_all_projects(force=False)
     except Exception:
         logging.getLogger("lit").exception("Startup backup check failed")
+    try:
+        snapshot_all_projects()
+    except Exception:
+        logging.getLogger("lit").exception("Startup text snapshot failed")
 
     # On the hour: daily folder backup (skips if today exists) + readable text/md dump.
     def _backup_loop() -> None:

@@ -480,6 +480,72 @@
     });
   }
 
+  function itemLabel(item: Item): string {
+    const key = String(item.fields[keyField()] ?? '').trim();
+    const title = String(item.fields.title ?? '').trim();
+    if (key && title) return `${key}  ${title}`;
+    return key || title || 'this ticket';
+  }
+
+  function openItemContextMenu(e: MouseEvent, item: Item) {
+    e.preventDefault();
+    e.stopPropagation();
+    boardEditor = null;
+    itemDeleteConfirm = null;
+    itemContextMenu = {
+      id: item.id,
+      name: itemLabel(item),
+      x: Math.min(e.clientX, window.innerWidth - 200),
+      y: Math.min(e.clientY, window.innerHeight - 90),
+    };
+  }
+
+  function askDeleteItem(item: Item) {
+    itemContextMenu = null;
+    itemDeleteConfirm = { id: item.id, name: itemLabel(item) };
+  }
+
+  function askDeleteItemById(id: string, name: string) {
+    itemContextMenu = null;
+    itemDeleteConfirm = { id, name };
+  }
+
+  function stripItemLocally(itemId: string) {
+    items = items.filter((i) => i.id !== itemId);
+    if (itemSaveTimers[itemId]) {
+      clearTimeout(itemSaveTimers[itemId]);
+      delete itemSaveTimers[itemId];
+    }
+    const nextCache = { ...detailCache };
+    delete nextCache[itemId];
+    detailCache = nextCache;
+    const drop = (ws: Workspace) => {
+      const next = cloneWorkspace(ws);
+      next.panels = (next.panels || []).filter((p) => p.item_id !== itemId);
+      return next;
+    };
+    workspaces = workspaces.map(drop);
+    if (workspace) {
+      workspace = drop(workspace);
+      scheduleWorkspaceSave();
+    }
+  }
+
+  async function confirmDeleteItem() {
+    if (!project || !itemDeleteConfirm) return;
+    const id = itemDeleteConfirm.id;
+    const slug = project.slug;
+    itemDeleteConfirm = null;
+    try {
+      await api.deleteItem(slug, id);
+      stripItemLocally(id);
+      showToast('Ticket deleted');
+    } catch (err) {
+      showToast('Failed to delete ticket');
+      console.error(err);
+    }
+  }
+
   function openItemPanel(itemId: string) {
     if (!workspace) return;
     const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);

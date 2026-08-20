@@ -15,7 +15,7 @@ from lit.services.validation import (
 )
 from lit.services.waiting import apply_state_transition, set_open_started_at
 from lit.storage import items_db
-from lit.storage.project_fs import load_fields
+from lit.storage.project_fs import load_fields, strip_item_from_workspaces
 
 logger = logging.getLogger("lit.api.items")
 router = APIRouter(prefix="/api/projects/{slug}/items", tags=["items"])
@@ -166,4 +166,8 @@ async def delete_item(slug: str, item_id: str) -> dict[str, str]:
     ok = await items_db.run_db_async(db, _del)
     if not ok:
         raise HTTPException(status_code=404, detail="Item not found")
+    try:
+        strip_item_from_workspaces(slug, item_id)
+    except Exception:
+        logger.exception("Failed to strip deleted item %s from workspaces", item_id)
     return {"status": "deleted", "id": item_id}

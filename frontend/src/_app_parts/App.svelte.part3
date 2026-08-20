@@ -339,6 +339,19 @@
     }
   }
 
+  async function openProjectFolder() {
+    if (!project?.data_path) {
+      showToast('Project folder is not available');
+      return;
+    }
+    try {
+      await api.openProjectFolder(project.slug);
+    } catch (err) {
+      showToast('Could not open folder');
+      console.error(err);
+    }
+  }
+
   function openProjectEditor() {
     if (!project) return;
     if (projectEditor) {

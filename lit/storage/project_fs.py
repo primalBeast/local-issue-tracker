@@ -274,6 +274,21 @@ def save_workspace(slug: str, workspace_id: str, data: dict[str, Any]) -> dict[s
     return data
 
 
+def strip_item_from_workspaces(slug: str, item_id: str) -> None:
+    """Drop item panels from every board after a ticket is deleted."""
+    for ws in list_workspaces(slug):
+        panels = ws.get("panels") or []
+        kept = [
+            p
+            for p in panels
+            if not (isinstance(p, dict) and p.get("kind") == "item" and p.get("item_id") == item_id)
+        ]
+        if len(kept) == len(panels):
+            continue
+        ws["panels"] = kept
+        save_workspace(slug, str(ws.get("id") or ""), ws)
+
+
 def delete_workspace(slug: str, workspace_id: str) -> bool:
     path = project_dir(slug) / "workspaces" / f"{workspace_id}.json"
     if not path.exists():

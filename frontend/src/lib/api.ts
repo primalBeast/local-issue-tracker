@@ -140,6 +140,8 @@ export const api = {
     req<Project>('/api/projects', { method: 'POST', body: JSON.stringify(body) }),
   patchProject: (slug: string, body: Record<string, unknown>) =>
     req<Project>(`/api/projects/${slug}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  openProjectFolder: (slug: string) =>
+    req<{ status: string; path: string }>(`/api/projects/${slug}/open-folder`, { method: 'POST' }),
   fields: (slug: string) => req<FieldsDoc>(`/api/projects/${slug}/fields`),
   putFields: (slug: string, body: FieldsDoc) =>
     req<FieldsDoc>(`/api/projects/${slug}/fields`, {

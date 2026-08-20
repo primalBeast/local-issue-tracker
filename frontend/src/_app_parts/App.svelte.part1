@@ -86,6 +86,8 @@
     y: number;
   } | null>(null);
   let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
+  let itemDeleteConfirm = $state<{ id: string; name: string } | null>(null);
+  let itemContextMenu = $state<{ id: string; name: string; x: number; y: number } | null>(null);
   let projectEditor = $state<{
     name: string;
     ticket_prefix: string;
@@ -205,6 +207,14 @@
           cancelTabDrag();
           return;
         }
+        if (itemDeleteConfirm) {
+          itemDeleteConfirm = null;
+          return;
+        }
+        if (itemContextMenu) {
+          itemContextMenu = null;
+          return;
+        }
         if (boardRemoveConfirm) {
           boardRemoveConfirm = null;
           return;
@@ -232,6 +242,14 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
+      if (itemDeleteConfirm) {
+        if (!t?.closest?.('.confirm-dialog')) itemDeleteConfirm = null;
+        return;
+      }
+      if (itemContextMenu) {
+        if (!t?.closest?.('.item-context-menu')) itemContextMenu = null;
+        return;
+      }
       if (boardRemoveConfirm) {
         if (!t?.closest?.('.confirm-dialog')) boardRemoveConfirm = null;
         return;
@@ -405,6 +423,7 @@
     queueMicrotask(() => {
       const el = document.querySelector('.theme-dialog') as HTMLElement | null;
       el?.focus();
+      scrollThemeHighlightIntoView(highlightedThemeId);
     });
   }
 
@@ -413,11 +432,21 @@
     themeMenuOpen = false;
   }
 
+  function scrollThemeHighlightIntoView(id: string) {
+    queueMicrotask(() => {
+      const item = document.querySelector(
+        `.theme-menu [data-theme-id="${CSS.escape(id)}"]`
+      ) as HTMLElement | null;
+      item?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
   function moveThemeHighlight(delta: number) {
     if (!themeMenuOpen) openThemeMenu();
     const idx = THEMES.findIndex((t) => t.id === highlightedThemeId);
     const next = THEMES[(Math.max(idx, 0) + delta + THEMES.length) % THEMES.length];
     previewTheme(next.id);
+    scrollThemeHighlightIntoView(next.id);
   }
 
   function onThemePickerKey(e: KeyboardEvent) {
@@ -435,12 +464,15 @@
       e.preventDefault();
       if (!themeMenuOpen) openThemeMenu();
       previewTheme(THEMES[0].id);
+      scrollThemeHighlightIntoView(THEMES[0].id);
       return;
     }
     if (e.key === 'End') {
       e.preventDefault();
       if (!themeMenuOpen) openThemeMenu();
-      previewTheme(THEMES[THEMES.length - 1].id);
+      const last = THEMES[THEMES.length - 1];
+      previewTheme(last.id);
+      scrollThemeHighlightIntoView(last.id);
       return;
     }
     if (e.key === 'Enter') {

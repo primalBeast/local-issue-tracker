@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
+import os
+import platform
+import subprocess
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from lit.paths import validate_slug
+from lit.paths import project_dir, validate_slug
 from lit.storage.project_fs import (
     create_project,
     delete_project,
@@ -15,6 +20,7 @@ from lit.storage.project_fs import (
 )
 from lit.storage.settings_store import patch_settings
 
+logger = logging.getLogger("lit.projects")
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
@@ -36,6 +42,25 @@ class ProjectPatch(BaseModel):
 
 class ProjectDelete(BaseModel):
     confirm_slug: str
+
+
+def reveal_folder(path: Path) -> None:
+    """Open a folder in Explorer / Finder / the desktop file manager."""
+    path = path.resolve()
+    if not path.is_dir():
+        raise FileNotFoundError(path)
+    target = os.fsdecode(path)
+    system = platform.system()
+    logger.info("Opening project folder %s", target)
+    if system == "Windows":
+        # /n, always opens a new Explorer window. os.startfile() and the
+        # "explore" verb often reuse a hidden/minimized window and look like a no-op.
+        subprocess.Popen(["explorer.exe", "/n,", target], close_fds=False)
+        return
+    if system == "Darwin":
+        subprocess.Popen(["open", target])
+        return
+    subprocess.Popen(["xdg-open", target])
 
 
 @router.get("")
@@ -70,6 +95,22 @@ def get_project(slug: str) -> dict[str, Any]:
         return load_project(slug)
     except (FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="Project not found") from None
+
+
+@router.post("/{slug}/open-folder")
+def open_project_folder(slug: str) -> dict[str, str]:
+    try:
+        load_project(slug)
+        dest = project_dir(slug)
+    except (FileNotFoundError, ValueError):
+        raise HTTPException(status_code=404, detail="Project not found") from None
+    if not dest.is_dir():
+        raise HTTPException(status_code=404, detail="Project folder not found")
+    try:
+        reveal_folder(dest)
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Could not open folder: {e}") from e
+    return {"status": "opened", "path": str(dest)}
 
 
 @router.patch("/{slug}")

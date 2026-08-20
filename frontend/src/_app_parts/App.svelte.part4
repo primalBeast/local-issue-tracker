@@ -101,14 +101,16 @@
               </label>
             {/if}
             <ul class="theme-menu" role="listbox" aria-label="Theme">
-              {#each THEMES as t}
+              {#each THEMES as t, i}
                 <li
                   role="option"
+                  data-theme-id={t.id}
                   aria-selected={t.id === committedThemeId}
                   class:active={t.id === highlightedThemeId}
                   onpointerdown={() => previewTheme(t.id)}
                   ondblclick={() => void setTheme(t.id)}
                 >
+                  <span class="theme-num">{i + 1}</span>
                   {t.name}
                 </li>
               {/each}
@@ -120,7 +122,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-18e</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-20i</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -228,7 +230,15 @@
 
         <section class="project-section">
           <div class="project-section-title">Location on disk</div>
-          <div class="project-path" title={project.data_path || ''}>{project.data_path || '—'}</div>
+          <div class="project-path-row">
+            <div class="project-path" title={project.data_path || ''}>{project.data_path || '—'}</div>
+            <button
+              type="button"
+              title="Open this folder in File Explorer"
+              disabled={!project.data_path}
+              onclick={() => void openProjectFolder()}
+            >Open</button>
+          </div>
         </section>
       </div>
     {/if}
@@ -276,6 +286,51 @@
           <span class="board-editor-actions-spacer"></span>
           <button type="button" class="ghost" onclick={() => (boardEditor = null)}>Cancel</button>
           <button type="button" class="primary" onclick={() => void saveBoardEditor()}>Save</button>
+        </div>
+      </div>
+    {/if}
+
+    {#if itemContextMenu}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="item-context-menu"
+        style:left="{itemContextMenu.x}px"
+        style:top="{itemContextMenu.y}px"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          class="danger"
+          onclick={() => {
+            if (!itemContextMenu) return;
+            askDeleteItemById(itemContextMenu.id, itemContextMenu.name);
+          }}
+        >Delete ticket</button>
+      </div>
+    {/if}
+
+    {#if itemDeleteConfirm}
+      <div class="confirm-backdrop" role="presentation">
+        <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+        <div
+          class="confirm-dialog"
+          role="alertdialog"
+          tabindex="-1"
+          aria-modal="true"
+          aria-labelledby="item-delete-title"
+          aria-describedby="item-delete-desc"
+          onclick={(e) => e.stopPropagation()}
+        >
+          <div class="board-editor-title" id="item-delete-title">Delete ticket</div>
+          <p class="confirm-dialog-body" id="item-delete-desc">
+            Delete <span class="confirm-dialog-name">{itemDeleteConfirm.name}</span>? This cannot
+            be undone.
+          </p>
+          <div class="board-editor-actions">
+            <button type="button" class="ghost" onclick={() => (itemDeleteConfirm = null)}>Cancel</button>
+            <button type="button" class="danger" onclick={() => void confirmDeleteItem()}>Delete</button>
+          </div>
         </div>
       </div>
     {/if}
@@ -345,6 +400,11 @@
             onfocus={() => focusPanel(panel.id)}
             onmove={(patch) => movePanel(panel.id, patch)}
             onclose={() => closePanel(panel.id)}
+            oncontext={
+              panel.kind === 'item' && item
+                ? (e) => openItemContextMenu(e, item)
+                : undefined
+            }
           >
             {#snippet titleSlot()}
               {#if panel.kind === 'item' && item && !compact}
@@ -353,6 +413,7 @@
                   description={String(item.fields.title ?? '')}
                   onTicketKey={(value) => scheduleItemPatch(item.id, { [keyField()]: value })}
                   onDescription={(value) => scheduleItemPatch(item.id, { title: value })}
+                  onDelete={() => askDeleteItem(item)}
                 />
               {:else}
                 <div class="panel-title">
@@ -499,7 +560,11 @@
                 </thead>
                 <tbody>
                   {#each filteredItems as it}
-                    <tr class="clickable" onclick={() => openItemPanel(it.id)}>
+                    <tr
+                      class="clickable"
+                      onclick={() => openItemPanel(it.id)}
+                      oncontextmenu={(e) => openItemContextMenu(e, it)}
+                    >
                       {#each listFields as f}
                         <td>{String(it.fields[f.id] ?? '')}</td>
                       {/each}

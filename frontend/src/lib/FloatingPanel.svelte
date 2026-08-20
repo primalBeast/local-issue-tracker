@@ -16,6 +16,7 @@
     onfocus: () => void;
     onmove: (patch: Partial<Panel>) => void;
     onclose: () => void;
+    oncontext?: (e: MouseEvent) => void;
     children?: import('svelte').Snippet;
     compactChildren?: import('svelte').Snippet;
     /** Replaces the plain title text (e.g. ticket number + description editor). */
@@ -34,6 +35,7 @@
     onfocus,
     onmove,
     onclose,
+    oncontext,
     children,
     compactChildren,
     titleSlot,
@@ -170,6 +172,14 @@
   onpointerdown={(e) => {
     e.stopPropagation();
     onfocus();
+  }}
+  oncontextmenu={(e) => {
+    if (!oncontext) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.('input, textarea, select, button, .ProseMirror, .item-title-editor')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    oncontext(e);
   }}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->

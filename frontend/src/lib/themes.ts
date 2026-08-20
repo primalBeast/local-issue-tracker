@@ -6,20 +6,27 @@ export type ThemeId =
   | 'lunar'
   | 'sakura'
   | 'solar'
-  | 'neon'
   | 'glacier'
-  | 'copper'
-  | 'nebula'
   | 'verdant'
-  | 'merlot'
   | 'dune'
   | 'cobalt'
-  | 'graphite'
-  | 'honey'
   | 'iris'
-  | 'pearl'
   | 'lacquer'
-  | 'celadon';
+  | 'europa'
+  | 'titan'
+  | 'io'
+  | 'triton'
+  | 'phobos'
+  | 'enceladus'
+  | 'earthrise'
+  | 'rings'
+  | 'umbra'
+  | 'horizon'
+  | 'shibuya'
+  | 'shinjuku'
+  | 'dotonbori'
+  | 'ginzan'
+  | 'takayama';
 
 export type Theme = {
   id: ThemeId;
@@ -135,7 +142,7 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(18,6,4,0.52) 0%, rgba(18,6,4,0.2) 42%, rgba(10,6,8,0.5) 100%)',
   }),
-  themed('abyss', 'Abyssal Jade', 'abyss.jpg', '#22d3ee', '#34d399', {
+  themed('abyss', 'Abyssal Jade', 'abyss-trench.jpg', '#22d3ee', '#34d399', {
     '--text': '#e6fffb',
     '--focus-ring': 'rgba(34, 211, 238, 0.22)',
     '--accent-soft': 'rgba(52, 211, 153, 0.14)',
@@ -172,15 +179,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(16,8,2,0.5) 0%, rgba(16,8,2,0.18) 44%, rgba(12,6,4,0.48) 100%)',
   }),
-  themed('neon', 'Neon Orchid', 'neon.jpg', '#e879f9', '#22d3ee', {
-    '--text': '#f5f3ff',
-    '--focus-ring': 'rgba(232, 121, 249, 0.24)',
-    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
-    '--brand-glow': 'rgba(232, 121, 249, 0.45)',
-    '--panel-glass': 'rgba(10, 8, 22, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,4,16,0.55) 0%, rgba(6,4,16,0.22) 42%, rgba(4,8,16,0.52) 100%)',
-  }),
   themed('glacier', 'Glacier Cathedral', 'glacier.jpg', '#7dd3fc', '#67e8f9', {
     '--text': '#f0f9ff',
     '--focus-ring': 'rgba(125, 211, 252, 0.22)',
@@ -190,24 +188,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,10,16,0.48) 0%, rgba(4,10,16,0.18) 45%, rgba(4,12,18,0.46) 100%)',
   }),
-  themed('copper', 'Copper Dusk', 'copper.jpg', '#d97706', '#2dd4bf', {
-    '--text': '#fff7ed',
-    '--focus-ring': 'rgba(217, 119, 6, 0.22)',
-    '--accent-soft': 'rgba(45, 212, 191, 0.14)',
-    '--brand-glow': 'rgba(217, 119, 6, 0.38)',
-    '--panel-glass': 'rgba(16, 12, 8, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(10,8,4,0.52) 0%, rgba(10,8,4,0.2) 44%, rgba(8,8,8,0.5) 100%)',
-  }),
-  themed('nebula', 'Nebula Ink', 'nebula.jpg', '#c084fc', '#fbbf24', {
-    '--text': '#faf5ff',
-    '--focus-ring': 'rgba(192, 132, 252, 0.22)',
-    '--accent-soft': 'rgba(251, 191, 36, 0.12)',
-    '--brand-glow': 'rgba(192, 132, 252, 0.45)',
-    '--panel-glass': 'rgba(10, 6, 18, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,4,14,0.55) 0%, rgba(6,4,14,0.22) 42%, rgba(6,4,12,0.52) 100%)',
-  }),
   themed('verdant', 'Verdant Hollow', 'verdant.jpg', '#4ade80', '#a3e635', {
     '--text': '#ecfdf3',
     '--focus-ring': 'rgba(74, 222, 128, 0.22)',
@@ -216,15 +196,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(6, 16, 10, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,12,8,0.52) 0%, rgba(4,12,8,0.2) 44%, rgba(4,10,8,0.5) 100%)',
-  }),
-  themed('merlot', 'Merlot Salon', 'merlot.jpg', '#fb7185', '#f59e0b', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
-    '--accent-soft': 'rgba(245, 158, 11, 0.14)',
-    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
-    '--panel-glass': 'rgba(22, 8, 12, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(14,4,8,0.55) 0%, rgba(14,4,8,0.22) 42%, rgba(12,4,8,0.52) 100%)',
   }),
   themed('dune', 'Dune Mirage', 'dune.jpg', '#fbbf24', '#fb923c', {
     '--text': '#fff7ed',
@@ -244,24 +215,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,8,18,0.55) 0%, rgba(4,8,18,0.22) 42%, rgba(4,8,16,0.52) 100%)',
   }),
-  themed('graphite', 'Graphite Forge', 'graphite.jpg', '#fb923c', '#94a3b8', {
-    '--text': '#f8fafc',
-    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
-    '--accent-soft': 'rgba(148, 163, 184, 0.16)',
-    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
-    '--panel-glass': 'rgba(12, 12, 14, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,8,10,0.55) 0%, rgba(8,8,10,0.22) 42%, rgba(8,8,10,0.52) 100%)',
-  }),
-  themed('honey', 'Honey Library', 'honey.jpg', '#fbbf24', '#d97706', {
-    '--text': '#fffbeb',
-    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
-    '--accent-soft': 'rgba(217, 119, 6, 0.16)',
-    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
-    '--panel-glass': 'rgba(20, 14, 6, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(14,8,2,0.52) 0%, rgba(14,8,2,0.2) 44%, rgba(12,8,4,0.5) 100%)',
-  }),
   themed('iris', 'Iris Storm', 'iris.jpg', '#a78bfa', '#818cf8', {
     '--text': '#f5f3ff',
     '--focus-ring': 'rgba(167, 139, 250, 0.22)',
@@ -270,16 +223,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(10, 8, 22, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,4,16,0.55) 0%, rgba(6,4,16,0.22) 42%, rgba(6,6,16,0.52) 100%)',
-  }),
-  themed('pearl', 'Pearl Fog', 'pearl.jpg', '#e2e8f0', '#fcd34d', {
-    '--text': '#f8fafc',
-    '--text-muted': '#cbd5e1',
-    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
-    '--accent-soft': 'rgba(252, 211, 77, 0.14)',
-    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
-    '--panel-glass': 'rgba(12, 14, 18, 0.52)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,10,12,0.46) 0%, rgba(8,10,12,0.16) 45%, rgba(8,10,12,0.44) 100%)',
   }),
   themed('lacquer', 'Lacquer Night', 'lacquer.jpg', '#f43f5e', '#fbbf24', {
     '--text': '#fff1f2',
@@ -290,14 +233,140 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(10,4,6,0.55) 0%, rgba(10,4,6,0.22) 42%, rgba(8,4,6,0.52) 100%)',
   }),
-  themed('celadon', 'Celadon Court', 'celadon.jpg', '#5eead4', '#86efac', {
-    '--text': '#ecfdf5',
-    '--focus-ring': 'rgba(94, 234, 212, 0.22)',
-    '--accent-soft': 'rgba(134, 239, 172, 0.14)',
-    '--brand-glow': 'rgba(94, 234, 212, 0.4)',
-    '--panel-glass': 'rgba(6, 16, 14, 0.56)',
+  themed('europa', 'Europa Ice', 'europa.jpg', '#f59e0b', '#93c5fd', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(245, 158, 11, 0.22)',
+    '--accent-soft': 'rgba(147, 197, 253, 0.16)',
+    '--brand-glow': 'rgba(245, 158, 11, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 16, 0.6)',
     '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,12,10,0.5) 0%, rgba(4,12,10,0.18) 45%, rgba(4,12,10,0.48) 100%)',
+      'linear-gradient(180deg, rgba(8,8,14,0.52) 0%, rgba(8,8,14,0.2) 44%, rgba(8,8,14,0.5) 100%)',
+  }),
+  themed('titan', 'Titan Shore', 'titan.jpg', '#fb923c', '#fcd34d', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(252, 211, 77, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(18, 10, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,6,2,0.52) 0%, rgba(12,6,2,0.2) 44%, rgba(10,6,4,0.5) 100%)',
+  }),
+  themed('io', 'Io Inferno', 'io.jpg', '#fb923c', '#facc15', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(250, 204, 21, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.42)',
+    '--panel-glass': 'rgba(16, 8, 4, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,2,0.55) 0%, rgba(10,4,2,0.2) 42%, rgba(8,4,2,0.52) 100%)',
+  }),
+  themed('triton', 'Triton Blue', 'triton-ice.jpg', '#38bdf8', '#e0f2fe', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
+    '--accent-soft': 'rgba(224, 242, 254, 0.12)',
+    '--brand-glow': 'rgba(56, 189, 248, 0.42)',
+    '--panel-glass': 'rgba(6, 10, 20, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(2,6,14,0.55) 0%, rgba(2,6,14,0.2) 42%, rgba(4,6,14,0.52) 100%)',
+  }),
+  themed('phobos', 'Phobos Watch', 'phobos.jpg', '#f97316', '#fda4af', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(249, 115, 22, 0.22)',
+    '--accent-soft': 'rgba(253, 164, 175, 0.14)',
+    '--brand-glow': 'rgba(249, 115, 22, 0.4)',
+    '--panel-glass': 'rgba(16, 8, 8, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,4,0.55) 0%, rgba(10,4,4,0.2) 42%, rgba(8,4,4,0.52) 100%)',
+  }),
+  themed('enceladus', 'Enceladus Ice', 'enceladus-ice.jpg', '#e2e8f0', '#fcd34d', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.2)',
+    '--accent-soft': 'rgba(252, 211, 77, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
+    '--panel-glass': 'rgba(10, 12, 18, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,6,12,0.55) 0%, rgba(4,6,12,0.2) 42%, rgba(6,6,12,0.52) 100%)',
+  }),
+  themed('earthrise', 'Earthrise', 'earthrise.jpg', '#38bdf8', '#e2e8f0', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
+    '--accent-soft': 'rgba(226, 232, 240, 0.14)',
+    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
+    '--panel-glass': 'rgba(8, 10, 16, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(2,4,10,0.55) 0%, rgba(2,4,10,0.2) 42%, rgba(4,4,10,0.52) 100%)',
+  }),
+  themed('rings', 'Ring Plane', 'rings.jpg', '#fbbf24', '#fde68a', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(253, 230, 138, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 4, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,2,0.55) 0%, rgba(8,4,2,0.2) 42%, rgba(8,6,2,0.52) 100%)',
+  }),
+  themed('umbra', 'Solar Umbra', 'umbra.jpg', '#fde68a', '#f43f5e', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(253, 230, 138, 0.22)',
+    '--accent-soft': 'rgba(244, 63, 94, 0.14)',
+    '--brand-glow': 'rgba(253, 230, 138, 0.4)',
+    '--panel-glass': 'rgba(10, 6, 12, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,2,10,0.55) 0%, rgba(6,2,10,0.2) 42%, rgba(6,4,10,0.52) 100%)',
+  }),
+  themed('horizon', 'Event Horizon', 'horizon.jpg', '#fb923c', '#fbbf24', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.42)',
+    '--panel-glass': 'rgba(10, 6, 4, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,2,2,0.55) 0%, rgba(6,2,2,0.2) 42%, rgba(6,4,2,0.52) 100%)',
+  }),
+  themed('shibuya', 'Shibuya Rain', 'shibuya.jpg', '#e879f9', '#22d3ee', {
+    '--text': '#fdf4ff',
+    '--focus-ring': 'rgba(232, 121, 249, 0.22)',
+    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
+    '--brand-glow': 'rgba(232, 121, 249, 0.42)',
+    '--panel-glass': 'rgba(10, 6, 16, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,4,12,0.55) 0%, rgba(6,4,12,0.22) 42%, rgba(6,4,12,0.52) 100%)',
+  }),
+  themed('shinjuku', 'Shinjuku Alley', 'shinjuku-oil.jpg', '#f472b6', '#4ade80', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(10, 6, 12, 0.64)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,4,10,0.58) 0%, rgba(6,4,10,0.24) 42%, rgba(6,4,10,0.55) 100%)',
+  }),
+  themed('dotonbori', 'Dotonbori Canal', 'dotonbori-oil.jpg', '#fb7185', '#a3e635', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(163, 230, 53, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.42)',
+    '--panel-glass': 'rgba(12, 6, 12, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,10,0.55) 0%, rgba(8,4,10,0.22) 42%, rgba(8,4,10,0.52) 100%)',
+  }),
+  themed('ginzan', 'Ginzan Snow', 'ginzan-oil.jpg', '#fbbf24', '#93c5fd', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(147, 197, 253, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.38)',
+    '--panel-glass': 'rgba(10, 10, 16, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,14,0.5) 0%, rgba(6,8,14,0.18) 44%, rgba(6,8,14,0.48) 100%)',
+  }),
+  themed('takayama', 'Takayama Night', 'takayama-oil.jpg', '#f97316', '#818cf8', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(249, 115, 22, 0.22)',
+    '--accent-soft': 'rgba(129, 140, 248, 0.14)',
+    '--brand-glow': 'rgba(249, 115, 22, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 6, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,6,4,0.55) 0%, rgba(8,6,4,0.22) 42%, rgba(8,6,4,0.52) 100%)',
   }),
 ];
 

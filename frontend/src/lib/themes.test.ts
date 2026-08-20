@@ -15,11 +15,11 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe('themes', () => {
-  it('includes the midnight default plus twenty wallpapers', () => {
+  it('includes the midnight default plus twenty-seven wallpapers', () => {
     expect(THEMES[0].id).toBe('midnight');
     expect(THEMES[0].name.toLowerCase()).toContain('default');
-    expect(THEMES).toHaveLength(21);
-    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(20);
+    expect(THEMES).toHaveLength(28);
+    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(27);
   });
 
   it('maps the legacy dark setting to midnight', () => {
@@ -67,8 +67,8 @@ describe('themes', () => {
       theme: 'sakura',
       transparent: false,
     });
-    expect(appearanceFromWorkspace({ transparent_panels: false }, 'neon', true)).toEqual({
-      theme: 'neon',
+    expect(appearanceFromWorkspace({ transparent_panels: false }, 'iris', true)).toEqual({
+      theme: 'iris',
       transparent: false,
     });
   });
