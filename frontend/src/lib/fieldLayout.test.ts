@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { encodeFieldOrder, groupBodyBlocks, groupFieldsByRow, parseFieldOrder } from './fieldLayout';
+import {
+  encodeFieldOrder,
+  equalizeLineWidths,
+  fieldWidthPercent,
+  groupBodyBlocks,
+  groupFieldsByRow,
+  parseFieldOrder,
+  rebalanceLineWidths,
+} from './fieldLayout';
 import type { FieldDef } from './api';
 
 function f(id: string, order: number | string): FieldDef {
@@ -36,6 +44,31 @@ describe('encodeFieldOrder', () => {
   it('round-trips through parseFieldOrder', () => {
     expect(parseFieldOrder(encodeFieldOrder(51, 0)).col).toBe(0);
     expect(parseFieldOrder(encodeFieldOrder(51, 3)).col).toBe(3);
+  });
+});
+
+describe('line widths', () => {
+  it('defaults to an even split when width is omitted', () => {
+    const a = f('a', '10a');
+    const b = f('b', '10b');
+    expect(fieldWidthPercent(a, [a, b])).toBe(50);
+    expect(fieldWidthPercent(b, [a, b])).toBe(50);
+  });
+
+  it('equalizes a line to 100%', () => {
+    const fields = [f('a', '10a'), f('b', '10b'), f('c', '10c')];
+    const next = equalizeLineWidths(fields, 10);
+    expect(next.map((x) => x.width)).toEqual([33, 33, 34]);
+  });
+
+  it('scales the others on a line when one width changes', () => {
+    const fields = equalizeLineWidths([f('a', '10a'), f('b', '10b'), f('c', '10c')], 10);
+    const next = rebalanceLineWidths(fields, 10, 'a', 50);
+    expect(next.find((x) => x.id === 'a')?.width).toBe(50);
+    expect(next.find((x) => x.id === 'b')?.width).toBe(25);
+    expect(next.find((x) => x.id === 'c')?.width).toBe(25);
+    const sum = next.reduce((acc, x) => acc + (x.width ?? 0), 0);
+    expect(sum).toBe(100);
   });
 });
 

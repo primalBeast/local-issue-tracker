@@ -3,11 +3,14 @@
   import FieldRenderer from './FieldRenderer.svelte';
   import {
     encodeFieldOrder,
+    equalizeLineWidths,
     fieldFlex,
+    fieldWidthPercent,
     groupBodyBlocks,
     groupFieldsByRow,
     parseFieldOrder,
     pickField,
+    rebalanceLineWidths,
   } from './fieldLayout';
   import { isNotesFillRow } from './panelSize';
 
@@ -167,11 +170,31 @@
     }
   }
 
+  function fieldsOnLine(line: number): FieldDef[] {
+    return draft.filter((f) => lineOf(f) === line);
+  }
+
+  function displayWidth(f: FieldDef): number {
+    return Math.round(fieldWidthPercent(f, fieldsOnLine(lineOf(f))));
+  }
+
   function setPlacement(i: number, line: number, slot: number) {
+    const prevLine = lineOf(draft[i]);
     const row = Math.max(1, Math.floor(Number(line)) || 1);
     const col = Math.max(1, Math.floor(Number(slot)) || 1) - 1;
     draft[i] = { ...draft[i], order: encodeFieldOrder(row, col) };
-    draft = sortFields(draft);
+    let next = sortFields(draft);
+    if (prevLine !== row) {
+      next = equalizeLineWidths(next, prevLine);
+      next = equalizeLineWidths(next, row);
+    }
+    draft = next;
+  }
+
+  function setWidth(i: number, value: number) {
+    const f = draft[i];
+    if (!f) return;
+    draft = rebalanceLineWidths(draft, lineOf(f), f.id, value);
   }
 
   function slugify(label: string): string {
@@ -389,6 +412,19 @@
                 {/each}
               </select>
             </label>
+            <label class="template-place">
+              Width
+              <input
+                type="number"
+                min="5"
+                max="100"
+                step="1"
+                value={displayWidth(f)}
+                disabled={!canSave}
+                oninput={(e) => setWidth(i, Number(e.currentTarget.value))}
+              />
+              %
+            </label>
             <label class="check-row">
               <input
                 type="checkbox"
@@ -494,7 +530,7 @@
                 class:field-row-fill={isNotesFillRow(block.row)}
               >
                 {#each block.row.fields as def (def.id)}
-                  <div class="field-col" style:flex={fieldFlex(def)}>
+                  <div class="field-col" style:flex={`${fieldFlex(def, block.row.fields)} 1 0`}>
                     <FieldRenderer
                       {def}
                       fill={isNotesFillRow(block.row)}

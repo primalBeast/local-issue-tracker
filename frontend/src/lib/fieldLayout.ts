@@ -84,11 +84,89 @@ export function groupFieldsByRow(fields: FieldDef[]): FieldRow[] {
   return rows;
 }
 
-/** Optional flex weight for uneven columns (default 1). */
-export function fieldFlex(def: FieldDef): number {
+function lineRow(def: FieldDef): number {
+  return parseFieldOrder(def.order).row;
+}
+
+function weightOf(def: FieldDef): number {
+  if (typeof def.width === 'number' && Number.isFinite(def.width) && def.width > 0) {
+    return def.width;
+  }
   const w = def.width_weight ?? def.flex;
   if (typeof w === 'number' && w > 0) return w;
   return 1;
+}
+
+/** Percent of the line this control occupies (siblings should be the fields on that line). */
+export function fieldWidthPercent(def: FieldDef, siblings: FieldDef[]): number {
+  if (!siblings.length) return 100;
+  if (siblings.length === 1) return 100;
+  const sum = siblings.reduce((acc, f) => acc + weightOf(f), 0) || siblings.length;
+  return (weightOf(def) / sum) * 100;
+}
+
+/** Flex grow factor; uses width % when set, otherwise width_weight among siblings. */
+export function fieldFlex(def: FieldDef, siblings: FieldDef[] = [def]): number {
+  return fieldWidthPercent(def, siblings);
+}
+
+export function equalizeLineWidths(fields: FieldDef[], line: number): FieldDef[] {
+  const onLine = fields.filter((f) => lineRow(f) === line);
+  if (!onLine.length) return fields;
+  const n = onLine.length;
+  const each = Math.floor(100 / n);
+  const map = new Map<string, number>();
+  onLine.forEach((f, i) => {
+    map.set(f.id, i === n - 1 ? 100 - each * (n - 1) : each);
+  });
+  return fields.map((f) => (map.has(f.id) ? { ...f, width: map.get(f.id)! } : f));
+}
+
+/** Set one field’s width % and scale the others on that line so they sum to 100. */
+export function rebalanceLineWidths(
+  fields: FieldDef[],
+  line: number,
+  changedId: string,
+  newWidth: number,
+  minPct = 5
+): FieldDef[] {
+  const onLine = fields.filter((f) => lineRow(f) === line);
+  if (!onLine.length) return fields;
+  if (onLine.length === 1) {
+    return fields.map((f) => (f.id === onLine[0].id ? { ...f, width: 100 } : f));
+  }
+  const others = onLine.filter((f) => f.id !== changedId);
+  if (!others.length) {
+    return fields.map((f) => (f.id === changedId ? { ...f, width: 100 } : f));
+  }
+  const min = Math.max(1, Math.min(minPct, Math.floor(100 / onLine.length)));
+  const max = 100 - min * others.length;
+  let w = Math.round(Number(newWidth));
+  if (!Number.isFinite(w)) w = Math.round(100 / onLine.length);
+  w = Math.min(max, Math.max(min, w));
+  const rest = 100 - w;
+  const shares = others.map((f) => fieldWidthPercent(f, others));
+  const shareSum = shares.reduce((a, b) => a + b, 0) || others.length;
+  let used = 0;
+  const otherWidths = others.map((_, i) => {
+    if (i === others.length - 1) return Math.max(min, rest - used);
+    const part = Math.max(min, Math.round(rest * (shares[i] / shareSum)));
+    used += part;
+    return part;
+  });
+  const last = otherWidths.length - 1;
+  const otherTotal = otherWidths.reduce((a, b) => a + b, 0);
+  if (otherTotal !== rest) {
+    otherWidths[last] = Math.max(min, rest - (otherTotal - otherWidths[last]));
+  }
+  const map = new Map<string, number>();
+  map.set(changedId, w);
+  others.forEach((f, i) => map.set(f.id, otherWidths[i]));
+  const total = [...map.values()].reduce((a, b) => a + b, 0);
+  if (total !== 100) {
+    map.set(changedId, Math.max(min, w + (100 - total)));
+  }
+  return fields.map((f) => (map.has(f.id) ? { ...f, width: map.get(f.id)! } : f));
 }
 
 const WAITING_LAYOUT_IDS = new Set(['waiting', 'waiting_for', 'waiting_since', 'waiting_for_reason']);

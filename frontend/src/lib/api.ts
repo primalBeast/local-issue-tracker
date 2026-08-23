@@ -45,7 +45,9 @@ export type FieldDef = {
   show_in_compact?: boolean;
   visible_when?: { field: string; equals?: unknown; not_equals?: unknown };
   help_text?: string;
-  /** Relative width within a multi-field row (default 1). */
+  /** Share of the line, 1–100. Fields on the same line should sum to 100. */
+  width?: number;
+  /** Relative width within a multi-field row (default 1). Used if width is omitted. */
   width_weight?: number;
   /** Alias for width_weight. */
   flex?: number;

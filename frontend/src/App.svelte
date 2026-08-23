@@ -1841,7 +1841,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-23c</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-23d</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2245,7 +2245,7 @@
                         class:field-row-fill={isNotesFillRow(block.row)}
                       >
                         {#each block.row.fields as def (def.id)}
-                          <div class="field-col" style:flex={fieldFlex(def)}>
+                          <div class="field-col" style:flex={`${fieldFlex(def, block.row.fields)} 1 0`}>
                             <FieldRenderer
                               {def}
                               fill={isNotesFillRow(block.row)}

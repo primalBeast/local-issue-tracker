@@ -63,6 +63,12 @@ def validate_fields_schema(data: dict[str, Any]) -> dict[str, Any]:
                     f"field {fid}: order string must look like \"10\" or \"10a\", \"10b\", …"
                 )
             f["order"] = int(order_s) if re.fullmatch(r"\d+", order_s) else order_s
+        if "width" in f and f.get("width") is not None:
+            w = f.get("width")
+            if isinstance(w, bool) or not isinstance(w, (int, float)):
+                raise ValidationError(f"field {fid}: width must be a number")
+            if w <= 0 or w > 100:
+                raise ValidationError(f"field {fid}: width must be between 1 and 100")
         if ftype in ("select", "multiselect"):
             opts = f.get("options")
             if not isinstance(opts, list) or len(opts) == 0:
