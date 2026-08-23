@@ -13,6 +13,7 @@
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
+  import TemplateEditor from './lib/TemplateEditor.svelte';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupBodyBlocks, groupFieldsByRow, pickField } from './lib/fieldLayout';
   import { HEADER_TITLE_EDITOR_PX, isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
@@ -87,6 +88,7 @@
   } | null>(null);
   let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
   let itemDeleteConfirm = $state<{ id: string; name: string } | null>(null);
+  let templateEditorOpen = $state(false);
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -99,6 +101,8 @@
     ticket_prefix: string;
     newName: string;
     newPrefix: string;
+    newTemplate: string;
+    templates: Array<{ id: string; name: string; is_default: boolean }>;
   } | null>(null);
 
   const TAB_COLOR_SWATCHES: (string | null)[] = [
@@ -229,6 +233,10 @@
           boardRemoveConfirm = null;
           return;
         }
+        if (templateEditorOpen) {
+          templateEditorOpen = false;
+          return;
+        }
         if (projectEditor) {
           void closeProjectEditor(true);
           return;
@@ -262,6 +270,10 @@
       }
       if (boardRemoveConfirm) {
         if (!t?.closest?.('.confirm-dialog')) boardRemoveConfirm = null;
+        return;
+      }
+      if (templateEditorOpen) {
+        if (!t?.closest?.('.template-editor')) templateEditorOpen = false;
         return;
       }
       if (projectEditor && !t?.closest?.('.project-editor') && !t?.closest?.('.brand')) {
@@ -1599,7 +1611,22 @@
       ticket_prefix: project.ticket_prefix || readStoredPrefix(project.slug) || 'NEW-',
       newName: '',
       newPrefix: 'NEW-',
+      newTemplate: 'issue-tracker',
+      templates: [],
     };
+    void api.templates().then((body) => {
+      if (!projectEditor) return;
+      projectEditor = {
+        ...projectEditor,
+        templates: body.templates,
+        newTemplate: body.default || 'issue-tracker',
+      };
+    });
+  }
+
+  function openTemplateEditor() {
+    void closeProjectEditor(true);
+    templateEditorOpen = true;
   }
 
   async function persistProjectMeta(name: string, prefixRaw: string, toast: boolean) {
@@ -1664,7 +1691,12 @@
       projects.map((p) => p.slug)
     );
     try {
-      const created = await api.createProject({ slug, name, ticket_prefix });
+      const created = await api.createProject({
+        slug,
+        name,
+        ticket_prefix,
+        template: projectEditor.newTemplate || undefined,
+      });
       projects = [...projects, created];
       projectEditor = null;
       await loadProject(created.slug);
@@ -1809,7 +1841,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-22d</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-23a</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -1872,6 +1904,7 @@
           />
           <div class="board-editor-actions">
             <button type="button" class="ghost" onclick={() => void closeProjectEditor(false)}>Cancel</button>
+            <button type="button" onclick={openTemplateEditor}>Templates</button>
             <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
           </div>
         </section>
@@ -1910,6 +1943,14 @@
               if (e.key === 'Enter') void createNewProject();
             }}
           />
+          {#if projectEditor.templates.length}
+            <label class="field-label" for="new-project-template" style="margin-top:8px">Template</label>
+            <select id="new-project-template" bind:value={projectEditor.newTemplate}>
+              {#each projectEditor.templates as t}
+                <option value={t.id}>{t.name}{t.is_default ? ' (default)' : ''}</option>
+              {/each}
+            </select>
+          {/if}
           <div class="board-editor-actions">
             <button type="button" class="primary" onclick={() => void createNewProject()}>Create</button>
           </div>
@@ -1928,6 +1969,17 @@
           </div>
         </section>
       </div>
+    {/if}
+
+    {#if templateEditorOpen && project}
+      <TemplateEditor
+        projectSlug={project.slug}
+        projectName={project.name}
+        onclose={() => (templateEditorOpen = false)}
+        onprojectfields={(doc) => {
+          fieldsDoc = doc;
+        }}
+      />
     {/if}
 
     {#if boardEditor}

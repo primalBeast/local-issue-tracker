@@ -50,3 +50,8 @@ def validate_slug(slug: str) -> str:
 
 def templates_dir() -> Path:
     return Path(__file__).resolve().parent / "templates"
+
+
+def user_templates_dir() -> Path:
+    """Writable templates in the data folder (overrides shipped seeds for new projects)."""
+    return data_root() / "templates"

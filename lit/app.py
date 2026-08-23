@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from lit import __version__
-from lit.api import backups, deliverables, fields, items, notes, projects, settings, workspaces
+from lit.api import backups, deliverables, fields, items, notes, projects, settings, templates, workspaces
 from lit.config import get_config
 from lit.middleware import SecurityHeadersMiddleware, install_cors
 
@@ -54,6 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(workspaces.router)
     app.include_router(notes.router)
     app.include_router(deliverables.router)
+    app.include_router(templates.router)
     app.include_router(backups.router)
 
     dist = frontend_dist()

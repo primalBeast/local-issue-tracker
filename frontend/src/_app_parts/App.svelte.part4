@@ -122,7 +122,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-22d</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-23a</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -185,6 +185,7 @@
           />
           <div class="board-editor-actions">
             <button type="button" class="ghost" onclick={() => void closeProjectEditor(false)}>Cancel</button>
+            <button type="button" onclick={openTemplateEditor}>Templates</button>
             <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
           </div>
         </section>
@@ -223,6 +224,14 @@
               if (e.key === 'Enter') void createNewProject();
             }}
           />
+          {#if projectEditor.templates.length}
+            <label class="field-label" for="new-project-template" style="margin-top:8px">Template</label>
+            <select id="new-project-template" bind:value={projectEditor.newTemplate}>
+              {#each projectEditor.templates as t}
+                <option value={t.id}>{t.name}{t.is_default ? ' (default)' : ''}</option>
+              {/each}
+            </select>
+          {/if}
           <div class="board-editor-actions">
             <button type="button" class="primary" onclick={() => void createNewProject()}>Create</button>
           </div>
@@ -241,6 +250,17 @@
           </div>
         </section>
       </div>
+    {/if}
+
+    {#if templateEditorOpen && project}
+      <TemplateEditor
+        projectSlug={project.slug}
+        projectName={project.name}
+        onclose={() => (templateEditorOpen = false)}
+        onprojectfields={(doc) => {
+          fieldsDoc = doc;
+        }}
+      />
     {/if}
 
     {#if boardEditor}

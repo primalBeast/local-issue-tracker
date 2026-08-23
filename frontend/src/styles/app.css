@@ -528,6 +528,79 @@ body.lit-tab-dragging .ws-tab { cursor: grabbing !important; }
   background: color-mix(in srgb, var(--bg-input) 70%, transparent);
 }
 
+.template-editor {
+  position: fixed;
+  z-index: 2010;
+  top: calc(var(--topbar-h) + 8px);
+  left: 14px;
+  width: min(760px, calc(100vw - 28px));
+  max-height: calc(100vh - var(--topbar-h) - 24px);
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--panel-glass), var(--panel-glass)),
+    var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.template-help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.template-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.template-source button.current {
+  border-color: var(--accent);
+}
+.template-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.template-field {
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-input) 70%, transparent);
+}
+.template-field-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.template-field-top input[type="text"] {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.template-field-top select {
+  width: auto;
+  min-width: 110px;
+}
+.template-field textarea {
+  margin-top: 6px;
+  width: 100%;
+}
+.template-saveas {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
 .project-section-title {
   font-weight: 650;
   font-size: 11px;

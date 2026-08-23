@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from lit.paths import project_dir, projects_dir, templates_dir, validate_slug
+from lit.paths import project_dir, projects_dir, validate_slug
 from lit.services.waiting import (
     LEGACY_WAITING_STATE,
     apply_waiting_flag,
@@ -470,9 +470,9 @@ def _copy_template(
     name: str | None = None,
     ticket_prefix: str | None = None,
 ) -> Path:
-    src = templates_dir() / template_name
-    if not src.is_dir():
-        raise FileNotFoundError(f"Template not found: {template_name}")
+    from lit.storage.template_store import resolve_template
+
+    src = resolve_template(template_name)
     dest = project_dir(slug)
     if dest.exists():
         raise FileExistsError(slug)

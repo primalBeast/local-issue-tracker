@@ -136,8 +136,44 @@ export const api = {
     req('/api/settings', { method: 'PATCH', body: JSON.stringify(body) }),
   projects: () => req<Project[]>('/api/projects'),
   project: (slug: string) => req<Project>(`/api/projects/${slug}`),
-  createProject: (body: { slug: string; name?: string; ticket_prefix?: string }) =>
+  createProject: (body: { slug: string; name?: string; ticket_prefix?: string; template?: string }) =>
     req<Project>('/api/projects', { method: 'POST', body: JSON.stringify(body) }),
+  templates: () =>
+    req<{
+      default: string;
+      templates: Array<{
+        id: string;
+        name: string;
+        origin: string;
+        editable: boolean;
+        is_default: boolean;
+      }>;
+    }>('/api/templates'),
+  saveTemplate: (body: {
+    from_project: string;
+    id: string;
+    name?: string;
+    set_default?: boolean;
+    include_layout?: boolean;
+  }) =>
+    req<{ id: string; name: string; origin: string; editable: boolean; is_default: boolean }>(
+      '/api/templates',
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+  templateFields: (id: string) => req<FieldsDoc>(`/api/templates/${id}/fields`),
+  putTemplateFields: (id: string, body: FieldsDoc) =>
+    req<FieldsDoc>(`/api/templates/${id}/fields`, { method: 'PUT', body: JSON.stringify(body) }),
+  setDefaultTemplate: (id: string) =>
+    req<{
+      default: string;
+      templates: Array<{
+        id: string;
+        name: string;
+        origin: string;
+        editable: boolean;
+        is_default: boolean;
+      }>;
+    }>('/api/templates/default', { method: 'POST', body: JSON.stringify({ id }) }),
   patchProject: (slug: string, body: Record<string, unknown>) =>
     req<Project>(`/api/projects/${slug}`, { method: 'PATCH', body: JSON.stringify(body) }),
   openProjectFolder: (slug: string) =>

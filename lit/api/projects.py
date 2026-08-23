@@ -18,6 +18,7 @@ from lit.storage.project_fs import (
     load_project,
     save_project,
 )
+from lit.storage.template_store import default_template_id
 from lit.storage.settings_store import patch_settings
 
 logger = logging.getLogger("lit.projects")
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/api/projects", tags=["projects"])
 class ProjectCreate(BaseModel):
     slug: str
     name: str | None = None
-    template: str = "issue-tracker"
+    template: str | None = None
     ticket_prefix: str | None = None
 
 
@@ -78,7 +79,7 @@ def create(body: ProjectCreate) -> dict[str, Any]:
         proj = create_project(
             body.slug,
             name=body.name,
-            template=body.template,
+            template=body.template or default_template_id(),
             ticket_prefix=body.ticket_prefix,
         )
     except FileExistsError:

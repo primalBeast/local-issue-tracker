@@ -18,6 +18,7 @@ class SettingsPatch(BaseModel):
     transparency_by_theme: dict[str, float] | None = None
     ticket_prefix_by_project: dict[str, str] | None = None
     backup_retention_days: int | None = Field(default=None, ge=1, le=365)
+    default_template: str | None = None
     window: dict[str, Any] | None = None
 
 
@@ -41,6 +42,7 @@ async def update_settings(request: Request) -> dict[str, Any]:
         "transparency_by_theme",
         "ticket_prefix_by_project",
         "backup_retention_days",
+        "default_template",
         "window",
         "seeded_sample",
     }

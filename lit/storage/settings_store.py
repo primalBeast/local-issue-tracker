@@ -19,6 +19,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "ticket_prefix_by_project": {},
     "backup_retention_days": 30,
     "seeded_sample": False,
+    "default_template": "issue-tracker",
     "window": {"last_host": "127.0.0.1", "last_port": 8765},
 }
 

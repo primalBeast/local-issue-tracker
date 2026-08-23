@@ -373,7 +373,22 @@
       ticket_prefix: project.ticket_prefix || readStoredPrefix(project.slug) || 'NEW-',
       newName: '',
       newPrefix: 'NEW-',
+      newTemplate: 'issue-tracker',
+      templates: [],
     };
+    void api.templates().then((body) => {
+      if (!projectEditor) return;
+      projectEditor = {
+        ...projectEditor,
+        templates: body.templates,
+        newTemplate: body.default || 'issue-tracker',
+      };
+    });
+  }
+
+  function openTemplateEditor() {
+    void closeProjectEditor(true);
+    templateEditorOpen = true;
   }
 
   async function persistProjectMeta(name: string, prefixRaw: string, toast: boolean) {
@@ -438,7 +453,12 @@
       projects.map((p) => p.slug)
     );
     try {
-      const created = await api.createProject({ slug, name, ticket_prefix });
+      const created = await api.createProject({
+        slug,
+        name,
+        ticket_prefix,
+        template: projectEditor.newTemplate || undefined,
+      });
       projects = [...projects, created];
       projectEditor = null;
       await loadProject(created.slug);

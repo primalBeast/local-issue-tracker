@@ -56,7 +56,7 @@ def validate_fields_schema(data: dict[str, Any]) -> dict[str, Any]:
             raise ValidationError(
                 f"field {fid}: order must be a number or string (e.g. 10 or \"10a\")"
             )
-        if isinstance(ord_v, str) and not re.match(r"^\\d+[a-zA-Z]*$", ord_v.strip()):
+        if isinstance(ord_v, str) and not re.match(r"^\d+[a-zA-Z]*$", ord_v.strip()):
             raise ValidationError(
                 f"field {fid}: order string must look like \"10\" or \"10a\", \"10b\", …"
             )

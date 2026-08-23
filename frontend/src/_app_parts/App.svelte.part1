@@ -13,6 +13,7 @@
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
+  import TemplateEditor from './lib/TemplateEditor.svelte';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupBodyBlocks, groupFieldsByRow, pickField } from './lib/fieldLayout';
   import { HEADER_TITLE_EDITOR_PX, isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
@@ -87,6 +88,7 @@
   } | null>(null);
   let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
   let itemDeleteConfirm = $state<{ id: string; name: string } | null>(null);
+  let templateEditorOpen = $state(false);
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -99,6 +101,8 @@
     ticket_prefix: string;
     newName: string;
     newPrefix: string;
+    newTemplate: string;
+    templates: Array<{ id: string; name: string; is_default: boolean }>;
   } | null>(null);
 
   const TAB_COLOR_SWATCHES: (string | null)[] = [
@@ -229,6 +233,10 @@
           boardRemoveConfirm = null;
           return;
         }
+        if (templateEditorOpen) {
+          templateEditorOpen = false;
+          return;
+        }
         if (projectEditor) {
           void closeProjectEditor(true);
           return;
@@ -262,6 +270,10 @@
       }
       if (boardRemoveConfirm) {
         if (!t?.closest?.('.confirm-dialog')) boardRemoveConfirm = null;
+        return;
+      }
+      if (templateEditorOpen) {
+        if (!t?.closest?.('.template-editor')) templateEditorOpen = false;
         return;
       }
       if (projectEditor && !t?.closest?.('.project-editor') && !t?.closest?.('.brand')) {
