@@ -56,10 +56,13 @@ def validate_fields_schema(data: dict[str, Any]) -> dict[str, Any]:
             raise ValidationError(
                 f"field {fid}: order must be a number or string (e.g. 10 or \"10a\")"
             )
-        if isinstance(ord_v, str) and not re.match(r"^\d+[a-zA-Z]*$", ord_v.strip()):
-            raise ValidationError(
-                f"field {fid}: order string must look like \"10\" or \"10a\", \"10b\", …"
-            )
+        if isinstance(ord_v, str):
+            order_s = ord_v.strip()
+            if not re.fullmatch(r"\d+[a-zA-Z]*", order_s):
+                raise ValidationError(
+                    f"field {fid}: order string must look like \"10\" or \"10a\", \"10b\", …"
+                )
+            f["order"] = int(order_s) if re.fullmatch(r"\d+", order_s) else order_s
         if ftype in ("select", "multiselect"):
             opts = f.get("options")
             if not isinstance(opts, list) or len(opts) == 0:

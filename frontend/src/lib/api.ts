@@ -111,6 +111,25 @@ export type Workspace = {
   panels: Panel[];
 };
 
+function formatApiError(detail: unknown): string {
+  const inner =
+    detail && typeof detail === 'object' && 'detail' in detail
+      ? (detail as { detail: unknown }).detail
+      : detail;
+  if (typeof inner === 'string' && inner.trim()) return inner;
+  if (Array.isArray(inner)) {
+    const parts = inner.map((item) => {
+      if (item && typeof item === 'object' && 'message' in item) {
+        return String((item as { message: unknown }).message);
+      }
+      return typeof item === 'string' ? item : JSON.stringify(item);
+    });
+    return parts.filter(Boolean).join('\n') || 'Request failed';
+  }
+  if (inner && typeof inner === 'object') return JSON.stringify(inner);
+  return String(detail ?? 'Request failed');
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
@@ -123,7 +142,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new Error(typeof detail === 'object' ? JSON.stringify(detail) : String(detail));
+    throw new Error(formatApiError(detail));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

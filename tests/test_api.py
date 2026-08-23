@@ -113,6 +113,17 @@ def test_item_crud_and_lean_list(client: TestClient):
     assert all(p.get("item_id") != item_id for p in after.get("panels") or [])
 
 
+def test_put_fields_round_trip_keeps_letter_orders(client: TestClient):
+    slug = client.get("/api/projects").json()[0]["slug"]
+    fields = client.get(f"/api/projects/{slug}/fields").json()
+    by_id = {f["id"]: f for f in fields["fields"]}
+    assert by_id["priority"]["order"] == "30a"
+    saved = client.put(f"/api/projects/{slug}/fields", json=fields)
+    assert saved.status_code == 200, saved.text
+    again = saved.json()
+    assert next(f["order"] for f in again["fields"] if f["id"] == "priority") == "30a"
+
+
 def test_waiting_transition(client: TestClient):
     slug = client.get("/api/projects").json()[0]["slug"]
     created = client.post(

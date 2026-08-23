@@ -152,8 +152,15 @@
     draft = draft;
   }
 
+  function toPlain<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value)) as T;
+  }
+
   function payload(): FieldsDoc {
-    return { version, fields: draft, ...extra } as FieldsDoc;
+    const rest = toPlain(extra) as Record<string, unknown>;
+    delete rest.fields;
+    delete rest.version;
+    return { ...rest, version, fields: toPlain(draft) } as FieldsDoc;
   }
 
   async function save() {
