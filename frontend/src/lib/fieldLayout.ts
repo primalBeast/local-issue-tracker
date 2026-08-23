@@ -39,6 +39,25 @@ export function parseFieldOrder(order: number | string | undefined | null): Pars
   return { row, col, raw: s };
 }
 
+function colIndexToLetters(col: number): string {
+  let n = Math.max(0, Math.floor(col)) + 1;
+  let out = '';
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    out = String.fromCharCode(97 + rem) + out;
+    n = Math.floor((n - 1) / 26);
+  }
+  return out;
+}
+
+/** Inverse of parseFieldOrder: row 30, col 0 → 30; col 1 → "30b". */
+export function encodeFieldOrder(row: number, col: number): string | number {
+  const r = Math.max(0, Math.floor(Number(row)) || 0);
+  const c = Math.max(0, Math.floor(Number(col)) || 0);
+  if (c === 0) return r;
+  return `${r}${colIndexToLetters(c)}`;
+}
+
 export type FieldRow = {
   row: number;
   fields: FieldDef[];

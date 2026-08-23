@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupBodyBlocks, groupFieldsByRow, parseFieldOrder } from './fieldLayout';
+import { encodeFieldOrder, groupBodyBlocks, groupFieldsByRow, parseFieldOrder } from './fieldLayout';
 import type { FieldDef } from './api';
 
 function f(id: string, order: number | string): FieldDef {
@@ -20,6 +20,22 @@ describe('parseFieldOrder', () => {
 
   it('parses bare numeric string', () => {
     expect(parseFieldOrder('20')).toEqual({ row: 20, col: 0, raw: '20' });
+  });
+});
+
+describe('encodeFieldOrder', () => {
+  it('uses a plain number for the first control on a line', () => {
+    expect(encodeFieldOrder(10, 0)).toBe(10);
+  });
+
+  it('uses letter suffixes for 2nd and 3rd on a line', () => {
+    expect(encodeFieldOrder(30, 1)).toBe('30b');
+    expect(encodeFieldOrder(30, 2)).toBe('30c');
+  });
+
+  it('round-trips through parseFieldOrder', () => {
+    expect(parseFieldOrder(encodeFieldOrder(51, 0)).col).toBe(0);
+    expect(parseFieldOrder(encodeFieldOrder(51, 3)).col).toBe(3);
   });
 });
 
