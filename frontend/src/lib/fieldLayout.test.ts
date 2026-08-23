@@ -37,9 +37,10 @@ describe('groupFieldsByRow', () => {
 });
 
 describe('groupBodyBlocks', () => {
-  it('stacks waiting person/since beside reason, before notes', () => {
+  it('pulls waiting checkbox, name, and since into one block before notes', () => {
     const rows = groupFieldsByRow([
       f('priority', '30a'),
+      f('waiting', '49'),
       f('waiting_for', '50a'),
       f('waiting_for_reason', '50b'),
       f('waiting_since', 51),
@@ -49,6 +50,7 @@ describe('groupBodyBlocks', () => {
     expect(blocks.map((b) => b.kind)).toEqual(['row', 'waiting', 'row']);
     if (blocks[1].kind !== 'waiting') throw new Error('expected waiting');
     expect(blocks[1].fields.map((x) => x.id).sort()).toEqual([
+      'waiting',
       'waiting_for',
       'waiting_for_reason',
       'waiting_since',

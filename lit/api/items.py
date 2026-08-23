@@ -7,13 +7,32 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from lit.api.deps import db_path_for, project_meta, require_project
+from lit.api.deps import db_path_for, require_project
 from lit.services.validation import (
     ValidationError,
     apply_defaults,
     validate_item_fields,
 )
-from lit.services.waiting import apply_state_transition, set_open_started_at
+from lit.services.waiting import (
+    DONE_STATE,
+    LEGACY_WAITING_STATE,
+    WAITING_FALLBACK_STATE,
+    apply_waiting_flag,
+    is_waiting_flag,
+    normalize_waiting_fields,
+    set_open_started_at,
+)
+
+
+def _coerce_incoming_waiting(fields: dict[str, Any]) -> dict[str, Any]:
+    """Rewrite a legacy Waiting For state so validation can accept the patch."""
+    out = dict(fields)
+    if out.get("state") == LEGACY_WAITING_STATE:
+        out["state"] = WAITING_FALLBACK_STATE
+        out["waiting"] = True
+    if out.get("state") == DONE_STATE:
+        out["waiting"] = False
+    return out
 from lit.storage import items_db
 from lit.storage.project_fs import load_fields, strip_item_from_workspaces
 
@@ -67,9 +86,8 @@ async def get_item(slug: str, item_id: str) -> dict[str, Any]:
 @router.post("", status_code=201)
 async def create_item(slug: str, body: ItemCreate) -> dict[str, Any]:
     require_project(slug)
-    proj = project_meta(slug)
     field_defs = load_fields(slug).get("fields", [])
-    fields = apply_defaults(field_defs, body.fields)
+    fields = normalize_waiting_fields(apply_defaults(field_defs, body.fields))
     try:
         fields = validate_item_fields(
             field_defs, fields, partial=False, require_required=True
@@ -77,18 +95,16 @@ async def create_item(slug: str, body: ItemCreate) -> dict[str, Any]:
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.errors) from e
 
-    waiting_value = proj.get("waiting_state_value", "Waiting For")
     db = db_path_for(slug)
 
     def _create(conn):
         item = items_db.create_item(conn, fields, sort_key=body.sort_key)
-        if fields.get("state") == waiting_value:
-            apply_state_transition(
+        if is_waiting_flag(fields):
+            apply_waiting_flag(
                 conn,
                 item["id"],
-                old_state=None,
-                new_state=fields.get("state"),
-                waiting_state_value=waiting_value,
+                was_waiting=False,
+                is_waiting=True,
                 waiting_for=fields.get("waiting_for"),
                 reason=fields.get("waiting_for_reason"),
                 started_on=fields.get("waiting_since"),
@@ -105,16 +121,17 @@ async def create_item(slug: str, body: ItemCreate) -> dict[str, Any]:
 @router.patch("/{item_id}")
 async def patch_item(slug: str, item_id: str, body: ItemPatch) -> dict[str, Any]:
     require_project(slug)
-    proj = project_meta(slug)
     field_defs = load_fields(slug).get("fields", [])
     try:
         patch_fields = validate_item_fields(
-            field_defs, dict(body.fields), partial=True, require_required=False
+            field_defs,
+            _coerce_incoming_waiting(dict(body.fields)),
+            partial=True,
+            require_required=False,
         )
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=e.errors) from e
 
-    waiting_value = proj.get("waiting_state_value", "Waiting For")
     db = db_path_for(slug)
 
     def _patch(conn):
@@ -122,19 +139,17 @@ async def patch_item(slug: str, item_id: str, body: ItemPatch) -> dict[str, Any]
         if not current:
             raise KeyError(item_id)
         old_fields = current["fields"]
-        old_state = old_fields.get("state")
-        merged = {**old_fields, **patch_fields}
-        new_state = merged.get("state")
+        was_waiting = is_waiting_flag(old_fields)
+        merged = normalize_waiting_fields({**old_fields, **patch_fields})
         try:
             item = items_db.update_item_fields(conn, item_id, merged, body.version)
         except items_db.ConflictError as e:
             raise e
-        apply_state_transition(
+        apply_waiting_flag(
             conn,
             item_id,
-            old_state=old_state,
-            new_state=new_state,
-            waiting_state_value=waiting_value,
+            was_waiting=was_waiting,
+            is_waiting=is_waiting_flag(merged),
             waiting_for=merged.get("waiting_for"),
             reason=merged.get("waiting_for_reason"),
             started_on=merged.get("waiting_since"),

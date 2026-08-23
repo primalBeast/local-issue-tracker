@@ -32,7 +32,7 @@
     screenToWorld,
     zoomFromWheelDelta,
   } from './lib/viewport';
-  import { formatWaitingDays, liveSeconds } from './lib/waiting';
+  import { formatWaitingDays, isItemWaiting, liveSeconds, todayLocalDate } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import {
     appearanceFromWorkspace,
@@ -87,7 +87,13 @@
   } | null>(null);
   let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
   let itemDeleteConfirm = $state<{ id: string; name: string } | null>(null);
-  let itemContextMenu = $state<{ id: string; name: string; x: number; y: number } | null>(null);
+  let itemContextMenu = $state<{
+    itemId?: string;
+    panelId?: string;
+    name: string;
+    x: number;
+    y: number;
+  } | null>(null);
   let projectEditor = $state<{
     name: string;
     ticket_prefix: string;
@@ -174,6 +180,10 @@
           fieldDefs
         )
       : items
+  );
+  let listHasWaiting = $derived(filteredItems.some(isItemWaiting));
+  let allItemsColumns = $derived(
+    listHasWaiting ? listFields : listFields.filter((f) => f.id !== 'waiting_for')
   );
 
   onMount(() => {
@@ -1027,22 +1037,89 @@
     return key || title || 'this ticket';
   }
 
+  function menuPosition(e: MouseEvent) {
+    return {
+      x: Math.min(e.clientX, window.innerWidth - 200),
+      y: Math.min(e.clientY, window.innerHeight - 130),
+    };
+  }
+
+  function specialPanelTitle(kind: Panel['kind']): string {
+    if (kind === 'all_items') return 'All Items';
+    if (kind === 'notes') return 'Project Notes';
+    if (kind === 'deliverables') return 'Deliverables';
+    return 'Panel';
+  }
+
   function openItemContextMenu(e: MouseEvent, item: Item) {
     e.preventDefault();
     e.stopPropagation();
     boardEditor = null;
     itemDeleteConfirm = null;
     itemContextMenu = {
-      id: item.id,
+      itemId: item.id,
       name: itemLabel(item),
-      x: Math.min(e.clientX, window.innerWidth - 200),
-      y: Math.min(e.clientY, window.innerHeight - 90),
+      ...menuPosition(e),
     };
   }
 
-  function askDeleteItem(item: Item) {
+  function openPanelContextMenu(e: MouseEvent, panel: Panel) {
+    e.preventDefault();
+    e.stopPropagation();
+    boardEditor = null;
+    itemDeleteConfirm = null;
+    itemContextMenu = {
+      panelId: panel.id,
+      name: specialPanelTitle(panel.kind),
+      ...menuPosition(e),
+    };
+  }
+
+  function zoomToPanel(panel: Panel) {
+    const wrap = canvasWrapEl;
+    if (!wrap) return;
+    const view = fitView(
+      {
+        x: panel.x,
+        y: panel.y,
+        width: Math.max(1, panel.width),
+        height: Math.max(1, panel.height),
+      },
+      { width: wrap.clientWidth, height: wrap.clientHeight }
+    );
+    updateWorkspace((ws) => {
+      ws.ui.zoom = view.zoom;
+      ws.ui.viewport_scroll = view.pan;
+      const p = ws.panels.find((x) => x.id === panel.id);
+      if (!p) return;
+      p.z_index = Math.max(0, ...ws.panels.map((x) => x.z_index || 0)) + 1;
+      p.collapsed = false;
+    });
+  }
+
+  function focusItem(itemId: string) {
     itemContextMenu = null;
-    itemDeleteConfirm = { id: item.id, name: itemLabel(item) };
+    if (!workspace) return;
+    if (!workspace.panels.some((p) => p.kind === 'item' && p.item_id === itemId)) {
+      openItemPanel(itemId);
+    }
+    const panel = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
+    if (!panel) return;
+    zoomToPanel(panel);
+  }
+
+  function applyContextFocus() {
+    const menu = itemContextMenu;
+    itemContextMenu = null;
+    if (!menu || !workspace) return;
+    if (menu.itemId) {
+      focusItem(menu.itemId);
+      return;
+    }
+    if (menu.panelId) {
+      const panel = workspace.panels.find((p) => p.id === menu.panelId);
+      if (panel) zoomToPanel(panel);
+    }
   }
 
   function askDeleteItemById(id: string, name: string) {
@@ -1170,6 +1247,16 @@
     }
   }
 
+  function patchItemFields(itemId: string, id: string, value: unknown) {
+    const patch: Record<string, unknown> = { [id]: value };
+    if (id === 'state' && value === 'Done') patch.waiting = false;
+    if (id === 'waiting' && value === true) {
+      const current = detailCache[itemId];
+      if (!current?.fields?.waiting_since) patch.waiting_since = todayLocalDate();
+    }
+    scheduleItemPatch(itemId, patch);
+  }
+
   function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
     if (!project) return;
     // Optimistic lean list update
@@ -1251,9 +1338,9 @@
     }, 2800);
   }
 
-  function setFilterOption(fieldId: string, option: string, checked: boolean) {
+  function setFilterOption(fieldId: string, option: string | boolean, checked: boolean) {
     updateWorkspace((ws) => {
-      const cur = (ws.filters.active[fieldId] as string[] | undefined) || [];
+      const cur = (ws.filters.active[fieldId] as Array<string | boolean> | undefined) || [];
       let next = [...cur];
       if (checked && !next.includes(option)) next.push(option);
       if (!checked) next = next.filter((x) => x !== option);
@@ -1722,7 +1809,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-20i</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-22d</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -1901,12 +1988,18 @@
       >
         <button
           type="button"
-          class="danger"
-          onclick={() => {
-            if (!itemContextMenu) return;
-            askDeleteItemById(itemContextMenu.id, itemContextMenu.name);
-          }}
-        >Delete ticket</button>
+          onclick={() => applyContextFocus()}
+        >Focus</button>
+        {#if itemContextMenu.itemId}
+          <button
+            type="button"
+            class="danger"
+            onclick={() => {
+              if (!itemContextMenu?.itemId) return;
+              askDeleteItemById(itemContextMenu.itemId, itemContextMenu.name);
+            }}
+          >Delete ticket</button>
+        {/if}
       </div>
     {/if}
 
@@ -2003,7 +2096,7 @@
             oncontext={
               panel.kind === 'item' && item
                 ? (e) => openItemContextMenu(e, item)
-                : undefined
+                : (e) => openPanelContextMenu(e, panel)
             }
           >
             {#snippet titleSlot()}
@@ -2013,7 +2106,6 @@
                   description={String(item.fields.title ?? '')}
                   onTicketKey={(value) => scheduleItemPatch(item.id, { [keyField()]: value })}
                   onDescription={(value) => scheduleItemPatch(item.id, { title: value })}
-                  onDelete={() => askDeleteItem(item)}
                 />
               {:else}
                 <div class="panel-title">
@@ -2053,37 +2145,43 @@
                     {#if block.kind === 'waiting'}
                       {@const person = pickField(block.fields, 'waiting_for')}
                       {@const since = pickField(block.fields, 'waiting_since')}
-                      {@const reason = pickField(block.fields, 'waiting_for_reason')}
-                      {@const waitingOn =
-                        detailCache[item.id].fields.state ===
-                        (project.waiting_state_value || 'Waiting For')}
-                      {#if waitingOn}
-                      <div class="waiting-fields">
-                        {#if person}
-                          <div class="waiting-person">
-                            <FieldRenderer
-                              def={person}
-                              fields={detailCache[item.id].fields}
-                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
-                            />
-                          </div>
-                        {/if}
-                        {#if since}
-                          <div class="waiting-since">
-                            <FieldRenderer
-                              def={since}
-                              fields={detailCache[item.id].fields}
-                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
-                            />
-                          </div>
-                        {/if}
-                        {#if reason}
-                          <div class="waiting-reason">
-                            <FieldRenderer
-                              def={reason}
-                              fields={detailCache[item.id].fields}
-                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
-                            />
+                      {@const waitingOn = Boolean(detailCache[item.id].fields.waiting)}
+                      {#if detailCache[item.id].fields.state !== 'Done'}
+                      <div class="waiting-block">
+                        <label class="check-row">
+                          <input
+                            type="checkbox"
+                            checked={waitingOn}
+                            onchange={(e) => patchItemFields(item.id, 'waiting', e.currentTarget.checked)}
+                          />
+                          Waiting for...
+                        </label>
+                        {#if waitingOn}
+                          <div class="waiting-details">
+                            {#if person}
+                              <label class="waiting-inline">
+                                <span>Name:</span>
+                                <input
+                                  type="text"
+                                  value={String(detailCache[item.id].fields.waiting_for ?? '')}
+                                  oninput={(e) =>
+                                    scheduleItemPatch(item.id, { waiting_for: e.currentTarget.value })}
+                                />
+                              </label>
+                            {/if}
+                            {#if since}
+                              <label class="waiting-inline">
+                                <span>Since:</span>
+                                <input
+                                  type="date"
+                                  value={String(detailCache[item.id].fields.waiting_since ?? '')}
+                                  oninput={(e) =>
+                                    scheduleItemPatch(item.id, { waiting_since: e.currentTarget.value })}
+                                  onchange={(e) =>
+                                    scheduleItemPatch(item.id, { waiting_since: e.currentTarget.value })}
+                                />
+                              </label>
+                            {/if}
                           </div>
                         {/if}
                       </div>
@@ -2100,7 +2198,7 @@
                               {def}
                               fill={isNotesFillRow(block.row)}
                               fields={detailCache[item.id].fields}
-                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                              onchange={(id, value) => patchItemFields(item.id, id, value)}
                             />
                           </div>
                         {/each}
@@ -2134,6 +2232,15 @@
                             {opt}
                           </label>
                         {/each}
+                      {:else if ff.type === 'checkbox'}
+                        <label class="check-row">
+                          <input
+                            type="checkbox"
+                            checked={((workspace.filters.active[ff.id] as boolean[]) || []).includes(true)}
+                            onchange={(e) => setFilterOption(ff.id, true, e.currentTarget.checked)}
+                          />
+                          Yes
+                        </label>
                       {/if}
                     </div>
                   {/each}
@@ -2143,7 +2250,7 @@
               <table class="table">
                 <thead>
                   <tr>
-                    {#each listFields as f}
+                    {#each allItemsColumns as f}
                       <th
                         class="sortable"
                         class:sorted={workspace.sort?.field === f.id}
@@ -2151,11 +2258,13 @@
                         onclick={() => clickListSort(f.id)}
                       >{f.list_label || f.label}{listSortMark(f.id)}</th>
                     {/each}
-                    <th
-                      class="sortable"
-                      class:sorted={workspace.sort?.field === '_waiting'}
-                      onclick={() => clickListSort('_waiting')}
-                    >Waiting{listSortMark('_waiting')}</th>
+                    {#if listHasWaiting}
+                      <th
+                        class="sortable"
+                        class:sorted={workspace.sort?.field === '_waiting'}
+                        onclick={() => clickListSort('_waiting')}
+                      >Waiting{listSortMark('_waiting')}</th>
+                    {/if}
                   </tr>
                 </thead>
                 <tbody>
@@ -2165,21 +2274,21 @@
                       onclick={() => openItemPanel(it.id)}
                       oncontextmenu={(e) => openItemContextMenu(e, it)}
                     >
-                      {#each listFields as f}
-                        <td>{String(it.fields[f.id] ?? '')}</td>
+                      {#each allItemsColumns as f}
+                        <td>{f.id === 'waiting_for' && !isItemWaiting(it) ? '' : String(it.fields[f.id] ?? '')}</td>
                       {/each}
-                      <td>
-                        {#if it.waiting?.is_waiting}
-                          <span class="waiting-badge">
-                            {formatWaitingDays(
-                              liveSeconds(it.waiting.current_started_at, nowTick) ??
-                                it.waiting.current_seconds
-                            )}
-                          </span>
-                        {:else}
-                          —
-                        {/if}
-                      </td>
+                      {#if listHasWaiting}
+                        <td>
+                          {#if isItemWaiting(it)}
+                            <span class="waiting-badge">
+                              {formatWaitingDays(
+                                liveSeconds(it.waiting.current_started_at, nowTick) ??
+                                  it.waiting.current_seconds
+                              )}
+                            </span>
+                          {/if}
+                        </td>
+                      {/if}
                     </tr>
                   {/each}
                 </tbody>

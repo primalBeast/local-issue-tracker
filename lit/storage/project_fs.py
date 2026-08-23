@@ -11,6 +11,13 @@ from pathlib import Path
 from typing import Any
 
 from lit.paths import project_dir, projects_dir, templates_dir, validate_slug
+from lit.services.waiting import (
+    LEGACY_WAITING_STATE,
+    apply_waiting_flag,
+    get_open_period,
+    is_waiting_flag,
+    normalize_waiting_fields,
+)
 from lit.storage import items_db
 from lit.storage.json_io import read_json, write_json
 from lit.storage.settings_store import load_settings, patch_settings
@@ -42,6 +49,10 @@ def load_project(slug: str) -> dict[str, Any]:
         raise FileNotFoundError(slug)
     data = read_json(path)
     data["slug"] = slug  # path is source of truth
+    if _migrate_project_waiting_meta(data):
+        to_save = deepcopy(data)
+        to_save.pop("data_path", None)
+        write_json(path, to_save)
     prefs = load_settings().get("ticket_prefix_by_project") or {}
     overlay = prefs.get(slug) if isinstance(prefs, dict) else None
     if overlay:
@@ -144,34 +155,181 @@ def _migrate_urgency_item_values(slug: str) -> None:
 
 WAITING_SINCE_FIELD: dict[str, Any] = {
     "id": "waiting_since",
-    "label": "Waiting Since",
+    "label": "Since",
     "type": "date",
     "required": False,
     "order": 51,
     "default": "",
-    "visible_when": {"field": "state", "equals": "Waiting For"},
+    "visible_when": {"field": "waiting", "equals": True},
     "show_in_list": False,
 }
 
+WAITING_CHECKBOX_FIELD: dict[str, Any] = {
+    "id": "waiting",
+    "label": "Waiting for...",
+    "type": "checkbox",
+    "required": False,
+    "order": "49",
+    "default": False,
+    "visible_when": {"field": "state", "not_equals": "Done"},
+    "filterable": True,
+    "show_in_list": False,
+}
 
-def ensure_waiting_since_field(data: dict[str, Any]) -> bool:
+WAITING_VISIBLE_WHEN = {"field": "waiting", "equals": True}
+
+
+def _set_visible_when(field: dict[str, Any], visible_when: dict[str, Any]) -> bool:
+    if field.get("visible_when") != visible_when:
+        field["visible_when"] = dict(visible_when)
+        return True
+    return False
+
+
+def _insert_field_before(fields: list[Any], new_field: dict[str, Any], before_ids: tuple[str, ...]) -> None:
+    idx = next(
+        (i for i, f in enumerate(fields) if isinstance(f, dict) and f.get("id") in before_ids),
+        None,
+    )
+    if idx is None:
+        fields.append(dict(new_field))
+    else:
+        fields.insert(idx, dict(new_field))
+
+
+def ensure_waiting_as_field(data: dict[str, Any]) -> bool:
+    """Replace the Waiting For state with a Waiting checkbox + Name/Since fields."""
     fields = data.get("fields")
     if not isinstance(fields, list):
         return False
     changed = False
     for f in fields:
-        if isinstance(f, dict) and f.get("id") == "waiting_for" and not f.get("list_label"):
-            f["list_label"] = "Waiting For"
-            changed = True
-    if any(isinstance(f, dict) and f.get("id") == "waiting_since" for f in fields):
-        return changed
-    last_waiting = max(
-        (i for i, f in enumerate(fields) if isinstance(f, dict) and str(f.get("id", "")).startswith("waiting_for")),
-        default=len(fields) - 1,
-    )
-    fields.insert(last_waiting + 1, dict(WAITING_SINCE_FIELD))
+        if not isinstance(f, dict):
+            continue
+        fid = f.get("id")
+        if fid == "state":
+            opts = f.get("options")
+            if isinstance(opts, list) and LEGACY_WAITING_STATE in opts:
+                f["options"] = [o for o in opts if o != LEGACY_WAITING_STATE]
+                changed = True
+        elif fid == "waiting":
+            if _set_visible_when(f, {"field": "state", "not_equals": "Done"}):
+                changed = True
+            if f.get("label") == "Waiting":
+                f["label"] = "Waiting for..."
+                changed = True
+        elif fid == "waiting_for":
+            if _set_visible_when(f, WAITING_VISIBLE_WHEN):
+                changed = True
+            if f.get("label") == "Waiting For (person)":
+                f["label"] = "Name"
+                changed = True
+            if not f.get("list_label"):
+                f["list_label"] = "Waiting For"
+                changed = True
+        elif fid == "waiting_since":
+            if _set_visible_when(f, WAITING_VISIBLE_WHEN):
+                changed = True
+            if f.get("label") == "Waiting Since":
+                f["label"] = "Since"
+                changed = True
+        elif fid == "waiting_for_reason":
+            if _set_visible_when(f, WAITING_VISIBLE_WHEN):
+                changed = True
+    if not any(isinstance(f, dict) and f.get("id") == "waiting_since" for f in fields):
+        _insert_field_before(fields, WAITING_SINCE_FIELD, ("notes",))
+        changed = True
+    if not any(isinstance(f, dict) and f.get("id") == "waiting" for f in fields):
+        _insert_field_before(fields, WAITING_CHECKBOX_FIELD, ("waiting_for", "waiting_since", "waiting_for_reason"))
+        changed = True
     data["fields"] = fields
+    return changed
+
+
+def ensure_waiting_since_field(data: dict[str, Any]) -> bool:
+    """Back-compat alias used by older tests; now the full waiting-as-field migration."""
+    return ensure_waiting_as_field(data)
+
+
+def _migrate_project_waiting_meta(data: dict[str, Any]) -> bool:
+    changed = False
+    if "waiting_state_value" in data:
+        data.pop("waiting_state_value", None)
+        changed = True
+    color = data.get("color_coding")
+    if isinstance(color, dict):
+        palette = color.get("palette")
+        if isinstance(palette, dict) and LEGACY_WAITING_STATE in palette:
+            palette.pop(LEGACY_WAITING_STATE, None)
+            changed = True
+    return changed
+
+
+def _strip_legacy_waiting_filter(filt: dict[str, Any]) -> bool:
+    states = filt.get("state")
+    if not isinstance(states, list) or LEGACY_WAITING_STATE not in states:
+        return False
+    remaining = [s for s in states if s != LEGACY_WAITING_STATE]
+    if remaining:
+        filt["state"] = remaining
+    else:
+        filt.pop("state", None)
+        if "waiting" not in filt:
+            filt["waiting"] = [True]
     return True
+
+
+def migrate_waiting_filters(data: dict[str, Any]) -> bool:
+    filters = data.get("filters")
+    if not isinstance(filters, dict):
+        return False
+    changed = False
+    active = filters.get("active")
+    if isinstance(active, dict) and _strip_legacy_waiting_filter(active):
+        changed = True
+    presets = filters.get("presets")
+    if isinstance(presets, list):
+        for preset in presets:
+            if isinstance(preset, dict) and isinstance(preset.get("filter"), dict):
+                if _strip_legacy_waiting_filter(preset["filter"]):
+                    changed = True
+    return changed
+
+
+def _migrate_waiting_state_items(slug: str) -> None:
+    db = items_db.items_db_path(project_dir(slug))
+    if not db.exists():
+        return
+
+    def _walk(conn) -> None:
+        rows = conn.execute(
+            "SELECT id, fields_json FROM items WHERE fields_json LIKE ?",
+            (f'%"{LEGACY_WAITING_STATE}"%',),
+        ).fetchall()
+        if not rows:
+            return
+        for row in rows:
+            fields = json.loads(row["fields_json"])
+            if fields.get("state") != LEGACY_WAITING_STATE:
+                continue
+            was_waiting = is_waiting_flag(fields) or get_open_period(conn, row["id"]) is not None
+            fields = normalize_waiting_fields(fields)
+            conn.execute(
+                "UPDATE items SET fields_json=? WHERE id=?",
+                (json.dumps(fields, ensure_ascii=False), row["id"]),
+            )
+            apply_waiting_flag(
+                conn,
+                row["id"],
+                was_waiting=was_waiting,
+                is_waiting=True,
+                waiting_for=fields.get("waiting_for"),
+                reason=fields.get("waiting_for_reason"),
+                started_on=fields.get("waiting_since"),
+            )
+        conn.commit()
+
+    items_db.run_db(db, _walk)
 
 
 def ensure_unbounded_int_fields(data: dict[str, Any]) -> bool:
@@ -207,12 +365,16 @@ def load_fields(slug: str) -> dict[str, Any]:
             _migrate_urgency_item_values(slug)
         except Exception:
             pass
-    if ensure_waiting_since_field(data):
+    if ensure_waiting_as_field(data):
         changed = True
     if ensure_unbounded_int_fields(data):
         changed = True
     if changed:
         write_json(path, data)
+    try:
+        _migrate_waiting_state_items(slug)
+    except Exception:
+        pass
     return data
 
 
@@ -252,6 +414,8 @@ def list_workspaces(slug: str) -> list[dict[str, Any]]:
     result = []
     for p in sorted(ws_dir.glob("*.json")):
         data = read_json(p)
+        if migrate_waiting_filters(data):
+            write_json(p, data)
         result.append(data)
     result.sort(key=lambda w: (w.get("order", 0), w.get("name", "")))
     return result
@@ -261,7 +425,10 @@ def load_workspace(slug: str, workspace_id: str) -> dict[str, Any]:
     path = project_dir(slug) / "workspaces" / f"{workspace_id}.json"
     if not path.exists():
         raise FileNotFoundError(workspace_id)
-    return read_json(path)
+    data = read_json(path)
+    if migrate_waiting_filters(data):
+        write_json(path, data)
+    return data
 
 
 def save_workspace(slug: str, workspace_id: str, data: dict[str, Any]) -> dict[str, Any]:

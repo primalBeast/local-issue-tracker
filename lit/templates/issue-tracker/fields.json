@@ -68,8 +68,7 @@
         "External Fixing \u2013 PS",
         "In QA",
         "Done",
-        "On Hold",
-        "Waiting For"
+        "On Hold"
       ],
       "show_in_list": true,
       "filterable": true,
@@ -95,15 +94,29 @@
       "filterable": true
     },
     {
+      "id": "waiting",
+      "label": "Waiting for...",
+      "type": "checkbox",
+      "required": false,
+      "order": "49",
+      "default": false,
+      "visible_when": {
+        "field": "state",
+        "not_equals": "Done"
+      },
+      "filterable": true,
+      "show_in_list": false
+    },
+    {
       "id": "waiting_for",
-      "label": "Waiting For (person)",
+      "label": "Name",
       "type": "text",
       "required": false,
       "order": "50a",
       "default": "",
       "visible_when": {
-        "field": "state",
-        "equals": "Waiting For"
+        "field": "waiting",
+        "equals": true
       },
       "filterable": true,
       "show_in_list": true,
@@ -117,21 +130,21 @@
       "order": "50b",
       "default": "",
       "visible_when": {
-        "field": "state",
-        "equals": "Waiting For"
+        "field": "waiting",
+        "equals": true
       },
       "width_weight": 2
     },
     {
       "id": "waiting_since",
-      "label": "Waiting Since",
+      "label": "Since",
       "type": "date",
       "required": false,
       "order": 51,
       "default": "",
       "visible_when": {
-        "field": "state",
-        "equals": "Waiting For"
+        "field": "waiting",
+        "equals": true
       },
       "show_in_list": false
     },

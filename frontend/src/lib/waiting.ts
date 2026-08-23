@@ -17,6 +17,20 @@ export function formatWaitingDays(seconds: number | null | undefined): string {
   return days === 1 ? '1 day' : `${days} days`;
 }
 
+export function todayLocalDate(now = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function isItemWaiting(item: {
+  fields?: Record<string, unknown>;
+  waiting?: { is_waiting?: boolean } | null;
+}): boolean {
+  return Boolean(item.fields?.waiting) || Boolean(item.waiting?.is_waiting);
+}
+
 export function liveSeconds(startedAt: string | null | undefined, nowMs = Date.now()): number | null {
   if (!startedAt) return null;
   const t = Date.parse(startedAt);

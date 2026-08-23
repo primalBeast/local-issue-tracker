@@ -32,7 +32,7 @@
     screenToWorld,
     zoomFromWheelDelta,
   } from './lib/viewport';
-  import { formatWaitingDays, liveSeconds } from './lib/waiting';
+  import { formatWaitingDays, isItemWaiting, liveSeconds, todayLocalDate } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import {
     appearanceFromWorkspace,
@@ -87,7 +87,13 @@
   } | null>(null);
   let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
   let itemDeleteConfirm = $state<{ id: string; name: string } | null>(null);
-  let itemContextMenu = $state<{ id: string; name: string; x: number; y: number } | null>(null);
+  let itemContextMenu = $state<{
+    itemId?: string;
+    panelId?: string;
+    name: string;
+    x: number;
+    y: number;
+  } | null>(null);
   let projectEditor = $state<{
     name: string;
     ticket_prefix: string;
@@ -174,6 +180,10 @@
           fieldDefs
         )
       : items
+  );
+  let listHasWaiting = $derived(filteredItems.some(isItemWaiting));
+  let allItemsColumns = $derived(
+    listHasWaiting ? listFields : listFields.filter((f) => f.id !== 'waiting_for')
   );
 
   onMount(() => {

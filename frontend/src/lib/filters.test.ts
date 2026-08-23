@@ -1,0 +1,39 @@
+import { describe, expect, it } from 'vitest';
+import type { FieldDef } from './api';
+import { isVisible, itemMatchesFilters } from './filters';
+
+function field(partial: Partial<FieldDef> & Pick<FieldDef, 'id' | 'type'>): FieldDef {
+  return { label: partial.id, order: 1, ...partial };
+}
+
+describe('isVisible', () => {
+  it('hides the waiting checkbox when state is Done', () => {
+    const def = field({
+      id: 'waiting',
+      type: 'checkbox',
+      visible_when: { field: 'state', not_equals: 'Done' },
+    });
+    expect(isVisible(def, { state: 'Submitted' })).toBe(true);
+    expect(isVisible(def, { state: 'Done' })).toBe(false);
+  });
+
+  it('shows name/since only when waiting is checked', () => {
+    const def = field({
+      id: 'waiting_for',
+      type: 'text',
+      visible_when: { field: 'waiting', equals: true },
+    });
+    expect(isVisible(def, { waiting: true })).toBe(true);
+    expect(isVisible(def, { waiting: false })).toBe(false);
+  });
+});
+
+describe('itemMatchesFilters', () => {
+  it('filters the waiting checkbox', () => {
+    const defs = [field({ id: 'waiting', type: 'checkbox' })];
+    const waiting = { fields: { waiting: true } } as never;
+    const idle = { fields: { waiting: false } } as never;
+    expect(itemMatchesFilters(waiting, { waiting: [true] }, defs)).toBe(true);
+    expect(itemMatchesFilters(idle, { waiting: [true] }, defs)).toBe(false);
+  });
+});

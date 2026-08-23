@@ -1,11 +1,15 @@
-"""Waiting period transitions on state field changes."""
+"""Waiting period transitions on the waiting checkbox field."""
 
 from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
+
+LEGACY_WAITING_STATE = "Waiting For"
+WAITING_FALLBACK_STATE = "Submitted"
+DONE_STATE = "Done"
 
 
 def _now() -> str:
@@ -42,20 +46,40 @@ def set_open_started_at(conn: sqlite3.Connection, item_id: str, date_str: str) -
     )
 
 
-def apply_state_transition(
+def is_waiting_flag(fields: dict[str, Any] | None) -> bool:
+    if not fields:
+        return False
+    if fields.get("state") == LEGACY_WAITING_STATE:
+        return True
+    return bool(fields.get("waiting"))
+
+
+def normalize_waiting_fields(fields: dict[str, Any]) -> dict[str, Any]:
+    """Coerce legacy Waiting For state and keep Done tickets from waiting."""
+    out = dict(fields)
+    if out.get("state") == LEGACY_WAITING_STATE:
+        out["state"] = WAITING_FALLBACK_STATE
+        out["waiting"] = True
+    if out.get("state") == DONE_STATE:
+        out["waiting"] = False
+    if out.get("waiting") and not str(out.get("waiting_since") or "").strip():
+        out["waiting_since"] = date.today().isoformat()
+    return out
+
+
+def apply_waiting_flag(
     conn: sqlite3.Connection,
     item_id: str,
     *,
-    old_state: Any,
-    new_state: Any,
-    waiting_state_value: str,
+    was_waiting: bool,
+    is_waiting: bool,
     waiting_for: str | None = None,
     reason: str | None = None,
     started_on: str | None = None,
 ) -> None:
-    """Open/close waiting periods when fields['state'] enters/leaves waiting_state_value."""
-    was_waiting = old_state == waiting_state_value
-    is_waiting = new_state == waiting_state_value
+    """Open/close waiting periods when the waiting checkbox changes."""
+    was_waiting = bool(was_waiting)
+    is_waiting = bool(is_waiting)
     now = _now()
 
     if was_waiting and not is_waiting:
@@ -66,27 +90,23 @@ def apply_state_transition(
                 (now, open_p["id"]),
             )
 
-    if not was_waiting and is_waiting:
+    if is_waiting:
         open_p = get_open_period(conn, item_id)
-        if open_p:
-            return
-        start = started_at_from_date(started_on, now) if started_on else now
-        conn.execute(
-            "INSERT INTO waiting_periods(id, item_id, started_at, ended_at, waiting_for, reason, created_at) "
-            "VALUES(?,?,?,NULL,?,?,?)",
-            (
-                str(uuid.uuid4()),
-                item_id,
-                start,
-                waiting_for or "",
-                reason or "",
-                now,
-            ),
-        )
-
-    if was_waiting and is_waiting:
-        open_p = get_open_period(conn, item_id)
-        if open_p and (waiting_for is not None or reason is not None):
+        if not open_p:
+            start = started_at_from_date(started_on, now) if started_on else now
+            conn.execute(
+                "INSERT INTO waiting_periods(id, item_id, started_at, ended_at, waiting_for, reason, created_at) "
+                "VALUES(?,?,?,NULL,?,?,?)",
+                (
+                    str(uuid.uuid4()),
+                    item_id,
+                    start,
+                    waiting_for or "",
+                    reason or "",
+                    now,
+                ),
+            )
+        elif waiting_for is not None or reason is not None:
             conn.execute(
                 "UPDATE waiting_periods SET waiting_for=COALESCE(?, waiting_for), "
                 "reason=COALESCE(?, reason) WHERE id=?",

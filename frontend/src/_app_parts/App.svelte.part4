@@ -122,7 +122,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-20i</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-22d</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -301,12 +301,18 @@
       >
         <button
           type="button"
-          class="danger"
-          onclick={() => {
-            if (!itemContextMenu) return;
-            askDeleteItemById(itemContextMenu.id, itemContextMenu.name);
-          }}
-        >Delete ticket</button>
+          onclick={() => applyContextFocus()}
+        >Focus</button>
+        {#if itemContextMenu.itemId}
+          <button
+            type="button"
+            class="danger"
+            onclick={() => {
+              if (!itemContextMenu?.itemId) return;
+              askDeleteItemById(itemContextMenu.itemId, itemContextMenu.name);
+            }}
+          >Delete ticket</button>
+        {/if}
       </div>
     {/if}
 
@@ -403,7 +409,7 @@
             oncontext={
               panel.kind === 'item' && item
                 ? (e) => openItemContextMenu(e, item)
-                : undefined
+                : (e) => openPanelContextMenu(e, panel)
             }
           >
             {#snippet titleSlot()}
@@ -413,7 +419,6 @@
                   description={String(item.fields.title ?? '')}
                   onTicketKey={(value) => scheduleItemPatch(item.id, { [keyField()]: value })}
                   onDescription={(value) => scheduleItemPatch(item.id, { title: value })}
-                  onDelete={() => askDeleteItem(item)}
                 />
               {:else}
                 <div class="panel-title">
@@ -453,37 +458,43 @@
                     {#if block.kind === 'waiting'}
                       {@const person = pickField(block.fields, 'waiting_for')}
                       {@const since = pickField(block.fields, 'waiting_since')}
-                      {@const reason = pickField(block.fields, 'waiting_for_reason')}
-                      {@const waitingOn =
-                        detailCache[item.id].fields.state ===
-                        (project.waiting_state_value || 'Waiting For')}
-                      {#if waitingOn}
-                      <div class="waiting-fields">
-                        {#if person}
-                          <div class="waiting-person">
-                            <FieldRenderer
-                              def={person}
-                              fields={detailCache[item.id].fields}
-                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
-                            />
-                          </div>
-                        {/if}
-                        {#if since}
-                          <div class="waiting-since">
-                            <FieldRenderer
-                              def={since}
-                              fields={detailCache[item.id].fields}
-                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
-                            />
-                          </div>
-                        {/if}
-                        {#if reason}
-                          <div class="waiting-reason">
-                            <FieldRenderer
-                              def={reason}
-                              fields={detailCache[item.id].fields}
-                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
-                            />
+                      {@const waitingOn = Boolean(detailCache[item.id].fields.waiting)}
+                      {#if detailCache[item.id].fields.state !== 'Done'}
+                      <div class="waiting-block">
+                        <label class="check-row">
+                          <input
+                            type="checkbox"
+                            checked={waitingOn}
+                            onchange={(e) => patchItemFields(item.id, 'waiting', e.currentTarget.checked)}
+                          />
+                          Waiting for...
+                        </label>
+                        {#if waitingOn}
+                          <div class="waiting-details">
+                            {#if person}
+                              <label class="waiting-inline">
+                                <span>Name:</span>
+                                <input
+                                  type="text"
+                                  value={String(detailCache[item.id].fields.waiting_for ?? '')}
+                                  oninput={(e) =>
+                                    scheduleItemPatch(item.id, { waiting_for: e.currentTarget.value })}
+                                />
+                              </label>
+                            {/if}
+                            {#if since}
+                              <label class="waiting-inline">
+                                <span>Since:</span>
+                                <input
+                                  type="date"
+                                  value={String(detailCache[item.id].fields.waiting_since ?? '')}
+                                  oninput={(e) =>
+                                    scheduleItemPatch(item.id, { waiting_since: e.currentTarget.value })}
+                                  onchange={(e) =>
+                                    scheduleItemPatch(item.id, { waiting_since: e.currentTarget.value })}
+                                />
+                              </label>
+                            {/if}
                           </div>
                         {/if}
                       </div>
@@ -500,7 +511,7 @@
                               {def}
                               fill={isNotesFillRow(block.row)}
                               fields={detailCache[item.id].fields}
-                              onchange={(id, value) => scheduleItemPatch(item.id, { [id]: value })}
+                              onchange={(id, value) => patchItemFields(item.id, id, value)}
                             />
                           </div>
                         {/each}
@@ -534,6 +545,15 @@
                             {opt}
                           </label>
                         {/each}
+                      {:else if ff.type === 'checkbox'}
+                        <label class="check-row">
+                          <input
+                            type="checkbox"
+                            checked={((workspace.filters.active[ff.id] as boolean[]) || []).includes(true)}
+                            onchange={(e) => setFilterOption(ff.id, true, e.currentTarget.checked)}
+                          />
+                          Yes
+                        </label>
                       {/if}
                     </div>
                   {/each}
@@ -543,7 +563,7 @@
               <table class="table">
                 <thead>
                   <tr>
-                    {#each listFields as f}
+                    {#each allItemsColumns as f}
                       <th
                         class="sortable"
                         class:sorted={workspace.sort?.field === f.id}
@@ -551,11 +571,13 @@
                         onclick={() => clickListSort(f.id)}
                       >{f.list_label || f.label}{listSortMark(f.id)}</th>
                     {/each}
-                    <th
-                      class="sortable"
-                      class:sorted={workspace.sort?.field === '_waiting'}
-                      onclick={() => clickListSort('_waiting')}
-                    >Waiting{listSortMark('_waiting')}</th>
+                    {#if listHasWaiting}
+                      <th
+                        class="sortable"
+                        class:sorted={workspace.sort?.field === '_waiting'}
+                        onclick={() => clickListSort('_waiting')}
+                      >Waiting{listSortMark('_waiting')}</th>
+                    {/if}
                   </tr>
                 </thead>
                 <tbody>
@@ -565,21 +587,21 @@
                       onclick={() => openItemPanel(it.id)}
                       oncontextmenu={(e) => openItemContextMenu(e, it)}
                     >
-                      {#each listFields as f}
-                        <td>{String(it.fields[f.id] ?? '')}</td>
+                      {#each allItemsColumns as f}
+                        <td>{f.id === 'waiting_for' && !isItemWaiting(it) ? '' : String(it.fields[f.id] ?? '')}</td>
                       {/each}
-                      <td>
-                        {#if it.waiting?.is_waiting}
-                          <span class="waiting-badge">
-                            {formatWaitingDays(
-                              liveSeconds(it.waiting.current_started_at, nowTick) ??
-                                it.waiting.current_seconds
-                            )}
-                          </span>
-                        {:else}
-                          —
-                        {/if}
-                      </td>
+                      {#if listHasWaiting}
+                        <td>
+                          {#if isItemWaiting(it)}
+                            <span class="waiting-badge">
+                              {formatWaitingDays(
+                                liveSeconds(it.waiting.current_started_at, nowTick) ??
+                                  it.waiting.current_seconds
+                              )}
+                            </span>
+                          {/if}
+                        </td>
+                      {/if}
                     </tr>
                   {/each}
                 </tbody>

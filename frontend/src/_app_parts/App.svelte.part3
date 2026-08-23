@@ -21,6 +21,16 @@
     }
   }
 
+  function patchItemFields(itemId: string, id: string, value: unknown) {
+    const patch: Record<string, unknown> = { [id]: value };
+    if (id === 'state' && value === 'Done') patch.waiting = false;
+    if (id === 'waiting' && value === true) {
+      const current = detailCache[itemId];
+      if (!current?.fields?.waiting_since) patch.waiting_since = todayLocalDate();
+    }
+    scheduleItemPatch(itemId, patch);
+  }
+
   function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
     if (!project) return;
     // Optimistic lean list update
@@ -102,9 +112,9 @@
     }, 2800);
   }
 
-  function setFilterOption(fieldId: string, option: string, checked: boolean) {
+  function setFilterOption(fieldId: string, option: string | boolean, checked: boolean) {
     updateWorkspace((ws) => {
-      const cur = (ws.filters.active[fieldId] as string[] | undefined) || [];
+      const cur = (ws.filters.active[fieldId] as Array<string | boolean> | undefined) || [];
       let next = [...cur];
       if (checked && !next.includes(option)) next.push(option);
       if (!checked) next = next.filter((x) => x !== option);

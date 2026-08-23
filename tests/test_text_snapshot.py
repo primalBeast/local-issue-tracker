@@ -241,7 +241,8 @@ def test_waiting_clock_does_not_write_another_file(data_dir: Path) -> None:
             "ticket_key": "W-1",
             "title": "Blocked",
             "priority": 1,
-            "state": "Waiting For",
+            "state": "Submitted",
+            "waiting": True,
             "waiting_for": "Pat",
         },
     )

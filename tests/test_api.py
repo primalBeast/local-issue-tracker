@@ -47,10 +47,14 @@ def test_seeded_project_and_fields(client: TestClient):
     assert "notes" in ids
     assert "urgency" in ids
     assert "waiting_since" in ids
+    assert "waiting" in ids
     by_id = {f["id"]: f for f in fields["fields"]}
     assert by_id["priority"]["order"] == "30a"
     assert by_id["urgency"]["order"] == "30b"
     assert by_id["state"]["order"] == "30c"
+    assert "Waiting For" not in by_id["state"]["options"]
+    assert by_id["waiting"]["type"] == "checkbox"
+    assert by_id["waiting"]["visible_when"] == {"field": "state", "not_equals": "Done"}
 
 
 def test_item_crud_and_lean_list(client: TestClient):
@@ -119,12 +123,14 @@ def test_waiting_transition(client: TestClient):
     waiting = client.patch(
         f"/api/projects/{slug}/items/{item_id}",
         json={
-            "fields": {"state": "Waiting For", "waiting_for": "Alice"},
+            "fields": {"waiting": True, "waiting_for": "Alice"},
             "version": created["version"],
         },
     )
     assert waiting.status_code == 200, waiting.text
     body = waiting.json()
+    assert body["fields"]["waiting"] is True
+    assert body["fields"]["state"] == "In fixing"
     assert body["waiting"]["is_waiting"] is True
     assert body["waiting"]["current_started_at"]
     assert body["fields"].get("waiting_since") == body["waiting"]["current_started_at"][:10]
@@ -138,15 +144,124 @@ def test_waiting_transition(client: TestClient):
     assert body["fields"]["waiting_since"] == "2024-01-15"
     assert body["waiting"]["current_started_at"].startswith("2024-01-15")
 
+    keep = client.patch(
+        f"/api/projects/{slug}/items/{item_id}",
+        json={"fields": {"state": "Submitted"}, "version": body["version"]},
+    )
+    assert keep.status_code == 200
+    body = keep.json()
+    assert body["fields"]["state"] == "Submitted"
+    assert body["fields"]["waiting"] is True
+    assert body["waiting"]["is_waiting"] is True
+
     done = client.patch(
         f"/api/projects/{slug}/items/{item_id}",
-        json={"fields": {"state": "In fixing"}, "version": body["version"]},
+        json={"fields": {"waiting": False}, "version": body["version"]},
     )
     assert done.status_code == 200
     body2 = done.json()
     assert body2["waiting"]["is_waiting"] is False
     assert body2["waiting"]["total_seconds"] >= 0
     assert len(body2["waiting"]["history"]) >= 1
+
+
+def test_waiting_cleared_when_done(client: TestClient):
+    slug = client.get("/api/projects").json()[0]["slug"]
+    created = client.post(
+        f"/api/projects/{slug}/items",
+        json={
+            "fields": {
+                "ticket_key": "W-DONE",
+                "priority": 2,
+                "state": "Submitted",
+                "waiting": True,
+                "waiting_for": "Sam",
+            }
+        },
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["waiting"]["is_waiting"] is True
+    patched = client.patch(
+        f"/api/projects/{slug}/items/{body['id']}",
+        json={"fields": {"state": "Done"}, "version": body["version"]},
+    )
+    assert patched.status_code == 200, patched.text
+    done = patched.json()
+    assert done["fields"]["state"] == "Done"
+    assert done["fields"]["waiting"] is False
+    assert done["waiting"]["is_waiting"] is False
+
+
+def test_legacy_waiting_for_state_migrates_to_submitted(client: TestClient):
+    import json
+
+    from lit.storage import items_db
+    from lit.storage.project_fs import project_dir
+
+    slug = client.get("/api/projects").json()[0]["slug"]
+    db = items_db.items_db_path(project_dir(slug))
+
+    def _insert(conn):
+        return items_db.create_item(
+            conn,
+            {
+                "ticket_key": "LEG-1",
+                "priority": 1,
+                "state": "Waiting For",
+                "waiting_for": "Bob",
+            },
+        )
+
+    seeded = items_db.run_db(db, _insert)
+    assert seeded["fields"]["state"] == "Waiting For"
+
+    fields = client.get(f"/api/projects/{slug}/fields").json()
+    state = next(f for f in fields["fields"] if f["id"] == "state")
+    assert "Waiting For" not in state["options"]
+    assert any(f["id"] == "waiting" for f in fields["fields"])
+
+    items = client.get(f"/api/projects/{slug}/items").json()
+    match = next(x for x in items if x["fields"].get("ticket_key") == "LEG-1")
+    assert match["fields"]["state"] == "Submitted"
+    assert match["fields"]["waiting"] is True
+    assert match["fields"]["waiting_for"] == "Bob"
+    assert match["waiting"]["is_waiting"] is True
+
+    via_api = client.post(
+        f"/api/projects/{slug}/items",
+        json={"fields": {"ticket_key": "LEG-2", "priority": 1, "state": "Waiting For"}},
+    )
+    assert via_api.status_code == 201, via_api.text
+    created = via_api.json()
+    assert created["fields"]["state"] == "Submitted"
+    assert created["fields"]["waiting"] is True
+    assert created["waiting"]["is_waiting"] is True
+
+    from lit.storage.json_io import read_json, write_json
+
+    ws_dir = project_dir(slug) / "workspaces"
+    for path in ws_dir.glob("*.json"):
+        data = read_json(path)
+        data.setdefault("filters", {})["presets"] = [
+            {
+                "id": "preset-active",
+                "name": "Active work",
+                "filter": {"state": ["In fixing", "Waiting For", "Submitted"]},
+            },
+            {
+                "id": "preset-waiting",
+                "name": "Waiting",
+                "filter": {"state": ["Waiting For"]},
+            },
+        ]
+        write_json(path, data)
+
+    ws = client.get(f"/api/projects/{slug}/workspaces").json()[0]
+    presets = {p["id"]: p["filter"] for p in ws["filters"]["presets"]}
+    assert "Waiting For" not in json.dumps(presets)
+    assert "Waiting For" not in presets["preset-active"]["state"]
+    assert presets["preset-waiting"] == {"waiting": [True]}
 
 
 def test_theme_setting_round_trip(client: TestClient):

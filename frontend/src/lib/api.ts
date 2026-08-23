@@ -2,7 +2,7 @@ export type Project = {
   id: string;
   slug: string;
   name: string;
-  waiting_state_value: string;
+  waiting_state_value?: string;
   color_coding: {
     color_by_field: string;
     intensity_by_field: string;
@@ -43,7 +43,7 @@ export type FieldDef = {
   /** Optional All Items column title (falls back to label). */
   list_label?: string;
   show_in_compact?: boolean;
-  visible_when?: { field: string; equals: unknown };
+  visible_when?: { field: string; equals?: unknown; not_equals?: unknown };
   help_text?: string;
   /** Relative width within a multi-field row (default 1). */
   width_weight?: number;

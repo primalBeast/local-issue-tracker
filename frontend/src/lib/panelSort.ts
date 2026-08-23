@@ -1,4 +1,7 @@
 import type { FieldDef, Item, Panel } from './api';
+import { isItemWaiting } from './waiting';
+
+const WAITING_VALUE_FIELDS = new Set(['waiting_for', 'waiting_since']);
 
 export const PANEL_SORT_OPTIONS = [
   { id: 'ticket_key', label: 'Ticket number' },
@@ -15,6 +18,7 @@ export function isPanelSortField(id: string): id is PanelSortField {
 }
 
 function fieldValue(item: Item, field: string, defs: FieldDef[]): unknown {
+  if (WAITING_VALUE_FIELDS.has(field) && !isItemWaiting(item)) return '';
   const raw = item.fields[field];
   if (raw != null && raw !== '') return raw;
   const def = defs.find((d) => d.id === field);

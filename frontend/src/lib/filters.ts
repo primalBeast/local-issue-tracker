@@ -1,10 +1,18 @@
 import type { FieldDef, Item } from './api';
 import { compareItemFields } from './panelSort';
+import { isItemWaiting } from './waiting';
 
 export function isVisible(def: FieldDef, fields: Record<string, unknown>): boolean {
   const vw = def.visible_when;
   if (!vw) return true;
-  return fields[vw.field] === vw.equals;
+  const value = fields[vw.field];
+  if (Object.prototype.hasOwnProperty.call(vw, 'equals') && value !== vw.equals) {
+    return false;
+  }
+  if (Object.prototype.hasOwnProperty.call(vw, 'not_equals') && value === vw.not_equals) {
+    return false;
+  }
+  return true;
 }
 
 export function itemMatchesFilters(
@@ -25,7 +33,7 @@ export function itemMatchesFilters(
         const hit = (value as string[]).some((v) => filterVal.includes(v));
         if (!hit) return false;
       } else if (def.type === 'checkbox') {
-        if (!filterVal.includes(value as boolean)) return false;
+        if (!filterVal.includes(Boolean(value))) return false;
       } else {
         if (!filterVal.includes(value as string)) return false;
       }
@@ -47,8 +55,8 @@ export function sortItems(
   const dir = sort.direction === 'desc' ? -1 : 1;
   return [...items].sort((a, b) => {
     if (sort.field === '_waiting') {
-      const aw = a.waiting?.is_waiting ? (a.waiting.current_seconds ?? 0) : -1;
-      const bw = b.waiting?.is_waiting ? (b.waiting.current_seconds ?? 0) : -1;
+      const aw = isItemWaiting(a) ? (a.waiting?.current_seconds ?? 0) : -1;
+      const bw = isItemWaiting(b) ? (b.waiting?.current_seconds ?? 0) : -1;
       return (aw - bw) * dir;
     }
     return compareItemFields(a, b, sort.field, defs) * dir;

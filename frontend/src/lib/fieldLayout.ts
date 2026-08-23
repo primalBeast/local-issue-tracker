@@ -72,7 +72,7 @@ export function fieldFlex(def: FieldDef): number {
   return 1;
 }
 
-const WAITING_LAYOUT_IDS = new Set(['waiting_for', 'waiting_since', 'waiting_for_reason']);
+const WAITING_LAYOUT_IDS = new Set(['waiting', 'waiting_for', 'waiting_since', 'waiting_for_reason']);
 
 export type BodyBlock =
   | { kind: 'row'; row: FieldRow }

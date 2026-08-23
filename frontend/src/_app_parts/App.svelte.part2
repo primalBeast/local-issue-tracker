@@ -487,22 +487,89 @@
     return key || title || 'this ticket';
   }
 
+  function menuPosition(e: MouseEvent) {
+    return {
+      x: Math.min(e.clientX, window.innerWidth - 200),
+      y: Math.min(e.clientY, window.innerHeight - 130),
+    };
+  }
+
+  function specialPanelTitle(kind: Panel['kind']): string {
+    if (kind === 'all_items') return 'All Items';
+    if (kind === 'notes') return 'Project Notes';
+    if (kind === 'deliverables') return 'Deliverables';
+    return 'Panel';
+  }
+
   function openItemContextMenu(e: MouseEvent, item: Item) {
     e.preventDefault();
     e.stopPropagation();
     boardEditor = null;
     itemDeleteConfirm = null;
     itemContextMenu = {
-      id: item.id,
+      itemId: item.id,
       name: itemLabel(item),
-      x: Math.min(e.clientX, window.innerWidth - 200),
-      y: Math.min(e.clientY, window.innerHeight - 90),
+      ...menuPosition(e),
     };
   }
 
-  function askDeleteItem(item: Item) {
+  function openPanelContextMenu(e: MouseEvent, panel: Panel) {
+    e.preventDefault();
+    e.stopPropagation();
+    boardEditor = null;
+    itemDeleteConfirm = null;
+    itemContextMenu = {
+      panelId: panel.id,
+      name: specialPanelTitle(panel.kind),
+      ...menuPosition(e),
+    };
+  }
+
+  function zoomToPanel(panel: Panel) {
+    const wrap = canvasWrapEl;
+    if (!wrap) return;
+    const view = fitView(
+      {
+        x: panel.x,
+        y: panel.y,
+        width: Math.max(1, panel.width),
+        height: Math.max(1, panel.height),
+      },
+      { width: wrap.clientWidth, height: wrap.clientHeight }
+    );
+    updateWorkspace((ws) => {
+      ws.ui.zoom = view.zoom;
+      ws.ui.viewport_scroll = view.pan;
+      const p = ws.panels.find((x) => x.id === panel.id);
+      if (!p) return;
+      p.z_index = Math.max(0, ...ws.panels.map((x) => x.z_index || 0)) + 1;
+      p.collapsed = false;
+    });
+  }
+
+  function focusItem(itemId: string) {
     itemContextMenu = null;
-    itemDeleteConfirm = { id: item.id, name: itemLabel(item) };
+    if (!workspace) return;
+    if (!workspace.panels.some((p) => p.kind === 'item' && p.item_id === itemId)) {
+      openItemPanel(itemId);
+    }
+    const panel = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
+    if (!panel) return;
+    zoomToPanel(panel);
+  }
+
+  function applyContextFocus() {
+    const menu = itemContextMenu;
+    itemContextMenu = null;
+    if (!menu || !workspace) return;
+    if (menu.itemId) {
+      focusItem(menu.itemId);
+      return;
+    }
+    if (menu.panelId) {
+      const panel = workspace.panels.find((p) => p.id === menu.panelId);
+      if (panel) zoomToPanel(panel);
+    }
   }
 
   function askDeleteItemById(id: string, name: string) {

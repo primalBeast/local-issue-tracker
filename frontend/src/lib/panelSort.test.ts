@@ -104,3 +104,42 @@ describe('sortItems header toggle', () => {
     expect(desc.map((i) => i.fields.priority)).toEqual([3, 2, 1]);
   });
 });
+
+describe('waiting leftover values do not sort', () => {
+  const waitingDefs: FieldDef[] = [
+    ...defs,
+    { id: 'waiting', label: 'Waiting', type: 'checkbox', order: 49 },
+    { id: 'waiting_for', label: 'Name', type: 'text', order: '50a' },
+    { id: 'waiting_since', label: 'Since', type: 'date', order: 51 },
+  ];
+
+  function waitingItem(
+    id: string,
+    fields: Record<string, unknown>,
+    waiting?: Partial<Item['waiting']>
+  ): Item {
+    const it = item(id, fields);
+    if (waiting) it.waiting = { ...it.waiting, ...waiting };
+    return it;
+  }
+
+  it('ignores leftover Waiting For names when the checkbox is off', () => {
+    const list = [
+      waitingItem('idle-z', { waiting: false, waiting_for: 'Zed' }),
+      waitingItem('wait-m', { waiting: true, waiting_for: 'Mia' }, { is_waiting: true }),
+      waitingItem('wait-a', { waiting: true, waiting_for: 'Ann' }, { is_waiting: true }),
+    ];
+    const asc = sortItems(list, { field: 'waiting_for', direction: 'asc' }, waitingDefs);
+    expect(asc.map((i) => i.id)).toEqual(['wait-a', 'wait-m', 'idle-z']);
+  });
+
+  it('ignores leftover Waiting Since dates when the checkbox is off', () => {
+    const list = [
+      waitingItem('idle-old', { waiting: false, waiting_since: '2020-01-01' }),
+      waitingItem('wait-new', { waiting: true, waiting_since: '2026-08-01' }, { is_waiting: true }),
+      waitingItem('wait-mid', { waiting: true, waiting_since: '2026-04-01' }, { is_waiting: true }),
+    ];
+    const asc = sortItems(list, { field: 'waiting_since', direction: 'asc' }, waitingDefs);
+    expect(asc.map((i) => i.id)).toEqual(['wait-mid', 'wait-new', 'idle-old']);
+  });
+});

@@ -23,7 +23,6 @@
           "state": [
             "In fixing",
             "In QA",
-            "Waiting For",
             "Submitted"
           ]
         }
@@ -32,8 +31,8 @@
         "id": "preset-waiting",
         "name": "Waiting",
         "filter": {
-          "state": [
-            "Waiting For"
+          "waiting": [
+            true
           ]
         }
       }
