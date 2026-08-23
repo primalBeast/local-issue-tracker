@@ -47,6 +47,8 @@ export type FieldDef = {
   help_text?: string;
   /** Share of the line, 1–100. Fields on the same line should sum to 100. */
   width?: number;
+  /** When true, width is not changed when other controls on the line are resized. */
+  width_lock?: boolean;
   /** Relative width within a multi-field row (default 1). Used if width is omitted. */
   width_weight?: number;
   /** Alias for width_weight. */

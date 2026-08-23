@@ -70,6 +70,18 @@ describe('line widths', () => {
     const sum = next.reduce((acc, x) => acc + (x.width ?? 0), 0);
     expect(sum).toBe(100);
   });
+
+  it('does not change locked widths when another control on the line is resized', () => {
+    const fields = [
+      { ...f('a', '10a'), width: 40 },
+      { ...f('b', '10b'), width: 30, width_lock: true },
+      { ...f('c', '10c'), width: 30 },
+    ];
+    const next = rebalanceLineWidths(fields, 10, 'a', 50);
+    expect(next.find((x) => x.id === 'a')?.width).toBe(50);
+    expect(next.find((x) => x.id === 'b')?.width).toBe(30);
+    expect(next.find((x) => x.id === 'c')?.width).toBe(20);
+  });
 });
 
 describe('groupFieldsByRow', () => {

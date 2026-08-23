@@ -63,6 +63,9 @@ def validate_fields_schema(data: dict[str, Any]) -> dict[str, Any]:
                     f"field {fid}: order string must look like \"10\" or \"10a\", \"10b\", …"
                 )
             f["order"] = int(order_s) if re.fullmatch(r"\d+", order_s) else order_s
+        if "width_lock" in f and f.get("width_lock") is not None:
+            if not isinstance(f.get("width_lock"), bool):
+                raise ValidationError(f"field {fid}: width_lock must be a boolean")
         if "width" in f and f.get("width") is not None:
             w = f.get("width")
             if isinstance(w, bool) or not isinstance(w, (int, float)):

@@ -428,6 +428,18 @@
             <label class="check-row">
               <input
                 type="checkbox"
+                checked={Boolean(f.width_lock)}
+                disabled={!canSave}
+                onchange={(e) => {
+                  f.width_lock = e.currentTarget.checked;
+                  draft = draft;
+                }}
+              />
+              Lock Width
+            </label>
+            <label class="check-row">
+              <input
+                type="checkbox"
                 checked={Boolean(f.required)}
                 disabled={!canSave}
                 onchange={(e) => {

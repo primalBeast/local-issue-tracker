@@ -110,19 +110,56 @@ export function fieldFlex(def: FieldDef, siblings: FieldDef[] = [def]): number {
   return fieldWidthPercent(def, siblings);
 }
 
-export function equalizeLineWidths(fields: FieldDef[], line: number): FieldDef[] {
-  const onLine = fields.filter((f) => lineRow(f) === line);
-  if (!onLine.length) return fields;
-  const n = onLine.length;
-  const each = Math.floor(100 / n);
-  const map = new Map<string, number>();
-  onLine.forEach((f, i) => {
-    map.set(f.id, i === n - 1 ? 100 - each * (n - 1) : each);
-  });
+export function isWidthLocked(def: FieldDef): boolean {
+  return Boolean(def.width_lock);
+}
+
+function applyWidths(fields: FieldDef[], map: Map<string, number>): FieldDef[] {
   return fields.map((f) => (map.has(f.id) ? { ...f, width: map.get(f.id)! } : f));
 }
 
-/** Set one field’s width % and scale the others on that line so they sum to 100. */
+function splitInts(count: number, total: number, min: number, shares?: number[]): number[] {
+  if (count <= 0) return [];
+  if (count === 1) return [total];
+  const floorMin = Math.max(0, min);
+  const weights = shares && shares.length === count ? shares : Array(count).fill(1);
+  const weightSum = weights.reduce((a, b) => a + b, 0) || count;
+  const out: number[] = [];
+  let used = 0;
+  for (let i = 0; i < count; i++) {
+    if (i === count - 1) {
+      out.push(Math.max(floorMin, total - used));
+      break;
+    }
+    const part = Math.max(floorMin, Math.round(total * (weights[i] / weightSum)));
+    out.push(part);
+    used += part;
+  }
+  const extra = total - out.reduce((a, b) => a + b, 0);
+  if (extra !== 0) out[out.length - 1] += extra;
+  return out;
+}
+
+export function equalizeLineWidths(fields: FieldDef[], line: number): FieldDef[] {
+  const onLine = fields.filter((f) => lineRow(f) === line);
+  if (!onLine.length) return fields;
+  const locked = onLine.filter(isWidthLocked);
+  const unlocked = onLine.filter((f) => !isWidthLocked(f));
+  const map = new Map<string, number>();
+  let lockedSum = 0;
+  for (const f of locked) {
+    const w = Math.round(fieldWidthPercent(f, onLine));
+    map.set(f.id, w);
+    lockedSum += w;
+  }
+  if (!unlocked.length) return applyWidths(fields, map);
+  const rest = Math.max(0, 100 - lockedSum);
+  const parts = splitInts(unlocked.length, rest, unlocked.length ? 1 : 0);
+  unlocked.forEach((f, i) => map.set(f.id, parts[i]));
+  return applyWidths(fields, map);
+}
+
+/** Set one field’s width % and scale unlocked others on that line so they sum to 100. */
 export function rebalanceLineWidths(
   fields: FieldDef[],
   line: number,
@@ -136,37 +173,36 @@ export function rebalanceLineWidths(
     return fields.map((f) => (f.id === onLine[0].id ? { ...f, width: 100 } : f));
   }
   const others = onLine.filter((f) => f.id !== changedId);
-  if (!others.length) {
-    return fields.map((f) => (f.id === changedId ? { ...f, width: 100 } : f));
-  }
-  const min = Math.max(1, Math.min(minPct, Math.floor(100 / onLine.length)));
-  const max = 100 - min * others.length;
-  let w = Math.round(Number(newWidth));
-  if (!Number.isFinite(w)) w = Math.round(100 / onLine.length);
-  w = Math.min(max, Math.max(min, w));
-  const rest = 100 - w;
-  const shares = others.map((f) => fieldWidthPercent(f, others));
-  const shareSum = shares.reduce((a, b) => a + b, 0) || others.length;
-  let used = 0;
-  const otherWidths = others.map((_, i) => {
-    if (i === others.length - 1) return Math.max(min, rest - used);
-    const part = Math.max(min, Math.round(rest * (shares[i] / shareSum)));
-    used += part;
-    return part;
-  });
-  const last = otherWidths.length - 1;
-  const otherTotal = otherWidths.reduce((a, b) => a + b, 0);
-  if (otherTotal !== rest) {
-    otherWidths[last] = Math.max(min, rest - (otherTotal - otherWidths[last]));
-  }
+  const lockedOthers = others.filter(isWidthLocked);
+  const unlockedOthers = others.filter((f) => !isWidthLocked(f));
   const map = new Map<string, number>();
-  map.set(changedId, w);
-  others.forEach((f, i) => map.set(f.id, otherWidths[i]));
-  const total = [...map.values()].reduce((a, b) => a + b, 0);
-  if (total !== 100) {
-    map.set(changedId, Math.max(min, w + (100 - total)));
+  let lockedSum = 0;
+  for (const f of lockedOthers) {
+    const lw = Math.round(fieldWidthPercent(f, onLine));
+    map.set(f.id, lw);
+    lockedSum += lw;
   }
-  return fields.map((f) => (map.has(f.id) ? { ...f, width: map.get(f.id)! } : f));
+  const min = Math.max(1, Math.min(minPct, Math.floor(100 / Math.max(2, unlockedOthers.length + 1))));
+  const minUnlocked = min * unlockedOthers.length;
+  const maxW = Math.max(min, 100 - lockedSum - minUnlocked);
+  let w = Math.round(Number(newWidth));
+  if (!Number.isFinite(w)) w = Math.round((100 - lockedSum) / Math.max(1, unlockedOthers.length + 1));
+  w = Math.min(maxW, Math.max(min, w));
+  map.set(changedId, w);
+  const rest = 100 - lockedSum - w;
+  if (!unlockedOthers.length) {
+    map.set(changedId, 100 - lockedSum);
+    return applyWidths(fields, map);
+  }
+  const shares = unlockedOthers.map((f) => fieldWidthPercent(f, unlockedOthers));
+  const parts = splitInts(unlockedOthers.length, rest, min, shares);
+  unlockedOthers.forEach((f, i) => map.set(f.id, parts[i]));
+  const total = [...map.values()].reduce((a, b) => a + b, 0);
+  if (total !== 100 && unlockedOthers.length) {
+    const lastId = unlockedOthers[unlockedOthers.length - 1].id;
+    map.set(lastId, (map.get(lastId) ?? 0) + (100 - total));
+  }
+  return applyWidths(fields, map);
 }
 
 const WAITING_LAYOUT_IDS = new Set(['waiting', 'waiting_for', 'waiting_since', 'waiting_for_reason']);
