@@ -167,6 +167,31 @@
     return parseFieldOrder(f.order).col + 1;
   }
 
+  function formatVisibleWhen(vw: FieldDef['visible_when']): string | null {
+    if (!vw?.field) return null;
+    const name = draft.find((f) => f.id === vw.field)?.label || vw.field;
+    if (Object.prototype.hasOwnProperty.call(vw, 'equals')) {
+      if (vw.equals === true) return `until ${name} is checked`;
+      if (vw.equals === false) return `until ${name} is off`;
+      return `until ${name} is ${String(vw.equals)}`;
+    }
+    if (Object.prototype.hasOwnProperty.call(vw, 'not_equals')) {
+      if (vw.not_equals === true) return `unless ${name} is checked`;
+      if (vw.not_equals === false) return `unless ${name} is off`;
+      return `unless ${name} is ${String(vw.not_equals)}`;
+    }
+    return null;
+  }
+
+  function lineVisibilityHint(fields: FieldDef[]): string | null {
+    const hints = fields.map((f) => formatVisibleWhen(f.visible_when)).filter((h): h is string => Boolean(h));
+    if (!hints.length) return null;
+    const unique = [...new Set(hints)];
+    const all = hints.length === fields.length;
+    const text = unique.join(' · ');
+    return all ? text : `some ${text}`;
+  }
+
   function ordinal(n: number): string {
     const v = n % 100;
     if (v >= 11 && v <= 13) return `${n}th`;
@@ -395,12 +420,16 @@
   <div class="template-split">
     <div class="template-fields">
       {#each fieldGroups as group (group.line)}
+        {@const when = lineVisibilityHint(group.fields)}
         <section class="template-line">
           <div class="template-line-head">
             Line {group.line}
             <span class="template-line-count"
               >{group.fields.length === 1 ? '1 control' : `${group.fields.length} controls`}</span
             >
+            {#if when}
+              <span class="template-line-when">{when}</span>
+            {/if}
           </div>
           {#each group.fields as f (f.id)}
             <div class="template-field" class:open={expandedFields[f.id]}>

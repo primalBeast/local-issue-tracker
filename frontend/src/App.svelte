@@ -1841,7 +1841,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-23g</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-23h</span>
         <span
           class="server-dot"
           class:ok={serverOk}
