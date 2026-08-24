@@ -58,6 +58,7 @@
   let saveAsName = $state('');
   let saveAsDefault = $state(true);
   let saveAsLayout = $state(true);
+  let expandedFields = $state<Record<string, boolean>>({});
 
   let editingProject = $derived(source === 'project');
   let appTemplate = $derived(
@@ -349,6 +350,10 @@
   function patchPreview(id: string, value: unknown) {
     previewValues = { ...previewValues, [id]: value };
   }
+
+  function toggleField(id: string) {
+    expandedFields = { ...expandedFields, [id]: !expandedFields[id] };
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -398,8 +403,18 @@
             >
           </div>
           {#each group.fields as f (f.id)}
-            <div class="template-field">
+            <div class="template-field" class:open={expandedFields[f.id]}>
               <div class="template-field-top">
+                <button
+                  type="button"
+                  class="ghost template-field-toggle"
+                  class:open={expandedFields[f.id]}
+                  title={expandedFields[f.id] ? 'Hide details' : 'Show details'}
+                  aria-expanded={Boolean(expandedFields[f.id])}
+                  onclick={() => toggleField(f.id)}
+                >
+                  ▾
+                </button>
                 <input
                   type="text"
                   bind:value={f.label}
@@ -418,92 +433,97 @@
                     <option value={t}>{t}</option>
                   {/each}
                 </select>
-                <label class="template-place">
-                  Line
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={lineOf(f)}
-                    disabled={!canSave}
-                    oninput={(e) => setPlacement(f.id, Number(e.currentTarget.value), slotOf(f))}
-                  />
-                </label>
-                <label class="template-place">
-                  On line
-                  <select
-                    value={slotOf(f)}
-                    disabled={!canSave}
-                    onchange={(e) => setPlacement(f.id, lineOf(f), Number(e.currentTarget.value))}
-                  >
-                    {#each [1, 2, 3, 4, 5, 6] as n}
-                      <option value={n}>{ordinal(n)}</option>
-                    {/each}
-                  </select>
-                </label>
-                <label class="template-place">
-                  Width
-                  <input
-                    type="number"
-                    min="5"
-                    max="100"
-                    step="1"
-                    value={displayWidth(f)}
-                    disabled={!canSave}
-                    oninput={(e) => setWidth(f.id, Number(e.currentTarget.value))}
-                  />
-                  %
-                </label>
-                <label class="check-row">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(f.width_lock)}
-                    disabled={!canSave}
-                    onchange={(e) => {
-                      f.width_lock = e.currentTarget.checked;
-                      draft = draft;
-                    }}
-                  />
-                  Lock Width
-                </label>
-                <label class="check-row">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(f.required)}
-                    disabled={!canSave}
-                    onchange={(e) => {
-                      f.required = e.currentTarget.checked;
-                      draft = draft;
-                    }}
-                  />
-                  Required
-                </label>
-                <label class="check-row">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(f.show_in_list)}
-                    disabled={!canSave}
-                    onchange={(e) => {
-                      f.show_in_list = e.currentTarget.checked;
-                      draft = draft;
-                    }}
-                  />
-                  All Items
-                </label>
-                {#if !RESERVED.has(f.id)}
-                  <button type="button" class="ghost" disabled={!canSave} onclick={() => removeField(f.id)}
-                    >Remove</button
-                  >
-                {/if}
+                <span class="template-field-summary">{ordinal(slotOf(f))} · {displayWidth(f)}%</span>
               </div>
-              {#if f.type === 'select' || f.type === 'multiselect'}
-                <textarea
-                  rows="3"
-                  disabled={!canSave}
-                  value={(f.options || []).join('\n')}
-                  oninput={(e) => setOptions(f.id, e.currentTarget.value)}
-                  placeholder="One option per line"
-                ></textarea>
+              {#if expandedFields[f.id]}
+                <div class="template-field-extra">
+                  <label class="template-place">
+                    Line
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={lineOf(f)}
+                      disabled={!canSave}
+                      oninput={(e) => setPlacement(f.id, Number(e.currentTarget.value), slotOf(f))}
+                    />
+                  </label>
+                  <label class="template-place">
+                    On line
+                    <select
+                      value={slotOf(f)}
+                      disabled={!canSave}
+                      onchange={(e) => setPlacement(f.id, lineOf(f), Number(e.currentTarget.value))}
+                    >
+                      {#each [1, 2, 3, 4, 5, 6] as n}
+                        <option value={n}>{ordinal(n)}</option>
+                      {/each}
+                    </select>
+                  </label>
+                  <label class="template-place">
+                    Width
+                    <input
+                      type="number"
+                      min="5"
+                      max="100"
+                      step="1"
+                      value={displayWidth(f)}
+                      disabled={!canSave}
+                      oninput={(e) => setWidth(f.id, Number(e.currentTarget.value))}
+                    />
+                    %
+                  </label>
+                  <label class="check-row">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(f.width_lock)}
+                      disabled={!canSave}
+                      onchange={(e) => {
+                        f.width_lock = e.currentTarget.checked;
+                        draft = draft;
+                      }}
+                    />
+                    Lock Width
+                  </label>
+                  <label class="check-row">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(f.required)}
+                      disabled={!canSave}
+                      onchange={(e) => {
+                        f.required = e.currentTarget.checked;
+                        draft = draft;
+                      }}
+                    />
+                    Required
+                  </label>
+                  <label class="check-row">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(f.show_in_list)}
+                      disabled={!canSave}
+                      onchange={(e) => {
+                        f.show_in_list = e.currentTarget.checked;
+                        draft = draft;
+                      }}
+                    />
+                    All Items
+                  </label>
+                  {#if !RESERVED.has(f.id)}
+                    <button type="button" class="ghost" disabled={!canSave} onclick={() => removeField(f.id)}
+                      >Remove</button
+                    >
+                  {/if}
+                </div>
+                {#if f.type === 'select' || f.type === 'multiselect'}
+                  <textarea
+                    rows="3"
+                    disabled={!canSave}
+                    value={(f.options || []).join('\n')}
+                    oninput={(e) => setOptions(f.id, e.currentTarget.value)}
+                    placeholder="One option per line"
+                  ></textarea>
+                {/if}
               {/if}
             </div>
           {/each}

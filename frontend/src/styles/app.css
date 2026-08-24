@@ -596,9 +596,12 @@ body.lit-tab-dragging .ws-tab { cursor: grabbing !important; }
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text);
-  padding: 2px 4px 6px;
-  border-bottom: 1px solid var(--border);
+  color: color-mix(in srgb, var(--text) 70%, white);
+  padding: 8px 10px;
+  margin: -8px -8px 2px;
+  border-radius: 9px 9px 0 0;
+  background: color-mix(in srgb, white 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, white 16%, var(--border));
 }
 .template-line-count {
   font-weight: 500;
@@ -659,9 +662,40 @@ body.lit-tab-dragging .ws-tab { cursor: grabbing !important; }
 }
 .template-field-top {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
+}
+.template-field-toggle {
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-muted);
+  transform: rotate(-90deg);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.template-field-toggle.open {
+  transform: rotate(0deg);
+  color: var(--text);
+}
+.template-field-summary {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.template-field-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, white 10%, var(--border));
 }
 .template-field-top input[type="text"] {
   flex: 1 1 140px;
