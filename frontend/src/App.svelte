@@ -168,6 +168,7 @@
   applyTransparentPanels(initialTransparent);
   applyPanelTransparency(initialPanelTransparency);
   let canvasWrapEl = $state<HTMLElement | null>(null);
+  let appShellEl = $state<HTMLElement | null>(null);
   let serverOk = $state(true);
   const canvasPan = {
     pointerId: -1,
@@ -175,6 +176,7 @@
     startY: 0,
     origX: 0,
     origY: 0,
+    swallowClicks: false,
   };
 
   /** Main Board (seed id) is always pinned to the top of the tab list. */
@@ -305,6 +307,7 @@
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       endCanvasPan();
+      clearCtrlPanClickSuppress();
       resetTabDrag();
     };
   });
@@ -986,11 +989,44 @@
     clearCanvasPanListeners();
   }
 
-  function onCanvasPointerDown(e: PointerEvent) {
-    if (e.button !== 0 || !workspace) return;
-    const t = e.target as HTMLElement | null;
-    if (t?.closest?.('.panel')) return;
-    if (t?.closest?.('.board-editor')) return;
+  const CTRL_PAN_SKIP_CLICK =
+    '.project-editor, .template-editor, .confirm-backdrop, .confirm-dialog, .theme-dialog';
+  const CTRL_PAN_SUPPRESS_EVENTS = ['click', 'auxclick', 'dblclick', 'mouseup', 'change'] as const;
+  let ctrlPanClickHandler: ((ev: Event) => void) | null = null;
+  let ctrlPanClickTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearCtrlPanClickSuppress() {
+    if (ctrlPanClickHandler) {
+      for (const type of CTRL_PAN_SUPPRESS_EVENTS) {
+        window.removeEventListener(type, ctrlPanClickHandler, true);
+      }
+      ctrlPanClickHandler = null;
+    }
+    if (ctrlPanClickTimer != null) {
+      clearTimeout(ctrlPanClickTimer);
+      ctrlPanClickTimer = null;
+    }
+  }
+
+  function suppressCtrlPanClicks() {
+    if (ctrlPanClickTimer != null) {
+      clearTimeout(ctrlPanClickTimer);
+      ctrlPanClickTimer = null;
+    }
+    if (ctrlPanClickHandler) return;
+    const handler = (ev: Event) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+    };
+    ctrlPanClickHandler = handler;
+    for (const type of CTRL_PAN_SUPPRESS_EVENTS) {
+      window.addEventListener(type, handler, true);
+    }
+  }
+
+  function beginCanvasPan(e: PointerEvent) {
+    if (!workspace) return;
     e.preventDefault();
     const cur = workspace.ui.viewport_scroll ?? defaultPan();
     canvasPan.pointerId = e.pointerId;
@@ -1004,6 +1040,43 @@
     window.addEventListener('pointermove', onCanvasPanMove, true);
     window.addEventListener('pointerup', onCanvasPanUp, true);
     window.addEventListener('pointercancel', onCanvasPanUp, true);
+  }
+
+  /** Ctrl+drag pans the canvas from anywhere, including over panels and controls. */
+  function onCtrlCanvasPanDown(e: PointerEvent) {
+    if (e.button !== 0 || !workspace || !e.ctrlKey) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.(CTRL_PAN_SKIP_CLICK)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    canvasPan.swallowClicks = true;
+    suppressCtrlPanClicks();
+    beginCanvasPan(e);
+    const cap = appShellEl || canvasWrapEl;
+    if (cap) {
+      try {
+        cap.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  $effect(() => {
+    const el = appShellEl;
+    if (!el) return;
+    el.addEventListener('pointerdown', onCtrlCanvasPanDown, true);
+    return () => el.removeEventListener('pointerdown', onCtrlCanvasPanDown, true);
+  });
+
+  function onCanvasPointerDown(e: PointerEvent) {
+    if (e.button !== 0 || !workspace) return;
+    if (e.ctrlKey) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.('.panel')) return;
+    if (t?.closest?.('.board-editor')) return;
+    beginCanvasPan(e);
   }
 
   function onCanvasPanMove(e: PointerEvent) {
@@ -1021,7 +1094,23 @@
 
   function onCanvasPanUp(e: PointerEvent) {
     if (canvasPan.pointerId !== e.pointerId) return;
+    const cap = appShellEl || canvasWrapEl;
+    if (cap?.hasPointerCapture?.(e.pointerId)) {
+      try {
+        cap.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
+    const swallow = canvasPan.swallowClicks;
     endCanvasPan();
+    if (swallow) {
+      suppressCtrlPanClicks();
+      ctrlPanClickTimer = setTimeout(() => {
+        canvasPan.swallowClicks = false;
+        clearCtrlPanClickSuppress();
+      }, 400);
+    }
   }
 
   function visibleWorldOrigin(): { x: number; y: number } {
@@ -1742,7 +1831,7 @@
 {:else if error}
   <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
 {:else if project && workspace}
-  <div class="app-shell">
+  <div class="app-shell" bind:this={appShellEl}>
     <header class="topbar">
       <button
         type="button"
@@ -1868,7 +1957,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-24c</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-24f</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2136,7 +2225,7 @@
     <div
       class="canvas-wrap"
       role="application"
-      aria-label="Unlimited workspace. Drag empty space to pan. Scroll or Ctrl+scroll zooms toward the pointer."
+      aria-label="Unlimited workspace. Drag empty space to pan. Ctrl+drag pans even over panels. Scroll or Ctrl+scroll zooms toward the pointer."
       bind:this={canvasWrapEl}
       class:is-panning={panning}
       style:--zoom={zoom}
@@ -2363,7 +2452,10 @@
                   {#each filteredItems as it}
                     <tr
                       class="clickable"
-                      onclick={() => openItemPanel(it.id)}
+                      onclick={(e) => {
+                        if (e.ctrlKey || canvasPan.swallowClicks) return;
+                        openItemPanel(it.id);
+                      }}
                       oncontextmenu={(e) => openItemContextMenu(e, it)}
                     >
                       {#each allItemsColumns as f}

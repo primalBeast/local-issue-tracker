@@ -168,6 +168,7 @@
   applyTransparentPanels(initialTransparent);
   applyPanelTransparency(initialPanelTransparency);
   let canvasWrapEl = $state<HTMLElement | null>(null);
+  let appShellEl = $state<HTMLElement | null>(null);
   let serverOk = $state(true);
   const canvasPan = {
     pointerId: -1,
@@ -175,6 +176,7 @@
     startY: 0,
     origX: 0,
     origY: 0,
+    swallowClicks: false,
   };
 
   /** Main Board (seed id) is always pinned to the top of the tab list. */
@@ -305,6 +307,7 @@
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       endCanvasPan();
+      clearCtrlPanClickSuppress();
       resetTabDrag();
     };
   });

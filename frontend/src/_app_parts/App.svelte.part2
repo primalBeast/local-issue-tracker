@@ -411,11 +411,44 @@
     clearCanvasPanListeners();
   }
 
-  function onCanvasPointerDown(e: PointerEvent) {
-    if (e.button !== 0 || !workspace) return;
-    const t = e.target as HTMLElement | null;
-    if (t?.closest?.('.panel')) return;
-    if (t?.closest?.('.board-editor')) return;
+  const CTRL_PAN_SKIP_CLICK =
+    '.project-editor, .template-editor, .confirm-backdrop, .confirm-dialog, .theme-dialog';
+  const CTRL_PAN_SUPPRESS_EVENTS = ['click', 'auxclick', 'dblclick', 'mouseup', 'change'] as const;
+  let ctrlPanClickHandler: ((ev: Event) => void) | null = null;
+  let ctrlPanClickTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearCtrlPanClickSuppress() {
+    if (ctrlPanClickHandler) {
+      for (const type of CTRL_PAN_SUPPRESS_EVENTS) {
+        window.removeEventListener(type, ctrlPanClickHandler, true);
+      }
+      ctrlPanClickHandler = null;
+    }
+    if (ctrlPanClickTimer != null) {
+      clearTimeout(ctrlPanClickTimer);
+      ctrlPanClickTimer = null;
+    }
+  }
+
+  function suppressCtrlPanClicks() {
+    if (ctrlPanClickTimer != null) {
+      clearTimeout(ctrlPanClickTimer);
+      ctrlPanClickTimer = null;
+    }
+    if (ctrlPanClickHandler) return;
+    const handler = (ev: Event) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+    };
+    ctrlPanClickHandler = handler;
+    for (const type of CTRL_PAN_SUPPRESS_EVENTS) {
+      window.addEventListener(type, handler, true);
+    }
+  }
+
+  function beginCanvasPan(e: PointerEvent) {
+    if (!workspace) return;
     e.preventDefault();
     const cur = workspace.ui.viewport_scroll ?? defaultPan();
     canvasPan.pointerId = e.pointerId;
@@ -429,6 +462,43 @@
     window.addEventListener('pointermove', onCanvasPanMove, true);
     window.addEventListener('pointerup', onCanvasPanUp, true);
     window.addEventListener('pointercancel', onCanvasPanUp, true);
+  }
+
+  /** Ctrl+drag pans the canvas from anywhere, including over panels and controls. */
+  function onCtrlCanvasPanDown(e: PointerEvent) {
+    if (e.button !== 0 || !workspace || !e.ctrlKey) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.(CTRL_PAN_SKIP_CLICK)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    canvasPan.swallowClicks = true;
+    suppressCtrlPanClicks();
+    beginCanvasPan(e);
+    const cap = appShellEl || canvasWrapEl;
+    if (cap) {
+      try {
+        cap.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  $effect(() => {
+    const el = appShellEl;
+    if (!el) return;
+    el.addEventListener('pointerdown', onCtrlCanvasPanDown, true);
+    return () => el.removeEventListener('pointerdown', onCtrlCanvasPanDown, true);
+  });
+
+  function onCanvasPointerDown(e: PointerEvent) {
+    if (e.button !== 0 || !workspace) return;
+    if (e.ctrlKey) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.('.panel')) return;
+    if (t?.closest?.('.board-editor')) return;
+    beginCanvasPan(e);
   }
 
   function onCanvasPanMove(e: PointerEvent) {
@@ -446,7 +516,23 @@
 
   function onCanvasPanUp(e: PointerEvent) {
     if (canvasPan.pointerId !== e.pointerId) return;
+    const cap = appShellEl || canvasWrapEl;
+    if (cap?.hasPointerCapture?.(e.pointerId)) {
+      try {
+        cap.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+    }
+    const swallow = canvasPan.swallowClicks;
     endCanvasPan();
+    if (swallow) {
+      suppressCtrlPanClicks();
+      ctrlPanClickTimer = setTimeout(() => {
+        canvasPan.swallowClicks = false;
+        clearCtrlPanClickSuppress();
+      }, 400);
+    }
   }
 
   function visibleWorldOrigin(): { x: number; y: number } {

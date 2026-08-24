@@ -3,7 +3,7 @@
 {:else if error}
   <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
 {:else if project && workspace}
-  <div class="app-shell">
+  <div class="app-shell" bind:this={appShellEl}>
     <header class="topbar">
       <button
         type="button"
@@ -129,7 +129,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-24c</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-24f</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -397,7 +397,7 @@
     <div
       class="canvas-wrap"
       role="application"
-      aria-label="Unlimited workspace. Drag empty space to pan. Scroll or Ctrl+scroll zooms toward the pointer."
+      aria-label="Unlimited workspace. Drag empty space to pan. Ctrl+drag pans even over panels. Scroll or Ctrl+scroll zooms toward the pointer."
       bind:this={canvasWrapEl}
       class:is-panning={panning}
       style:--zoom={zoom}
@@ -624,7 +624,10 @@
                   {#each filteredItems as it}
                     <tr
                       class="clickable"
-                      onclick={() => openItemPanel(it.id)}
+                      onclick={(e) => {
+                        if (e.ctrlKey || canvasPan.swallowClicks) return;
+                        openItemPanel(it.id);
+                      }}
                       oncontextmenu={(e) => openItemContextMenu(e, it)}
                     >
                       {#each allItemsColumns as f}

@@ -149,6 +149,7 @@
     captureClick = false
   ) {
     if (e.button !== undefined && e.button !== 0) return;
+    if (e.ctrlKey) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -199,6 +200,7 @@
   }
 
   function onPanelPointerDown(e: PointerEvent) {
+    if (e.ctrlKey) return;
     e.stopPropagation();
     onfocus();
     if (e.button !== undefined && e.button !== 0) return;
