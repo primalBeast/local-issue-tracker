@@ -143,6 +143,15 @@ label.field-label {
   margin-bottom: 4px;
 }
 
+.panel label,
+.panel .field-label,
+.panel .filter-group-title {
+  cursor: grab;
+}
+.panel label :is(input, textarea, select, button) {
+  cursor: auto;
+}
+
 .field-group { margin-bottom: 10px; }
 .field-row { display: flex; flex-direction: column; gap: 0; margin-bottom: 0; }
 .field-row-multi { flex-direction: row; align-items: flex-start; gap: 10px; margin-bottom: 2px; }
@@ -274,6 +283,12 @@ button.brand:active { transform: none; }
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.zoom-readout {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .build-stamp {
@@ -1094,6 +1109,15 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   overflow: auto;
   padding: 10px 12px 12px;
   user-select: text;
+  cursor: grab;
+}
+
+.panel-body :is(input, textarea, select, .ProseMirror) {
+  cursor: auto;
+}
+
+.panel-body :is(button, a, th.sortable, tr.clickable) {
+  cursor: pointer;
 }
 
 .panel-compact,
@@ -1286,6 +1310,16 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 .ProseMirror p:last-child { margin-bottom: 0; }
 
 .filter-panel { display: flex; flex-direction: column; gap: 10px; }
+.filter-panel-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: flex-start;
+}
+.filter-panel-row > .filter-group {
+  flex: 1 1 0;
+  min-width: 0;
+}
 .filter-group-title {
   font-size: 11px;
   text-transform: uppercase;

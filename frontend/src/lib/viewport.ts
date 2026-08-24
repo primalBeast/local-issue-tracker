@@ -6,6 +6,8 @@ export type Point = { x: number; y: number };
 export type Rect = { x: number; y: number; width: number; height: number };
 
 export const FIT_PADDING_PX = 48;
+/** Focus never zooms in past this, even if the panel would still fit. */
+export const FOCUS_ZOOM_MAX = 1.25;
 
 export function defaultPan(): Point {
   return { x: 0, y: 0 };
@@ -65,7 +67,8 @@ export function panelsWorldBounds(
 export function fitView(
   bounds: Rect,
   viewport: { width: number; height: number },
-  padding = FIT_PADDING_PX
+  padding = FIT_PADDING_PX,
+  maxZoom = ZOOM_MAX
 ): { zoom: number; pan: Point } {
   const vw = Math.max(1, viewport.width);
   const vh = Math.max(1, viewport.height);
@@ -73,7 +76,7 @@ export function fitView(
   const innerH = Math.max(1, vh - padding * 2);
   const bw = Math.max(1, bounds.width);
   const bh = Math.max(1, bounds.height);
-  const zoom = clamp(Math.min(innerW / bw, innerH / bh), ZOOM_MIN, ZOOM_MAX);
+  const zoom = clamp(Math.min(innerW / bw, innerH / bh), ZOOM_MIN, maxZoom);
   const cx = bounds.x + bounds.width / 2;
   const cy = bounds.y + bounds.height / 2;
   return {
@@ -83,4 +86,13 @@ export function fitView(
       y: vh / 2 - cy * zoom,
     },
   };
+}
+
+/** Fit a panel for Focus: centre it, and never zoom in past 125%. */
+export function focusView(
+  bounds: Rect,
+  viewport: { width: number; height: number },
+  padding = FIT_PADDING_PX
+): { zoom: number; pan: Point } {
+  return fitView(bounds, viewport, padding, FOCUS_ZOOM_MAX);
 }

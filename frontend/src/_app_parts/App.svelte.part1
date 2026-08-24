@@ -28,6 +28,7 @@
   import {
     defaultPan,
     fitView,
+    focusView,
     panAfterZoom,
     panelsWorldBounds,
     screenToWorld,
@@ -130,7 +131,19 @@
       .filter((f) => f.show_in_list)
       .sort((a, b) => String(a.order).localeCompare(String(b.order), undefined, { numeric: true }))
   );
-  let filterableFields = $derived(fieldDefs.filter((f) => f.filterable));
+  const ALL_ITEMS_FILTER_ROW_IDS: string[] = ['state', 'dn_assigned_to', 'customer_assigned_to'];
+  const ALL_ITEMS_HIDDEN_FILTER_IDS: string[] = ['priority', 'urgency'];
+  let filterableFields = $derived(
+    fieldDefs.filter((f) => f.filterable && !ALL_ITEMS_HIDDEN_FILTER_IDS.includes(f.id))
+  );
+  let filterRowFields = $derived(
+    ALL_ITEMS_FILTER_ROW_IDS
+      .map((id) => filterableFields.find((f) => f.id === id))
+      .filter((f): f is FieldDef => f != null)
+  );
+  let otherFilterFields = $derived(
+    filterableFields.filter((f) => !ALL_ITEMS_FILTER_ROW_IDS.includes(f.id))
+  );
   let zoom = $derived(workspace?.ui.zoom ?? 1);
   let pan = $derived(workspace?.ui.viewport_scroll ?? defaultPan());
   let compact = $derived(

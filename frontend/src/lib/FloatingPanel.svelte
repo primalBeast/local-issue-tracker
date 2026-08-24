@@ -14,6 +14,8 @@
     /** Stretch children so a trailing Notes field can fill leftover height. */
     fillBody?: boolean;
     onfocus: () => void;
+    /** Double-click title bar: zoom/centre this panel (Focus). */
+    onfocusview?: () => void;
     onmove: (patch: Partial<Panel>) => void;
     onclose: () => void;
     oncontext?: (e: MouseEvent) => void;
@@ -33,6 +35,7 @@
     compact = false,
     fillBody = false,
     onfocus,
+    onfocusview,
     onmove,
     onclose,
     oncontext,
@@ -40,6 +43,9 @@
     compactChildren,
     titleSlot,
   }: Props = $props();
+
+  const CONTROL_SELECTOR =
+    'button, input, textarea, select, option, a, iframe, [contenteditable="true"], [contenteditable=""], .ProseMirror';
 
   const gesture = {
     mode: null as null | 'drag' | 'resize',
@@ -52,7 +58,31 @@
     origH: 0,
     zoom: 1,
     pointerId: -1,
+    moved: false,
+    captureClick: false,
   };
+
+  let suppressClickHandler: ((ev: Event) => void) | null = null;
+
+  function clearClickSuppress() {
+    if (!suppressClickHandler) return;
+    window.removeEventListener('click', suppressClickHandler, true);
+    suppressClickHandler = null;
+  }
+
+  function suppressNextClick() {
+    clearClickSuppress();
+    const handler = (ev: Event) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      clearClickSuppress();
+    };
+    suppressClickHandler = handler;
+    window.addEventListener('click', handler, true);
+    window.setTimeout(() => {
+      if (suppressClickHandler === handler) clearClickSuppress();
+    }, 400);
+  }
 
   function cleanup() {
     window.removeEventListener('pointermove', onWindowPointerMove, true);
@@ -66,6 +96,8 @@
   function endGesture() {
     gesture.mode = null;
     gesture.pointerId = -1;
+    gesture.moved = false;
+    gesture.captureClick = false;
     cleanup();
   }
 
@@ -73,6 +105,9 @@
     if (gesture.mode === null) return;
     if (gesture.pointerId >= 0 && e.pointerId !== gesture.pointerId) return;
     e.preventDefault();
+    if (Math.abs(e.clientX - gesture.startX) > 4 || Math.abs(e.clientY - gesture.startY) > 4) {
+      gesture.moved = true;
+    }
     const z = gesture.zoom || 1;
     const dx = (e.clientX - gesture.startX) / z;
     const dy = (e.clientY - gesture.startY) / z;
@@ -102,13 +137,22 @@
   function onWindowPointerUp(e: PointerEvent) {
     if (gesture.mode === null) return;
     if (gesture.pointerId >= 0 && e.pointerId !== gesture.pointerId) return;
+    const swallowClick = gesture.captureClick || gesture.moved;
     endGesture();
+    if (swallowClick) suppressNextClick();
   }
 
-  function beginGesture(e: PointerEvent, mode: 'drag' | 'resize', edge: ResizeEdge = 'se') {
+  function beginGesture(
+    e: PointerEvent,
+    mode: 'drag' | 'resize',
+    edge: ResizeEdge = 'se',
+    captureClick = false
+  ) {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
+
+    cleanup();
 
     gesture.mode = mode;
     gesture.edge = edge;
@@ -120,6 +164,8 @@
     gesture.origW = panel.width;
     gesture.origH = panel.height;
     gesture.zoom = zoom || 1;
+    gesture.moved = false;
+    gesture.captureClick = captureClick;
 
     if (mode === 'drag') {
       document.body.classList.add('lit-panel-dragging');
@@ -129,29 +175,58 @@
     }
     onfocus();
 
-    cleanup();
     window.addEventListener('pointermove', onWindowPointerMove, true);
     window.addEventListener('pointerup', onWindowPointerUp, true);
     window.addEventListener('pointercancel', onWindowPointerUp, true);
   }
 
-  function onHeaderPointerDown(e: PointerEvent) {
-    const t = e.target as HTMLElement | null;
-    if (t?.closest?.('button, input, textarea, select, .item-title-editor')) return;
-    beginGesture(e, 'drag');
+  function eventElement(t: EventTarget | null): HTMLElement | null {
+    if (t instanceof HTMLElement) return t;
+    if (t instanceof Node) return t.parentElement;
+    return null;
   }
 
-  function onCompactPointerDown(e: PointerEvent) {
-    const t = e.target as HTMLElement | null;
-    if (t?.closest?.('button')) return;
-    beginGesture(e, 'drag');
+  function isPanelControl(el: HTMLElement | null): boolean {
+    return !!el?.closest?.(CONTROL_SELECTOR);
+  }
+
+  function isOnScrollbar(e: PointerEvent, el: HTMLElement): boolean {
+    if (el.scrollHeight <= el.clientHeight && el.scrollWidth <= el.clientWidth) return false;
+    const r = el.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    return x >= el.clientWidth || y >= el.clientHeight;
+  }
+
+  function onPanelPointerDown(e: PointerEvent) {
+    e.stopPropagation();
+    onfocus();
+    if (e.button !== undefined && e.button !== 0) return;
+    const t = eventElement(e.target);
+    if (!t) return;
+    if (t.closest('.resize-edge, .resize-corner')) return;
+    if (isOnScrollbar(e, t)) return;
+    if (isPanelControl(t)) return;
+    beginGesture(e, 'drag', 'se', !!t.closest('label, .field-label, .filter-group-title'));
   }
 
   function onResizeDown(e: PointerEvent, edge: ResizeEdge) {
     beginGesture(e, 'resize', edge);
   }
 
-  onDestroy(endGesture);
+  function onHeaderDblClick(e: MouseEvent) {
+    if (!onfocusview) return;
+    const t = e.target as HTMLElement | null;
+    if (t?.closest?.('button, input, textarea, select, .item-title-editor')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onfocusview();
+  }
+
+  onDestroy(() => {
+    clearClickSuppress();
+    endGesture();
+  });
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -169,10 +244,7 @@
   style:z-index={panel.z_index}
   style:background={accentBg || undefined}
   style:border-color={accentBorder || undefined}
-  onpointerdown={(e) => {
-    e.stopPropagation();
-    onfocus();
-  }}
+  onpointerdown={onPanelPointerDown}
   oncontextmenu={(e) => {
     if (!oncontext) return;
     const t = e.target as HTMLElement | null;
@@ -183,12 +255,7 @@
   }}
 >
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="panel-header"
-    role="toolbar"
-    tabindex="-1"
-    onpointerdown={onHeaderPointerDown}
-  >
+  <div class="panel-header" role="toolbar" tabindex="-1" ondblclick={onHeaderDblClick}>
     {#if titleSlot}
       <div class="panel-title-slot">{@render titleSlot()}</div>
     {:else}
@@ -207,8 +274,7 @@
   </div>
 
   {#if compact}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="panel-body compact" onpointerdown={onCompactPointerDown}>
+    <div class="panel-body compact">
       {#if compactChildren}
         {@render compactChildren()}
       {:else}

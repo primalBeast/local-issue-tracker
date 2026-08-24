@@ -37,7 +37,6 @@
         "step": 1
       },
       "show_in_list": true,
-      "filterable": true,
       "width_weight": 1
     },
     {
@@ -51,7 +50,6 @@
         "step": 1
       },
       "show_in_list": true,
-      "filterable": true,
       "width_weight": 1
     },
     {

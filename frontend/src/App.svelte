@@ -28,6 +28,7 @@
   import {
     defaultPan,
     fitView,
+    focusView,
     panAfterZoom,
     panelsWorldBounds,
     screenToWorld,
@@ -130,7 +131,19 @@
       .filter((f) => f.show_in_list)
       .sort((a, b) => String(a.order).localeCompare(String(b.order), undefined, { numeric: true }))
   );
-  let filterableFields = $derived(fieldDefs.filter((f) => f.filterable));
+  const ALL_ITEMS_FILTER_ROW_IDS: string[] = ['state', 'dn_assigned_to', 'customer_assigned_to'];
+  const ALL_ITEMS_HIDDEN_FILTER_IDS: string[] = ['priority', 'urgency'];
+  let filterableFields = $derived(
+    fieldDefs.filter((f) => f.filterable && !ALL_ITEMS_HIDDEN_FILTER_IDS.includes(f.id))
+  );
+  let filterRowFields = $derived(
+    ALL_ITEMS_FILTER_ROW_IDS
+      .map((id) => filterableFields.find((f) => f.id === id))
+      .filter((f): f is FieldDef => f != null)
+  );
+  let otherFilterFields = $derived(
+    filterableFields.filter((f) => !ALL_ITEMS_FILTER_ROW_IDS.includes(f.id))
+  );
   let zoom = $derived(workspace?.ui.zoom ?? 1);
   let pan = $derived(workspace?.ui.viewport_scroll ?? defaultPan());
   let compact = $derived(
@@ -1090,7 +1103,7 @@
   function zoomToPanel(panel: Panel) {
     const wrap = canvasWrapEl;
     if (!wrap) return;
-    const view = fitView(
+    const view = focusView(
       {
         x: panel.x,
         y: panel.y,
@@ -1846,9 +1859,16 @@
       </div>
       <div class="topbar-spacer"></div>
       <div class="topbar-meta">
-        {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
+        {workspace.name} ·
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <span
+          class="zoom-readout"
+          title="Double-click to reset zoom to 100%"
+          ondblclick={() => zoomByKeyboard(0)}
+        >zoom {(zoom * 100).toFixed(0)}%</span>
+        · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-23i</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-24c</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2150,6 +2170,7 @@
             compact={compact}
             fillBody={panel.kind === 'item' || panel.kind === 'notes'}
             onfocus={() => focusPanel(panel.id)}
+            onfocusview={() => zoomToPanel(panel)}
             onmove={(patch) => movePanel(panel.id, patch)}
             onclose={() => closePanel(panel.id)}
             oncontext={
@@ -2278,32 +2299,42 @@
               </div>
 
               {#if filterableFields.length}
-                <div class="filter-panel" style="margin-bottom:12px">
-                  {#each filterableFields as ff}
-                    <div>
-                      <div class="filter-group-title">{ff.label}</div>
-                      {#if ff.type === 'select' && ff.options}
-                        {#each ff.options as opt}
-                          <label class="check-row">
-                            <input
-                              type="checkbox"
-                              checked={((workspace.filters.active[ff.id] as string[]) || []).includes(opt)}
-                              onchange={(e) => setFilterOption(ff.id, opt, e.currentTarget.checked)}
-                            />
-                            {opt}
-                          </label>
-                        {/each}
-                      {:else if ff.type === 'checkbox'}
+                {#snippet filterGroup(ff: FieldDef)}
+                  <div class="filter-group">
+                    <div class="filter-group-title">{ff.label}</div>
+                    {#if ff.type === 'select' && ff.options}
+                      {#each ff.options as opt}
                         <label class="check-row">
                           <input
                             type="checkbox"
-                            checked={((workspace.filters.active[ff.id] as boolean[]) || []).includes(true)}
-                            onchange={(e) => setFilterOption(ff.id, true, e.currentTarget.checked)}
+                            checked={((workspace.filters.active[ff.id] as string[]) || []).includes(opt)}
+                            onchange={(e) => setFilterOption(ff.id, opt, e.currentTarget.checked)}
                           />
-                          Yes
+                          {opt}
                         </label>
-                      {/if}
+                      {/each}
+                    {:else if ff.type === 'checkbox'}
+                      <label class="check-row">
+                        <input
+                          type="checkbox"
+                          checked={((workspace.filters.active[ff.id] as boolean[]) || []).includes(true)}
+                          onchange={(e) => setFilterOption(ff.id, true, e.currentTarget.checked)}
+                        />
+                        Yes
+                      </label>
+                    {/if}
+                  </div>
+                {/snippet}
+                <div class="filter-panel" style="margin-bottom:12px">
+                  {#if filterRowFields.length}
+                    <div class="filter-panel-row">
+                      {#each filterRowFields as ff}
+                        {@render filterGroup(ff)}
+                      {/each}
                     </div>
+                  {/if}
+                  {#each otherFilterFields as ff}
+                    {@render filterGroup(ff)}
                   {/each}
                 </div>
               {/if}

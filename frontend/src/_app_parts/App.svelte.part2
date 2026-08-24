@@ -528,7 +528,7 @@
   function zoomToPanel(panel: Panel) {
     const wrap = canvasWrapEl;
     if (!wrap) return;
-    const view = fitView(
+    const view = focusView(
       {
         x: panel.x,
         y: panel.y,

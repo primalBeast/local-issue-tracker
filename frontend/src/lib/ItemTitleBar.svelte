@@ -61,12 +61,7 @@
     </button>
   </div>
   {#if editing}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="item-title-editor"
-      onpointerdown={(e) => e.stopPropagation()}
-      onfocusout={onEditorFocusOut}
-    >
+    <div class="item-title-editor" onfocusout={onEditorFocusOut}>
       <label class="item-title-field">
         <span class="field-label">{keyFieldLabel}</span>
         <input
