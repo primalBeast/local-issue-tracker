@@ -27,7 +27,6 @@
   ] as const;
 
   const RESERVED = new Set(['ticket_key', 'title', 'waiting', 'waiting_for', 'waiting_since', 'notes']);
-  const HEADER_IDS = new Set(['ticket_key', 'title']);
 
   type TemplateInfo = {
     id: string;
@@ -67,10 +66,22 @@
   let otherTemplates = $derived(templates.filter((t) => t.id !== appTemplate?.id));
   let currentMeta = $derived(templates.find((t) => t.id === source));
   let canSave = $derived(editingProject || Boolean(currentMeta?.editable));
-  let previewBodyFields = $derived(draft.filter((f) => !HEADER_IDS.has(f.id)));
-  let previewBlocks = $derived(groupBodyBlocks(groupFieldsByRow(previewBodyFields)));
-  let previewKey = $derived(String(previewValues.ticket_key ?? 'PROJ-1'));
-  let previewTitle = $derived(String(previewValues.title ?? 'Example ticket'));
+  let previewBlocks = $derived(groupBodyBlocks(groupFieldsByRow(draft)));
+  let fieldGroups = $derived.by(() => {
+    const map = new Map<number, FieldDef[]>();
+    for (const f of draft) {
+      const line = lineOf(f);
+      const list = map.get(line);
+      if (list) list.push(f);
+      else map.set(line, [f]);
+    }
+    return [...map.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([line, fields]) => ({
+        line,
+        fields: [...fields].sort((a, b) => slotOf(a) - slotOf(b) || a.id.localeCompare(b.id)),
+      }));
+  });
 
   async function loadList() {
     const body = await api.templates();
@@ -170,6 +181,10 @@
     }
   }
 
+  function idx(id: string): number {
+    return draft.findIndex((f) => f.id === id);
+  }
+
   function fieldsOnLine(line: number): FieldDef[] {
     return draft.filter((f) => lineOf(f) === line);
   }
@@ -178,7 +193,9 @@
     return Math.round(fieldWidthPercent(f, fieldsOnLine(lineOf(f))));
   }
 
-  function setPlacement(i: number, line: number, slot: number) {
+  function setPlacement(id: string, line: number, slot: number) {
+    const i = idx(id);
+    if (i < 0) return;
     const prevLine = lineOf(draft[i]);
     const row = Math.max(1, Math.floor(Number(line)) || 1);
     const col = Math.max(1, Math.floor(Number(slot)) || 1) - 1;
@@ -191,8 +208,8 @@
     draft = next;
   }
 
-  function setWidth(i: number, value: number) {
-    const f = draft[i];
+  function setWidth(id: string, value: number) {
+    const f = draft.find((x) => x.id === id);
     if (!f) return;
     draft = rebalanceLineWidths(draft, lineOf(f), f.id, value);
   }
@@ -235,20 +252,23 @@
     ];
   }
 
-  function removeField(i: number) {
-    const id = draft[i]?.id;
+  function removeField(id: string) {
     if (!id || RESERVED.has(id)) return;
-    draft = draft.filter((_, idx) => idx !== i);
+    draft = draft.filter((f) => f.id !== id);
   }
 
-  function setType(i: number, type: string) {
+  function setType(id: string, type: string) {
+    const i = idx(id);
+    if (i < 0) return;
     const f = { ...draft[i], type };
     if ((type === 'select' || type === 'multiselect') && !f.options?.length) f.options = ['Option 1'];
     draft[i] = f;
     draft = draft;
   }
 
-  function setOptions(i: number, text: string) {
+  function setOptions(id: string, text: string) {
+    const i = idx(id);
+    if (i < 0) return;
     const options = text
       .split('\n')
       .map((s) => s.trim())
@@ -335,7 +355,8 @@
 <div class="template-editor" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
   <div class="board-editor-title">Templates</div>
   <p class="template-help">
-    Edit this project’s fields, or the app template used for new projects.
+    Same <strong>Line</strong> number puts controls on one row. <strong>On line</strong> is 1st, 2nd,
+    3rd on that row — not a separate row.
   </p>
 
   <div class="template-source">
@@ -368,113 +389,125 @@
 
   <div class="template-split">
     <div class="template-fields">
-      {#each draft as f, i (f.id)}
-        <div class="template-field">
-          <div class="template-field-top">
-            <input
-              type="text"
-              bind:value={f.label}
-              oninput={(e) => {
-                f.label = e.currentTarget.value;
-                draft = draft;
-              }}
-              disabled={!canSave}
-            />
-            <select
-              value={f.type}
-              disabled={!canSave || RESERVED.has(f.id)}
-              onchange={(e) => setType(i, e.currentTarget.value)}
+      {#each fieldGroups as group (group.line)}
+        <section class="template-line">
+          <div class="template-line-head">
+            Line {group.line}
+            <span class="template-line-count"
+              >{group.fields.length === 1 ? '1 control' : `${group.fields.length} controls`}</span
             >
-              {#each CONTROL_TYPES as t}
-                <option value={t}>{t}</option>
-              {/each}
-            </select>
-            <label class="template-place">
-              Line
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={lineOf(f)}
-                disabled={!canSave}
-                oninput={(e) => setPlacement(i, Number(e.currentTarget.value), slotOf(f))}
-              />
-            </label>
-            <label class="template-place">
-              On line
-              <select
-                value={slotOf(f)}
-                disabled={!canSave}
-                onchange={(e) => setPlacement(i, lineOf(f), Number(e.currentTarget.value))}
-              >
-                {#each [1, 2, 3, 4, 5, 6] as n}
-                  <option value={n}>{ordinal(n)}</option>
-                {/each}
-              </select>
-            </label>
-            <label class="template-place">
-              Width
-              <input
-                type="number"
-                min="5"
-                max="100"
-                step="1"
-                value={displayWidth(f)}
-                disabled={!canSave}
-                oninput={(e) => setWidth(i, Number(e.currentTarget.value))}
-              />
-              %
-            </label>
-            <label class="check-row">
-              <input
-                type="checkbox"
-                checked={Boolean(f.width_lock)}
-                disabled={!canSave}
-                onchange={(e) => {
-                  f.width_lock = e.currentTarget.checked;
-                  draft = draft;
-                }}
-              />
-              Lock Width
-            </label>
-            <label class="check-row">
-              <input
-                type="checkbox"
-                checked={Boolean(f.required)}
-                disabled={!canSave}
-                onchange={(e) => {
-                  f.required = e.currentTarget.checked;
-                  draft = draft;
-                }}
-              />
-              Required
-            </label>
-            <label class="check-row">
-              <input
-                type="checkbox"
-                checked={Boolean(f.show_in_list)}
-                disabled={!canSave}
-                onchange={(e) => {
-                  f.show_in_list = e.currentTarget.checked;
-                  draft = draft;
-                }}
-              />
-              All Items
-            </label>
-            {#if !RESERVED.has(f.id)}
-              <button type="button" class="ghost" disabled={!canSave} onclick={() => removeField(i)}>Remove</button>
-            {/if}
           </div>
-          {#if f.type === 'select' || f.type === 'multiselect'}
-            <textarea
-              rows="3"
-              disabled={!canSave}
-              value={(f.options || []).join('\n')}
-              oninput={(e) => setOptions(i, e.currentTarget.value)}
-              placeholder="One option per line"
-            ></textarea>
-          {/if}
-        </div>
+          {#each group.fields as f (f.id)}
+            <div class="template-field">
+              <div class="template-field-top">
+                <input
+                  type="text"
+                  bind:value={f.label}
+                  oninput={(e) => {
+                    f.label = e.currentTarget.value;
+                    draft = draft;
+                  }}
+                  disabled={!canSave}
+                />
+                <select
+                  value={f.type}
+                  disabled={!canSave || RESERVED.has(f.id)}
+                  onchange={(e) => setType(f.id, e.currentTarget.value)}
+                >
+                  {#each CONTROL_TYPES as t}
+                    <option value={t}>{t}</option>
+                  {/each}
+                </select>
+                <label class="template-place">
+                  Line
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={lineOf(f)}
+                    disabled={!canSave}
+                    oninput={(e) => setPlacement(f.id, Number(e.currentTarget.value), slotOf(f))}
+                  />
+                </label>
+                <label class="template-place">
+                  On line
+                  <select
+                    value={slotOf(f)}
+                    disabled={!canSave}
+                    onchange={(e) => setPlacement(f.id, lineOf(f), Number(e.currentTarget.value))}
+                  >
+                    {#each [1, 2, 3, 4, 5, 6] as n}
+                      <option value={n}>{ordinal(n)}</option>
+                    {/each}
+                  </select>
+                </label>
+                <label class="template-place">
+                  Width
+                  <input
+                    type="number"
+                    min="5"
+                    max="100"
+                    step="1"
+                    value={displayWidth(f)}
+                    disabled={!canSave}
+                    oninput={(e) => setWidth(f.id, Number(e.currentTarget.value))}
+                  />
+                  %
+                </label>
+                <label class="check-row">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(f.width_lock)}
+                    disabled={!canSave}
+                    onchange={(e) => {
+                      f.width_lock = e.currentTarget.checked;
+                      draft = draft;
+                    }}
+                  />
+                  Lock Width
+                </label>
+                <label class="check-row">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(f.required)}
+                    disabled={!canSave}
+                    onchange={(e) => {
+                      f.required = e.currentTarget.checked;
+                      draft = draft;
+                    }}
+                  />
+                  Required
+                </label>
+                <label class="check-row">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(f.show_in_list)}
+                    disabled={!canSave}
+                    onchange={(e) => {
+                      f.show_in_list = e.currentTarget.checked;
+                      draft = draft;
+                    }}
+                  />
+                  All Items
+                </label>
+                {#if !RESERVED.has(f.id)}
+                  <button type="button" class="ghost" disabled={!canSave} onclick={() => removeField(f.id)}
+                    >Remove</button
+                  >
+                {/if}
+              </div>
+              {#if f.type === 'select' || f.type === 'multiselect'}
+                <textarea
+                  rows="3"
+                  disabled={!canSave}
+                  value={(f.options || []).join('\n')}
+                  oninput={(e) => setOptions(f.id, e.currentTarget.value)}
+                  placeholder="One option per line"
+                ></textarea>
+              {/if}
+            </div>
+          {/each}
+        </section>
       {/each}
     </div>
 
@@ -482,16 +515,7 @@
       <div class="template-preview-label">Example panel</div>
       <div class="panel template-preview-panel">
         <div class="panel-header">
-          <div class="panel-title-slot">
-            <div class="item-title-bar">
-              <div class="item-title-row">
-                <div class="item-title-key">{previewKey}</div>
-                {#if previewTitle}
-                  <div class="item-title-desc">{previewTitle}</div>
-                {/if}
-              </div>
-            </div>
-          </div>
+          <div class="panel-title">Example ticket</div>
         </div>
         <div class="panel-body">
           {#each previewBlocks as block (block.kind === 'waiting' ? 'waiting' : block.row.row)}
