@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, type FieldDef, type FieldsDoc } from './api';
   import FieldRenderer from './FieldRenderer.svelte';
+  import ItemTitleBar from './ItemTitleBar.svelte';
   import {
     encodeFieldOrder,
     equalizeLineWidths,
@@ -27,6 +28,7 @@
   ] as const;
 
   const RESERVED = new Set(['ticket_key', 'title', 'waiting', 'waiting_for', 'waiting_since', 'notes']);
+  const TITLE_EDITOR_IDS = new Set(['ticket_key', 'title']);
 
   type TemplateInfo = {
     id: string;
@@ -67,7 +69,11 @@
   let otherTemplates = $derived(templates.filter((t) => t.id !== appTemplate?.id));
   let currentMeta = $derived(templates.find((t) => t.id === source));
   let canSave = $derived(editingProject || Boolean(currentMeta?.editable));
-  let previewBlocks = $derived(groupBodyBlocks(groupFieldsByRow(draft)));
+  let previewBlocks = $derived(
+    groupBodyBlocks(groupFieldsByRow(draft.filter((f) => !TITLE_EDITOR_IDS.has(f.id))))
+  );
+  let keyFieldLabel = $derived(draft.find((f) => f.id === 'ticket_key')?.label || 'Ticket number');
+  let descriptionLabel = $derived(draft.find((f) => f.id === 'title')?.label || 'Description');
   let fieldGroups = $derived.by(() => {
     const map = new Map<number, FieldDef[]>();
     for (const f of draft) {
@@ -95,10 +101,12 @@
       const doc = editingProject
         ? await api.fields(projectSlug)
         : await api.templateFields(String(source));
-      const fields = (doc.fields || []).map((f) => ({
-        ...f,
-        options: f.options ? [...f.options] : f.options,
-      }));
+      const fields = (doc.fields || []).map((f) => {
+        const copy = { ...f, options: f.options ? [...f.options] : f.options };
+        if (copy.id === 'ticket_key' && copy.label === 'Ticket Key') copy.label = 'Ticket number';
+        if (copy.id === 'title' && copy.label === 'Title') copy.label = 'Description';
+        return copy;
+      });
       draft = sortFields(fields);
       version = doc.version ?? 1;
       extra = { ...doc };
@@ -183,8 +191,13 @@
     return null;
   }
 
+  function fieldVisibilityHint(f: FieldDef): string | null {
+    if (TITLE_EDITOR_IDS.has(f.id)) return 'until title is expanded';
+    return formatVisibleWhen(f.visible_when);
+  }
+
   function lineVisibilityHint(fields: FieldDef[]): string | null {
-    const hints = fields.map((f) => formatVisibleWhen(f.visible_when)).filter((h): h is string => Boolean(h));
+    const hints = fields.map((f) => fieldVisibilityHint(f)).filter((h): h is string => Boolean(h));
     if (!hints.length) return null;
     const unique = [...new Set(hints)];
     const all = hints.length === fields.length;
@@ -564,7 +577,16 @@
       <div class="template-preview-label">Example panel</div>
       <div class="panel template-preview-panel">
         <div class="panel-header">
-          <div class="panel-title">Example ticket</div>
+          <div class="panel-title-slot">
+            <ItemTitleBar
+              ticketKey={String(previewValues.ticket_key ?? '')}
+              description={String(previewValues.title ?? '')}
+              {keyFieldLabel}
+              {descriptionLabel}
+              onTicketKey={(value) => patchPreview('ticket_key', value)}
+              onDescription={(value) => patchPreview('title', value)}
+            />
+          </div>
         </div>
         <div class="panel-body">
           {#each previewBlocks as block (block.kind === 'waiting' ? 'waiting' : block.row.row)}

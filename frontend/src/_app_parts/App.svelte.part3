@@ -85,6 +85,13 @@
     return f.id === 'title' || f.id === keyField();
   }
 
+  function headerEditLabel(id: string, fallback: string): string {
+    const lab = fieldDefs.find((f) => f.id === id)?.label;
+    if (id === 'ticket_key' && (!lab || lab === 'Ticket Key')) return 'Ticket number';
+    if (id === 'title' && (!lab || lab === 'Title')) return 'Description';
+    return lab || fallback;
+  }
+
   function primaryId(item: Item): string {
     const v = String(item.fields[keyField()] ?? '').trim();
     if (v) return v;

@@ -1323,6 +1323,13 @@
     return f.id === 'title' || f.id === keyField();
   }
 
+  function headerEditLabel(id: string, fallback: string): string {
+    const lab = fieldDefs.find((f) => f.id === id)?.label;
+    if (id === 'ticket_key' && (!lab || lab === 'Ticket Key')) return 'Ticket number';
+    if (id === 'title' && (!lab || lab === 'Title')) return 'Description';
+    return lab || fallback;
+  }
+
   function primaryId(item: Item): string {
     const v = String(item.fields[keyField()] ?? '').trim();
     if (v) return v;
@@ -1841,7 +1848,7 @@
       <div class="topbar-meta">
         {workspace.name} · zoom {(zoom * 100).toFixed(0)}% · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-23h</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-23i</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2156,6 +2163,8 @@
                 <ItemTitleBar
                   ticketKey={String(item.fields[keyField()] ?? '')}
                   description={String(item.fields.title ?? '')}
+                  keyFieldLabel={headerEditLabel(keyField(), 'Ticket number')}
+                  descriptionLabel={headerEditLabel('title', 'Description')}
                   onTicketKey={(value) => scheduleItemPatch(item.id, { [keyField()]: value })}
                   onDescription={(value) => scheduleItemPatch(item.id, { title: value })}
                 />

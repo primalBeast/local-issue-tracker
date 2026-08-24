@@ -212,6 +212,14 @@ def ensure_waiting_as_field(data: dict[str, Any]) -> bool:
             if isinstance(opts, list) and LEGACY_WAITING_STATE in opts:
                 f["options"] = [o for o in opts if o != LEGACY_WAITING_STATE]
                 changed = True
+        elif fid == "ticket_key":
+            if f.get("label") == "Ticket Key":
+                f["label"] = "Ticket number"
+                changed = True
+        elif fid == "title":
+            if f.get("label") == "Title":
+                f["label"] = "Description"
+                changed = True
         elif fid == "waiting":
             if _set_visible_when(f, {"field": "state", "not_equals": "Done"}):
                 changed = True

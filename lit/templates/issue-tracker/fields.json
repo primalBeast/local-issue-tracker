@@ -3,7 +3,7 @@
   "fields": [
     {
       "id": "ticket_key",
-      "label": "Ticket Key",
+      "label": "Ticket number",
       "type": "text",
       "required": true,
       "order": 10,
@@ -19,7 +19,7 @@
     },
     {
       "id": "title",
-      "label": "Title",
+      "label": "Description",
       "type": "text",
       "required": false,
       "order": 20,

@@ -2,11 +2,20 @@
   interface Props {
     ticketKey: string;
     description: string;
+    keyFieldLabel?: string;
+    descriptionLabel?: string;
     onTicketKey: (value: string) => void;
     onDescription: (value: string) => void;
   }
 
-  let { ticketKey, description, onTicketKey, onDescription }: Props = $props();
+  let {
+    ticketKey,
+    description,
+    keyFieldLabel = 'Ticket number',
+    descriptionLabel = 'Description',
+    onTicketKey,
+    onDescription,
+  }: Props = $props();
 
   let descTrimmed = $derived(String(description ?? '').trim());
   /** Stay open while typing. Only collapse after leaving the editor with a description. */
@@ -59,7 +68,7 @@
       onfocusout={onEditorFocusOut}
     >
       <label class="item-title-field">
-        <span class="field-label">Ticket number</span>
+        <span class="field-label">{keyFieldLabel}</span>
         <input
           type="text"
           value={ticketKey}
@@ -69,7 +78,7 @@
         />
       </label>
       <label class="item-title-field">
-        <span class="field-label">Description</span>
+        <span class="field-label">{descriptionLabel}</span>
         <input
           type="text"
           value={description}
