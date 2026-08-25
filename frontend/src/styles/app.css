@@ -178,7 +178,8 @@ label.field-label {
   color: var(--text-muted);
   font-size: 12px;
 }
-.waiting-inline input {
+.waiting-inline input,
+.waiting-inline select {
   flex: 1 1 auto;
   min-width: 0;
   width: auto;
@@ -286,9 +287,17 @@ button.brand:active { transform: none; }
 }
 
 .zoom-readout {
-  cursor: pointer;
+  cursor: ns-resize;
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+body.lit-zoom-scrubbing,
+body.lit-zoom-scrubbing * {
+  cursor: ns-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
 
 .build-stamp {
@@ -1286,6 +1295,10 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 .table th.sorted { color: var(--accent); }
 .table tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .table tr.clickable { cursor: pointer; }
+.table td.updated-date {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 
 .waiting-badge {
   display: inline-flex;

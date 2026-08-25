@@ -24,6 +24,14 @@ export function todayLocalDate(now = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
+/** Select choices plus the current value if it is not already in the list. */
+export function waitingNameChoices(options: string[] | undefined, current: unknown): string[] {
+  const opts = [...(options ?? [])];
+  const cur = String(current ?? '').trim();
+  if (cur && !opts.includes(cur)) opts.push(cur);
+  return opts;
+}
+
 export function isItemWaiting(item: {
   fields?: Record<string, unknown>;
   waiting?: { is_waiting?: boolean } | null;

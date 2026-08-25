@@ -32,9 +32,16 @@
     panAfterZoom,
     panelsWorldBounds,
     screenToWorld,
+    zoomFromPointerScrub,
     zoomFromWheelDelta,
   } from './lib/viewport';
-  import { formatWaitingDays, isItemWaiting, liveSeconds, todayLocalDate } from './lib/waiting';
+  import {
+    formatWaitingDays,
+    isItemWaiting,
+    liveSeconds,
+    todayLocalDate,
+    waitingNameChoices,
+  } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import {
     appearanceFromWorkspace,
@@ -308,6 +315,7 @@
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       endCanvasPan();
       clearCtrlPanClickSuppress();
+      endZoomScrub();
       resetTabDrag();
     };
   });

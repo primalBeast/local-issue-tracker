@@ -196,7 +196,34 @@ def _insert_field_before(fields: list[Any], new_field: dict[str, Any], before_id
         fields.insert(idx, dict(new_field))
 
 
-def ensure_waiting_as_field(data: dict[str, Any]) -> bool:
+def _waiting_for_names_from_items(slug: str) -> list[str]:
+    """Unique waiting_for values already stored on tickets, for select options."""
+    db = items_db.items_db_path(project_dir(slug))
+
+    def _read(conn: Any) -> list[str]:
+        rows = conn.execute("SELECT fields_json FROM items").fetchall()
+        names: list[str] = []
+        seen: set[str] = set()
+        for row in rows:
+            try:
+                fields = json.loads(row["fields_json"])
+            except Exception:
+                continue
+            if not isinstance(fields, dict):
+                continue
+            name = str(fields.get("waiting_for") or "").strip()
+            if name and name not in seen:
+                seen.add(name)
+                names.append(name)
+        return names
+
+    try:
+        return items_db.run_db(db, _read)
+    except Exception:
+        return []
+
+
+def ensure_waiting_as_field(data: dict[str, Any], slug: str | None = None) -> bool:
     """Replace the Waiting For state with a Waiting checkbox + Name/Since fields."""
     fields = data.get("fields")
     if not isinstance(fields, list):
@@ -234,6 +261,17 @@ def ensure_waiting_as_field(data: dict[str, Any]) -> bool:
             if not f.get("list_label"):
                 f["list_label"] = "Waiting For"
                 changed = True
+            if f.get("type") != "select":
+                f["type"] = "select"
+                changed = True
+            if not isinstance(f.get("options"), list):
+                f["options"] = []
+                changed = True
+            if slug:
+                for name in _waiting_for_names_from_items(slug):
+                    if name not in f["options"]:
+                        f["options"].append(name)
+                        changed = True
         elif fid == "waiting_since":
             if _set_visible_when(f, WAITING_VISIBLE_WHEN):
                 changed = True
@@ -372,7 +410,7 @@ def load_fields(slug: str) -> dict[str, Any]:
             _migrate_urgency_item_values(slug)
         except Exception:
             pass
-    if ensure_waiting_as_field(data):
+    if ensure_waiting_as_field(data, slug):
         changed = True
     if ensure_unbounded_int_fields(data):
         changed = True

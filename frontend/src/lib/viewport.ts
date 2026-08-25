@@ -46,6 +46,11 @@ export function zoomFromWheelDelta(oldZoom: number, deltaY: number, deltaMode = 
   return oldZoom * Math.exp(-dy * 0.0015);
 }
 
+/** Drag on the zoom readout: right and up zoom in, left and down zoom out. */
+export function zoomFromPointerScrub(startZoom: number, dx: number, dy: number): number {
+  return startZoom * Math.exp((dx - dy) * 0.008);
+}
+
 export function panelsWorldBounds(
   panels: Array<{ x: number; y: number; width: number; height: number }>
 ): Rect | null {

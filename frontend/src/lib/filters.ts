@@ -59,6 +59,9 @@ export function sortItems(
       const bw = isItemWaiting(b) ? (b.waiting?.current_seconds ?? 0) : -1;
       return (aw - bw) * dir;
     }
+    if (sort.field === '_updated') {
+      return String(a.updated_at ?? '').localeCompare(String(b.updated_at ?? '')) * dir;
+    }
     return compareItemFields(a, b, sort.field, defs) * dir;
   });
 }

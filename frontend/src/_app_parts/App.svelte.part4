@@ -42,6 +42,9 @@
       <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
         See All
       </button>
+      <button type="button" onclick={() => zoomByKeyboard(0)} title="Reset zoom to 100%">
+        100%
+      </button>
       <div class="theme-controls">
         <button
           type="button"
@@ -124,12 +127,13 @@
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span
           class="zoom-readout"
-          title="Double-click to reset zoom to 100%"
+          title="Drag to zoom. Double-click to reset to 100%"
+          onpointerdown={onZoomReadoutPointerDown}
           ondblclick={() => zoomByKeyboard(0)}
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-24f</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-25g</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -503,13 +507,17 @@
                           <div class="waiting-details">
                             {#if person}
                               <label class="waiting-inline">
-                                <span>Name:</span>
-                                <input
-                                  type="text"
+                                <span>{person.label || 'Name'}:</span>
+                                <select
                                   value={String(detailCache[item.id].fields.waiting_for ?? '')}
-                                  oninput={(e) =>
+                                  onchange={(e) =>
                                     scheduleItemPatch(item.id, { waiting_for: e.currentTarget.value })}
-                                />
+                                >
+                                  <option value=""></option>
+                                  {#each waitingNameChoices(person.options, detailCache[item.id].fields.waiting_for) as opt}
+                                    <option value={opt}>{opt}</option>
+                                  {/each}
+                                </select>
                               </label>
                             {/if}
                             {#if since}
@@ -618,16 +626,18 @@
                         onclick={() => clickListSort('_waiting')}
                       >Waiting{listSortMark('_waiting')}</th>
                     {/if}
+                    <th
+                      class="sortable"
+                      class:sorted={workspace.sort?.field === '_updated'}
+                      onclick={() => clickListSort('_updated')}
+                    >Updated{listSortMark('_updated')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {#each filteredItems as it}
                     <tr
                       class="clickable"
-                      onclick={(e) => {
-                        if (e.ctrlKey || canvasPan.swallowClicks) return;
-                        openItemPanel(it.id);
-                      }}
+                      ondblclick={(e) => onAllItemsRowDblClick(e, it.id)}
                       oncontextmenu={(e) => openItemContextMenu(e, it)}
                     >
                       {#each allItemsColumns as f}
@@ -645,6 +655,7 @@
                           {/if}
                         </td>
                       {/if}
+                      <td class="updated-date">{formatItemUpdatedDate(it.updated_at)}</td>
                     </tr>
                   {/each}
                 </tbody>

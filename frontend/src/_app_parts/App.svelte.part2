@@ -382,6 +382,69 @@
     applyZoomAtClient(cx, cy, (workspace.ui.zoom || 1) * factor);
   }
 
+  const zoomScrub = {
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    startZoom: 1,
+    dragging: false,
+  };
+
+  function endZoomScrub() {
+    zoomScrub.pointerId = -1;
+    zoomScrub.dragging = false;
+    document.body.classList.remove('lit-zoom-scrubbing');
+    window.removeEventListener('pointermove', onZoomScrubMove, true);
+    window.removeEventListener('pointerup', onZoomScrubUp, true);
+    window.removeEventListener('pointercancel', onZoomScrubUp, true);
+  }
+
+  function onZoomReadoutPointerDown(e: PointerEvent) {
+    if (e.button !== 0 || !workspace) return;
+    if (e.ctrlKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    zoomScrub.pointerId = e.pointerId;
+    zoomScrub.startX = e.clientX;
+    zoomScrub.startY = e.clientY;
+    zoomScrub.startZoom = workspace.ui.zoom || 1;
+    zoomScrub.dragging = false;
+    window.removeEventListener('pointermove', onZoomScrubMove, true);
+    window.removeEventListener('pointerup', onZoomScrubUp, true);
+    window.removeEventListener('pointercancel', onZoomScrubUp, true);
+    window.addEventListener('pointermove', onZoomScrubMove, true);
+    window.addEventListener('pointerup', onZoomScrubUp, true);
+    window.addEventListener('pointercancel', onZoomScrubUp, true);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function onZoomScrubMove(e: PointerEvent) {
+    if (e.pointerId !== zoomScrub.pointerId || !workspace) return;
+    const dx = e.clientX - zoomScrub.startX;
+    const dy = e.clientY - zoomScrub.startY;
+    if (!zoomScrub.dragging && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+    zoomScrub.dragging = true;
+    document.body.classList.add('lit-zoom-scrubbing');
+    e.preventDefault();
+    const wrap = canvasWrapEl;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    applyZoomAtClient(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+      zoomFromPointerScrub(zoomScrub.startZoom, dx, dy)
+    );
+  }
+
+  function onZoomScrubUp(e: PointerEvent) {
+    if (e.pointerId !== zoomScrub.pointerId) return;
+    endZoomScrub();
+  }
+
   function onCanvasWheel(e: WheelEvent) {
     if (!workspace || !wheelShouldZoom(e)) return;
     e.preventDefault();
@@ -544,6 +607,24 @@
     return Math.max(...workspace.panels.map((p) => p.z_index || 0));
   }
 
+  function nowStamp(): string {
+    return new Date().toISOString();
+  }
+
+  function stampPanel(p: Panel, when = nowStamp()) {
+    p.updated_at = when;
+  }
+
+  function stampPanels(kind: Panel['kind'], itemId?: string, when = nowStamp()) {
+    updateWorkspace((ws) => {
+      for (const p of ws.panels) {
+        if (p.kind !== kind) continue;
+        if (itemId && p.item_id !== itemId) continue;
+        stampPanel(p, when);
+      }
+    });
+  }
+
   function focusPanel(id: string) {
     updateWorkspace((ws) => {
       const p = ws.panels.find((x) => x.id === id);
@@ -557,6 +638,7 @@
       const p = ws.panels.find((x) => x.id === id);
       if (!p) return;
       Object.assign(p, patch);
+      stampPanel(p);
     });
   }
 
@@ -642,6 +724,19 @@
     const panel = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
     if (!panel) return;
     zoomToPanel(panel);
+  }
+
+  function onAllItemsRowDblClick(e: MouseEvent, itemId: string) {
+    if (e.ctrlKey || canvasPan.swallowClicks) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
+    if (existing) {
+      zoomToPanel(existing);
+      return;
+    }
+    openItemPanel(itemId);
   }
 
   function applyContextFocus() {
@@ -730,6 +825,7 @@
         height: panelH,
         z_index: z,
         collapsed: false,
+        updated_at: existingItem?.updated_at || nowStamp(),
       });
     });
   }
@@ -756,6 +852,7 @@
         width: sizes.w,
         height: sizes.h,
         z_index: maxZ() + 1,
+        updated_at: nowStamp(),
       });
     });
   }

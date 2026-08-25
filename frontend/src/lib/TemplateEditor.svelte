@@ -14,6 +14,7 @@
     rebalanceLineWidths,
   } from './fieldLayout';
   import { isNotesFillRow } from './panelSize';
+  import { waitingNameChoices } from './waiting';
 
   const CONTROL_TYPES = [
     'text',
@@ -608,12 +609,16 @@
                     <div class="waiting-details">
                       {#if person}
                         <label class="waiting-inline">
-                          <span>Name:</span>
-                          <input
-                            type="text"
+                          <span>{person.label || 'Name'}:</span>
+                          <select
                             value={String(previewValues.waiting_for ?? '')}
-                            oninput={(e) => patchPreview('waiting_for', e.currentTarget.value)}
-                          />
+                            onchange={(e) => patchPreview('waiting_for', e.currentTarget.value)}
+                          >
+                            <option value=""></option>
+                            {#each waitingNameChoices(person.options, previewValues.waiting_for) as opt}
+                              <option value={opt}>{opt}</option>
+                            {/each}
+                          </select>
                         </label>
                       {/if}
                       {#if since}

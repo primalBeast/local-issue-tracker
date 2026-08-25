@@ -89,6 +89,8 @@ export type Panel = {
   height: number;
   z_index: number;
   collapsed?: boolean;
+  /** Last time this panel's content or layout changed. Not shown on the panel. */
+  updated_at?: string;
 };
 
 export type Workspace = {

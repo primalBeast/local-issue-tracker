@@ -32,9 +32,16 @@
     panAfterZoom,
     panelsWorldBounds,
     screenToWorld,
+    zoomFromPointerScrub,
     zoomFromWheelDelta,
   } from './lib/viewport';
-  import { formatWaitingDays, isItemWaiting, liveSeconds, todayLocalDate } from './lib/waiting';
+  import {
+    formatWaitingDays,
+    isItemWaiting,
+    liveSeconds,
+    todayLocalDate,
+    waitingNameChoices,
+  } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import {
     appearanceFromWorkspace,
@@ -308,6 +315,7 @@
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       endCanvasPan();
       clearCtrlPanClickSuppress();
+      endZoomScrub();
       resetTabDrag();
     };
   });
@@ -960,6 +968,69 @@
     applyZoomAtClient(cx, cy, (workspace.ui.zoom || 1) * factor);
   }
 
+  const zoomScrub = {
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    startZoom: 1,
+    dragging: false,
+  };
+
+  function endZoomScrub() {
+    zoomScrub.pointerId = -1;
+    zoomScrub.dragging = false;
+    document.body.classList.remove('lit-zoom-scrubbing');
+    window.removeEventListener('pointermove', onZoomScrubMove, true);
+    window.removeEventListener('pointerup', onZoomScrubUp, true);
+    window.removeEventListener('pointercancel', onZoomScrubUp, true);
+  }
+
+  function onZoomReadoutPointerDown(e: PointerEvent) {
+    if (e.button !== 0 || !workspace) return;
+    if (e.ctrlKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    zoomScrub.pointerId = e.pointerId;
+    zoomScrub.startX = e.clientX;
+    zoomScrub.startY = e.clientY;
+    zoomScrub.startZoom = workspace.ui.zoom || 1;
+    zoomScrub.dragging = false;
+    window.removeEventListener('pointermove', onZoomScrubMove, true);
+    window.removeEventListener('pointerup', onZoomScrubUp, true);
+    window.removeEventListener('pointercancel', onZoomScrubUp, true);
+    window.addEventListener('pointermove', onZoomScrubMove, true);
+    window.addEventListener('pointerup', onZoomScrubUp, true);
+    window.addEventListener('pointercancel', onZoomScrubUp, true);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function onZoomScrubMove(e: PointerEvent) {
+    if (e.pointerId !== zoomScrub.pointerId || !workspace) return;
+    const dx = e.clientX - zoomScrub.startX;
+    const dy = e.clientY - zoomScrub.startY;
+    if (!zoomScrub.dragging && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+    zoomScrub.dragging = true;
+    document.body.classList.add('lit-zoom-scrubbing');
+    e.preventDefault();
+    const wrap = canvasWrapEl;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    applyZoomAtClient(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+      zoomFromPointerScrub(zoomScrub.startZoom, dx, dy)
+    );
+  }
+
+  function onZoomScrubUp(e: PointerEvent) {
+    if (e.pointerId !== zoomScrub.pointerId) return;
+    endZoomScrub();
+  }
+
   function onCanvasWheel(e: WheelEvent) {
     if (!workspace || !wheelShouldZoom(e)) return;
     e.preventDefault();
@@ -1122,6 +1193,24 @@
     return Math.max(...workspace.panels.map((p) => p.z_index || 0));
   }
 
+  function nowStamp(): string {
+    return new Date().toISOString();
+  }
+
+  function stampPanel(p: Panel, when = nowStamp()) {
+    p.updated_at = when;
+  }
+
+  function stampPanels(kind: Panel['kind'], itemId?: string, when = nowStamp()) {
+    updateWorkspace((ws) => {
+      for (const p of ws.panels) {
+        if (p.kind !== kind) continue;
+        if (itemId && p.item_id !== itemId) continue;
+        stampPanel(p, when);
+      }
+    });
+  }
+
   function focusPanel(id: string) {
     updateWorkspace((ws) => {
       const p = ws.panels.find((x) => x.id === id);
@@ -1135,6 +1224,7 @@
       const p = ws.panels.find((x) => x.id === id);
       if (!p) return;
       Object.assign(p, patch);
+      stampPanel(p);
     });
   }
 
@@ -1220,6 +1310,19 @@
     const panel = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
     if (!panel) return;
     zoomToPanel(panel);
+  }
+
+  function onAllItemsRowDblClick(e: MouseEvent, itemId: string) {
+    if (e.ctrlKey || canvasPan.swallowClicks) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!workspace) return;
+    const existing = workspace.panels.find((p) => p.kind === 'item' && p.item_id === itemId);
+    if (existing) {
+      zoomToPanel(existing);
+      return;
+    }
+    openItemPanel(itemId);
   }
 
   function applyContextFocus() {
@@ -1308,6 +1411,7 @@
         height: panelH,
         z_index: z,
         collapsed: false,
+        updated_at: existingItem?.updated_at || nowStamp(),
       });
     });
   }
@@ -1334,6 +1438,7 @@
         width: sizes.w,
         height: sizes.h,
         z_index: maxZ() + 1,
+        updated_at: nowStamp(),
       });
     });
   }
@@ -1374,9 +1479,11 @@
   function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
     if (!project) return;
     // Optimistic lean list update
+    const touched = nowStamp();
     items = items.map((it) =>
-      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields } } : it
+      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields }, updated_at: touched } : it
     );
+    stampPanels('item', itemId, touched);
     if (detailCache[itemId]) {
       detailCache = {
         ...detailCache,
@@ -1494,6 +1601,13 @@
     return workspace.sort.direction === 'desc' ? ' ▼' : ' ▲';
   }
 
+  function formatItemUpdatedDate(iso: string | undefined): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso).slice(0, 10);
+    return todayLocalDate(d);
+  }
+
   function clearFilters() {
     updateWorkspace((ws) => {
       ws.filters.active = {};
@@ -1505,6 +1619,7 @@
     notesContent = content;
     try {
       await api.putNotes(project.slug, content);
+      stampPanels('notes');
     } catch {
       showToast('Notes save failed');
     }
@@ -1515,6 +1630,7 @@
     deliverables = next;
     try {
       await api.putDeliverables(project.slug, next);
+      stampPanels('deliverables');
     } catch {
       showToast('Deliverables save failed');
     }
@@ -1870,6 +1986,9 @@
       <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
         See All
       </button>
+      <button type="button" onclick={() => zoomByKeyboard(0)} title="Reset zoom to 100%">
+        100%
+      </button>
       <div class="theme-controls">
         <button
           type="button"
@@ -1952,12 +2071,13 @@
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span
           class="zoom-readout"
-          title="Double-click to reset zoom to 100%"
+          title="Drag to zoom. Double-click to reset to 100%"
+          onpointerdown={onZoomReadoutPointerDown}
           ondblclick={() => zoomByKeyboard(0)}
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-24f</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-25g</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2331,13 +2451,17 @@
                           <div class="waiting-details">
                             {#if person}
                               <label class="waiting-inline">
-                                <span>Name:</span>
-                                <input
-                                  type="text"
+                                <span>{person.label || 'Name'}:</span>
+                                <select
                                   value={String(detailCache[item.id].fields.waiting_for ?? '')}
-                                  oninput={(e) =>
+                                  onchange={(e) =>
                                     scheduleItemPatch(item.id, { waiting_for: e.currentTarget.value })}
-                                />
+                                >
+                                  <option value=""></option>
+                                  {#each waitingNameChoices(person.options, detailCache[item.id].fields.waiting_for) as opt}
+                                    <option value={opt}>{opt}</option>
+                                  {/each}
+                                </select>
                               </label>
                             {/if}
                             {#if since}
@@ -2446,16 +2570,18 @@
                         onclick={() => clickListSort('_waiting')}
                       >Waiting{listSortMark('_waiting')}</th>
                     {/if}
+                    <th
+                      class="sortable"
+                      class:sorted={workspace.sort?.field === '_updated'}
+                      onclick={() => clickListSort('_updated')}
+                    >Updated{listSortMark('_updated')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {#each filteredItems as it}
                     <tr
                       class="clickable"
-                      onclick={(e) => {
-                        if (e.ctrlKey || canvasPan.swallowClicks) return;
-                        openItemPanel(it.id);
-                      }}
+                      ondblclick={(e) => onAllItemsRowDblClick(e, it.id)}
                       oncontextmenu={(e) => openItemContextMenu(e, it)}
                     >
                       {#each allItemsColumns as f}
@@ -2473,6 +2599,7 @@
                           {/if}
                         </td>
                       {/if}
+                      <td class="updated-date">{formatItemUpdatedDate(it.updated_at)}</td>
                     </tr>
                   {/each}
                 </tbody>

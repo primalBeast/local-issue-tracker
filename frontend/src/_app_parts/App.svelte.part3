@@ -34,9 +34,11 @@
   function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
     if (!project) return;
     // Optimistic lean list update
+    const touched = nowStamp();
     items = items.map((it) =>
-      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields } } : it
+      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields }, updated_at: touched } : it
     );
+    stampPanels('item', itemId, touched);
     if (detailCache[itemId]) {
       detailCache = {
         ...detailCache,
@@ -154,6 +156,13 @@
     return workspace.sort.direction === 'desc' ? ' ▼' : ' ▲';
   }
 
+  function formatItemUpdatedDate(iso: string | undefined): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso).slice(0, 10);
+    return todayLocalDate(d);
+  }
+
   function clearFilters() {
     updateWorkspace((ws) => {
       ws.filters.active = {};
@@ -165,6 +174,7 @@
     notesContent = content;
     try {
       await api.putNotes(project.slug, content);
+      stampPanels('notes');
     } catch {
       showToast('Notes save failed');
     }
@@ -175,6 +185,7 @@
     deliverables = next;
     try {
       await api.putDeliverables(project.slug, next);
+      stampPanels('deliverables');
     } catch {
       showToast('Deliverables save failed');
     }

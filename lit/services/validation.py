@@ -74,8 +74,11 @@ def validate_fields_schema(data: dict[str, Any]) -> dict[str, Any]:
                 raise ValidationError(f"field {fid}: width must be between 1 and 100")
         if ftype in ("select", "multiselect"):
             opts = f.get("options")
-            if not isinstance(opts, list) or len(opts) == 0:
-                raise ValidationError(f"field {fid}: options required and non-empty")
+            if opts is None:
+                f["options"] = []
+                opts = []
+            if not isinstance(opts, list) or any(not isinstance(o, str) for o in opts):
+                raise ValidationError(f"field {fid}: options must be a list of strings")
     return data
 
 

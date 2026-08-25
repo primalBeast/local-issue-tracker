@@ -7,6 +7,7 @@ import {
   panelsWorldBounds,
   screenToWorld,
   worldToScreen,
+  zoomFromPointerScrub,
   zoomFromWheelDelta,
 } from './viewport';
 
@@ -27,6 +28,13 @@ describe('viewport', () => {
 
   it('treats line-mode deltas as larger than raw pixels', () => {
     expect(zoomFromWheelDelta(1, 3, 1)).toBeLessThan(zoomFromWheelDelta(1, 3, 0));
+  });
+
+  it('zooms in when dragging the readout up or right, out down or left', () => {
+    expect(zoomFromPointerScrub(1, 40, 0)).toBeGreaterThan(1);
+    expect(zoomFromPointerScrub(1, 0, -40)).toBeGreaterThan(1);
+    expect(zoomFromPointerScrub(1, -40, 0)).toBeLessThan(1);
+    expect(zoomFromPointerScrub(1, 0, 40)).toBeLessThan(1);
   });
 
   it('keeps the world point under the pointer when zooming', () => {

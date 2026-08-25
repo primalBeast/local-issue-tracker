@@ -276,7 +276,8 @@
   </div>
 
   {#if compact}
-    <div class="panel-body compact">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="panel-body compact" ondblclick={onHeaderDblClick}>
       {#if compactChildren}
         {@render compactChildren()}
       {:else}

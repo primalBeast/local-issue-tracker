@@ -108,10 +108,11 @@
     {
       "id": "waiting_for",
       "label": "Name",
-      "type": "text",
+      "type": "select",
       "required": false,
       "order": "50a",
       "default": "",
+      "options": [],
       "visible_when": {
         "field": "waiting",
         "equals": true

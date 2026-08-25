@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { FieldDef } from './api';
-import { isVisible, itemMatchesFilters } from './filters';
+import type { FieldDef, Item } from './api';
+import { isVisible, itemMatchesFilters, sortItems } from './filters';
 
 function field(partial: Partial<FieldDef> & Pick<FieldDef, 'id' | 'type'>): FieldDef {
   return { label: partial.id, order: 1, ...partial };
@@ -35,5 +35,16 @@ describe('itemMatchesFilters', () => {
     const idle = { fields: { waiting: false } } as never;
     expect(itemMatchesFilters(waiting, { waiting: [true] }, defs)).toBe(true);
     expect(itemMatchesFilters(idle, { waiting: [true] }, defs)).toBe(false);
+  });
+});
+
+describe('sortItems', () => {
+  it('sorts by updated_at', () => {
+    const a = { id: 'a', updated_at: '2026-08-01T12:00:00Z', fields: {} } as Item;
+    const b = { id: 'b', updated_at: '2026-08-20T12:00:00Z', fields: {} } as Item;
+    const asc = sortItems([b, a], { field: '_updated', direction: 'asc' });
+    expect(asc.map((i) => i.id)).toEqual(['a', 'b']);
+    const desc = sortItems([a, b], { field: '_updated', direction: 'desc' });
+    expect(desc.map((i) => i.id)).toEqual(['b', 'a']);
   });
 });

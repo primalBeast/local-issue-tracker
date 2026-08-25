@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { formatDuration, formatWaitingDays, isItemWaiting, liveSeconds, todayLocalDate } from './waiting';
+import {
+  formatDuration,
+  formatWaitingDays,
+  isItemWaiting,
+  liveSeconds,
+  todayLocalDate,
+  waitingNameChoices,
+} from './waiting';
 
 describe('waiting', () => {
   it('formats durations', () => {
@@ -22,6 +29,12 @@ describe('waiting', () => {
 
   it('formats a local calendar date', () => {
     expect(todayLocalDate(new Date(2026, 7, 20, 15, 30, 0))).toBe('2026-08-20');
+  });
+
+  it('keeps a leftover waiting name in the select list', () => {
+    expect(waitingNameChoices(['Ann', 'Mia'], 'Ann')).toEqual(['Ann', 'Mia']);
+    expect(waitingNameChoices(['Ann'], 'Bob')).toEqual(['Ann', 'Bob']);
+    expect(waitingNameChoices([], '')).toEqual([]);
   });
 
   it('computes live seconds', () => {

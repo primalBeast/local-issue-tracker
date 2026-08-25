@@ -124,8 +124,22 @@ def test_put_fields_round_trip_keeps_letter_orders(client: TestClient):
     assert next(f["order"] for f in again["fields"] if f["id"] == "priority") == "30a"
 
 
+def _add_waiting_names(client: TestClient, slug: str, *names: str) -> None:
+    fields = client.get(f"/api/projects/{slug}/fields").json()
+    wf = next(f for f in fields["fields"] if f["id"] == "waiting_for")
+    opts = list(wf.get("options") or [])
+    for name in names:
+        if name not in opts:
+            opts.append(name)
+    wf["type"] = "select"
+    wf["options"] = opts
+    saved = client.put(f"/api/projects/{slug}/fields", json=fields)
+    assert saved.status_code == 200, saved.text
+
+
 def test_waiting_transition(client: TestClient):
     slug = client.get("/api/projects").json()[0]["slug"]
+    _add_waiting_names(client, slug, "Alice")
     created = client.post(
         f"/api/projects/{slug}/items",
         json={"fields": {"ticket_key": "W-1", "priority": 2, "state": "In fixing"}},
@@ -178,6 +192,7 @@ def test_waiting_transition(client: TestClient):
 
 def test_waiting_cleared_when_done(client: TestClient):
     slug = client.get("/api/projects").json()[0]["slug"]
+    _add_waiting_names(client, slug, "Sam")
     created = client.post(
         f"/api/projects/{slug}/items",
         json={
@@ -231,6 +246,8 @@ def test_legacy_waiting_for_state_migrates_to_submitted(client: TestClient):
     state = next(f for f in fields["fields"] if f["id"] == "state")
     assert "Waiting For" not in state["options"]
     assert any(f["id"] == "waiting" for f in fields["fields"])
+    waiting_for = next(f for f in fields["fields"] if f["id"] == "waiting_for")
+    assert waiting_for["type"] == "select"
 
     items = client.get(f"/api/projects/{slug}/items").json()
     match = next(x for x in items if x["fields"].get("ticket_key") == "LEG-1")
