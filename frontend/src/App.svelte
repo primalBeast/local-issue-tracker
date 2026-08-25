@@ -139,7 +139,17 @@
       .sort((a, b) => String(a.order).localeCompare(String(b.order), undefined, { numeric: true }))
   );
   const ALL_ITEMS_FILTER_ROW_IDS: string[] = ['state', 'dn_assigned_to', 'customer_assigned_to'];
-  const ALL_ITEMS_HIDDEN_FILTER_IDS: string[] = ['priority', 'urgency'];
+  const ALL_ITEMS_HIDDEN_FILTER_IDS: string[] = ['priority', 'urgency', 'waiting_for'];
+  const ASSIGNED_FILTER_IDS: string[] = ['dn_assigned_to', 'customer_assigned_to'];
+
+  function filterCheckboxOptions(ff: FieldDef): string[] {
+    const opts = ff.options || [];
+    if (!ASSIGNED_FILTER_IDS.includes(ff.id)) return opts;
+    return opts.filter((o) => {
+      const s = String(o ?? '').trim();
+      return s !== '' && s !== '-';
+    });
+  }
   let filterableFields = $derived(
     fieldDefs.filter((f) => f.filterable && !ALL_ITEMS_HIDDEN_FILTER_IDS.includes(f.id))
   );
@@ -210,6 +220,13 @@
   let listHasWaiting = $derived(filteredItems.some(isItemWaiting));
   let allItemsColumns = $derived(
     listHasWaiting ? listFields : listFields.filter((f) => f.id !== 'waiting_for')
+  );
+  let openItemIds = $derived(
+    new Set(
+      (workspace?.panels || [])
+        .filter((p) => p.kind === 'item' && p.item_id)
+        .map((p) => p.item_id as string)
+    )
   );
 
   onMount(() => {
@@ -2077,7 +2094,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-25g</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-25j</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2516,7 +2533,7 @@
                   <div class="filter-group">
                     <div class="filter-group-title">{ff.label}</div>
                     {#if ff.type === 'select' && ff.options}
-                      {#each ff.options as opt}
+                      {#each filterCheckboxOptions(ff) as opt}
                         <label class="check-row">
                           <input
                             type="checkbox"
@@ -2555,6 +2572,7 @@
               <table class="table">
                 <thead>
                   <tr>
+                    <th class="open-dot-col" aria-label="Open on this board"></th>
                     {#each allItemsColumns as f}
                       <th
                         class="sortable"
@@ -2584,6 +2602,14 @@
                       ondblclick={(e) => onAllItemsRowDblClick(e, it.id)}
                       oncontextmenu={(e) => openItemContextMenu(e, it)}
                     >
+                      <td class="open-dot-col">
+                        <span
+                          class="open-dot"
+                          class:lit={openItemIds.has(it.id)}
+                          title={openItemIds.has(it.id) ? 'Open on this board' : 'Not open on this board'}
+                          aria-hidden="true"
+                        ></span>
+                      </td>
                       {#each allItemsColumns as f}
                         <td>{f.id === 'waiting_for' && !isItemWaiting(it) ? '' : String(it.fields[f.id] ?? '')}</td>
                       {/each}

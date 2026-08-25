@@ -117,7 +117,6 @@
         "field": "waiting",
         "equals": true
       },
-      "filterable": true,
       "show_in_list": true,
       "list_label": "Waiting For"
     },
