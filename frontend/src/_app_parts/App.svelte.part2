@@ -703,7 +703,8 @@
         width: Math.max(1, panel.width),
         height: Math.max(1, panel.height),
       },
-      { width: wrap.clientWidth, height: wrap.clientHeight }
+      { width: wrap.clientWidth, height: wrap.clientHeight },
+      workspace?.ui.zoom || 1
     );
     updateWorkspace((ws) => {
       ws.ui.zoom = view.zoom;

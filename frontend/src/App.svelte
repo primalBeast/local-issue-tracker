@@ -1306,7 +1306,8 @@
         width: Math.max(1, panel.width),
         height: Math.max(1, panel.height),
       },
-      { width: wrap.clientWidth, height: wrap.clientHeight }
+      { width: wrap.clientWidth, height: wrap.clientHeight },
+      workspace?.ui.zoom || 1
     );
     updateWorkspace((ws) => {
       ws.ui.zoom = view.zoom;
@@ -2094,7 +2095,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-26c</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-26d</span>
         <span
           class="server-dot"
           class:ok={serverOk}

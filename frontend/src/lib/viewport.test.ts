@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  FOCUS_ZOOM_MAX,
   fitView,
   focusView,
   panAfterZoom,
@@ -69,26 +68,13 @@ describe('viewport', () => {
     expect(br.y).toBeLessThanOrEqual(600.01);
   });
 
-  it('caps focus zoom at 125% and centres the panel', () => {
+  it('centres a focused panel without changing zoom', () => {
     const bounds = { x: 100, y: 40, width: 200, height: 80 };
-    const view = focusView(bounds, { width: 800, height: 600 }, 48);
-    expect(view.zoom).toBe(FOCUS_ZOOM_MAX);
-    expect(FOCUS_ZOOM_MAX).toBe(1.25);
+    const view = focusView(bounds, { width: 800, height: 600 }, 0.4);
+    expect(view.zoom).toBe(0.4);
     const cx = bounds.x + bounds.width / 2;
     const cy = bounds.y + bounds.height / 2;
-    expect(view.pan.x).toBeCloseTo(800 / 2 - cx * view.zoom);
-    expect(view.pan.y).toBeCloseTo(600 / 2 - cy * view.zoom);
     const screenCenter = worldToScreen(view.pan, view.zoom, { x: cx, y: cy });
-    expect(screenCenter.x).toBeCloseTo(400);
-    expect(screenCenter.y).toBeCloseTo(300);
-  });
-
-  it('zooms out below 125% when a focused panel would not fit', () => {
-    const bounds = { x: 0, y: 0, width: 2000, height: 2000 };
-    const view = focusView(bounds, { width: 800, height: 600 }, 0);
-    expect(view.zoom).toBeCloseTo(600 / 2000);
-    expect(view.zoom).toBeLessThan(FOCUS_ZOOM_MAX);
-    const screenCenter = worldToScreen(view.pan, view.zoom, { x: 1000, y: 1000 });
     expect(screenCenter.x).toBeCloseTo(400);
     expect(screenCenter.y).toBeCloseTo(300);
   });
