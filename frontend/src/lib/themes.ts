@@ -27,7 +27,6 @@ export type ThemeId =
   | 'dotonbori'
   | 'ginzan'
   | 'takayama'
-  | 'nebula'
   | 'obsidian'
   | 'biolume'
   | 'torii'
@@ -40,8 +39,22 @@ export type ThemeId =
   | 'karst'
   | 'opera'
   | 'reef'
-  | 'samarkand'
-  | 'geode';
+  | 'geode'
+  | 'fuji'
+  | 'bamboo'
+  | 'kinkaku'
+  | 'nachi'
+  | 'kasuga'
+  | 'yakushima'
+  | 'shirakawa'
+  | 'miyajima'
+  | 'koyo'
+  | 'wisteria'
+  | 'onsen'
+  | 'nikko'
+  | 'himeji'
+  | 'aso'
+  | 'seto';
 
 export type Theme = {
   id: ThemeId;
@@ -383,15 +396,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(8,6,4,0.55) 0%, rgba(8,6,4,0.22) 42%, rgba(8,6,4,0.52) 100%)',
   }),
-  themed('nebula', 'Cosmic Bloom', 'nebula.jpg', '#e879f9', '#22d3ee', {
-    '--text': '#fdf4ff',
-    '--focus-ring': 'rgba(232, 121, 249, 0.22)',
-    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
-    '--brand-glow': 'rgba(232, 121, 249, 0.45)',
-    '--panel-glass': 'rgba(8, 6, 18, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,2,12,0.55) 0%, rgba(4,2,12,0.2) 42%, rgba(4,4,14,0.52) 100%)',
-  }),
   themed('obsidian', 'Obsidian Caldera', 'obsidian.jpg', '#fb7185', '#f97316', {
     '--text': '#fff1f2',
     '--focus-ring': 'rgba(251, 113, 133, 0.22)',
@@ -500,15 +504,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(2,8,14,0.52) 0%, rgba(2,8,14,0.2) 44%, rgba(2,10,16,0.5) 100%)',
   }),
-  themed('samarkand', 'Silk Dusk', 'samarkand.jpg', '#22d3ee', '#fbbf24', {
-    '--text': '#ecfeff',
-    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
-    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
-    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
-    '--panel-glass': 'rgba(8, 12, 16, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,8,12,0.52) 0%, rgba(4,8,12,0.2) 44%, rgba(6,8,12,0.5) 100%)',
-  }),
   themed('geode', 'Amethyst Geode', 'geode.jpg', '#c084fc', '#f0abfc', {
     '--text': '#faf5ff',
     '--focus-ring': 'rgba(192, 132, 252, 0.22)',
@@ -517,6 +512,141 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(12, 6, 20, 0.62)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(8,2,16,0.55) 0%, rgba(8,2,16,0.22) 42%, rgba(8,4,16,0.52) 100%)',
+  }),
+  themed('fuji', 'Fuji Dawn', 'fuji.jpg', '#fb923c', '#fcd34d', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(252, 211, 77, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(14, 10, 12, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,6,8,0.5) 0%, rgba(10,6,8,0.18) 44%, rgba(10,8,10,0.48) 100%)',
+  }),
+  themed('bamboo', 'Arashiyama Grove', 'bamboo.jpg', '#4ade80', '#a3e635', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(163, 230, 53, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(6, 16, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,12,8,0.52) 0%, rgba(4,12,8,0.2) 44%, rgba(4,10,8,0.5) 100%)',
+  }),
+  themed('kinkaku', 'Golden Pavilion', 'kinkaku.jpg', '#fbbf24', '#f59e0b', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(245, 158, 11, 0.16)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.45)',
+    '--panel-glass': 'rgba(12, 8, 6, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,4,0.55) 0%, rgba(8,4,4,0.2) 42%, rgba(8,6,6,0.52) 100%)',
+  }),
+  themed('nachi', 'Nachi Falls', 'nachi.jpg', '#f43f5e', '#2dd4bf', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(45, 212, 191, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 12, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,8,0.55) 0%, rgba(4,8,8,0.22) 42%, rgba(6,8,8,0.52) 100%)',
+  }),
+  themed('kasuga', 'Kasuga Lanterns', 'kasuga.jpg', '#fbbf24', '#fb923c', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(251, 146, 60, 0.16)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.42)',
+    '--panel-glass': 'rgba(12, 8, 6, 0.64)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,2,0.58) 0%, rgba(8,4,2,0.22) 42%, rgba(8,6,4,0.55) 100%)',
+  }),
+  themed('yakushima', 'Yakushima Moss', 'yakushima.jpg', '#34d399', '#a3e635', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(52, 211, 153, 0.22)',
+    '--accent-soft': 'rgba(163, 230, 53, 0.14)',
+    '--brand-glow': 'rgba(52, 211, 153, 0.4)',
+    '--panel-glass': 'rgba(6, 14, 10, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,10,8,0.55) 0%, rgba(4,10,8,0.22) 42%, rgba(4,10,8,0.52) 100%)',
+  }),
+  themed('shirakawa', 'Shirakawa Snow', 'shirakawa.jpg', '#fbbf24', '#93c5fd', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(147, 197, 253, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.38)',
+    '--panel-glass': 'rgba(10, 12, 18, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,14,0.52) 0%, rgba(6,8,14,0.2) 44%, rgba(6,8,14,0.5) 100%)',
+  }),
+  themed('miyajima', 'Miyajima Tide', 'miyajima.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.42)',
+    '--panel-glass': 'rgba(12, 8, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,8,0.52) 0%, rgba(8,4,8,0.2) 44%, rgba(8,6,10,0.5) 100%)',
+  }),
+  themed('koyo', 'Maple Temple', 'koyo.jpg', '#f97316', '#f43f5e', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(249, 115, 22, 0.22)',
+    '--accent-soft': 'rgba(244, 63, 94, 0.16)',
+    '--brand-glow': 'rgba(249, 115, 22, 0.42)',
+    '--panel-glass': 'rgba(14, 8, 6, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,4,0.55) 0%, rgba(10,4,4,0.2) 42%, rgba(10,6,4,0.52) 100%)',
+  }),
+  themed('wisteria', 'Wisteria Tunnel', 'wisteria.jpg', '#c084fc', '#f0abfc', {
+    '--text': '#faf5ff',
+    '--focus-ring': 'rgba(192, 132, 252, 0.22)',
+    '--accent-soft': 'rgba(240, 171, 252, 0.16)',
+    '--brand-glow': 'rgba(192, 132, 252, 0.45)',
+    '--panel-glass': 'rgba(12, 8, 18, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,14,0.5) 0%, rgba(8,4,14,0.18) 44%, rgba(8,6,14,0.48) 100%)',
+  }),
+  themed('onsen', 'Snow Onsen', 'onsen.jpg', '#fbbf24', '#67e8f9', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(103, 232, 249, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 16, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,12,0.55) 0%, rgba(6,8,12,0.22) 42%, rgba(6,8,12,0.52) 100%)',
+  }),
+  themed('nikko', 'Nikko Gold', 'nikko.jpg', '#fbbf24', '#4ade80', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.42)',
+    '--panel-glass': 'rgba(8, 12, 8, 0.64)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,4,0.58) 0%, rgba(4,8,4,0.22) 42%, rgba(4,8,6,0.55) 100%)',
+  }),
+  themed('himeji', 'White Heron', 'himeji.jpg', '#e2e8f0', '#fbbf24', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.2)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
+    '--panel-glass': 'rgba(12, 12, 16, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,8,12,0.5) 0%, rgba(8,8,12,0.18) 44%, rgba(8,8,12,0.48) 100%)',
+  }),
+  themed('aso', 'Aso Caldera', 'aso.jpg', '#fbbf24', '#34d399', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(52, 211, 153, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,6,4,0.52) 0%, rgba(8,6,4,0.2) 44%, rgba(8,6,4,0.5) 100%)',
+  }),
+  themed('seto', 'Inland Sea', 'seto.jpg', '#38bdf8', '#fbbf24', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,12,0.5) 0%, rgba(4,8,12,0.18) 44%, rgba(6,8,12,0.48) 100%)',
   }),
 ];
 
