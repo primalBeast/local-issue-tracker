@@ -86,7 +86,17 @@ export type ThemeId =
   | 'kawazu'
   | 'daigo'
   | 'osaka'
-  | 'inokashira';
+  | 'inokashira'
+  | 'sekigahara'
+  | 'azuchi'
+  | 'kumamoto'
+  | 'nagashino'
+  | 'noroshi'
+  | 'kagemusha'
+  | 'inuyama'
+  | 'hikone'
+  | 'kacchu'
+  | 'yabusame';
 
 export type Theme = {
   id: ThemeId;
@@ -967,6 +977,96 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(10, 10, 14, 0.56)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,8,12,0.48) 0%, rgba(6,8,12,0.16) 44%, rgba(6,8,12,0.46) 100%)',
+  }),
+  themed('sekigahara', 'Sekigahara Dawn', 'sekigahara.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.42)',
+    '--panel-glass': 'rgba(12, 8, 6, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,4,0.55) 0%, rgba(8,4,4,0.2) 44%, rgba(8,6,4,0.52) 100%)',
+  }),
+  themed('azuchi', 'Azuchi Keep', 'azuchi.jpg', '#fbbf24', '#f97316', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(249, 115, 22, 0.16)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.42)',
+    '--panel-glass': 'rgba(14, 8, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,2,0.52) 0%, rgba(10,4,2,0.2) 44%, rgba(10,6,4,0.5) 100%)',
+  }),
+  themed('kumamoto', 'Kumamoto Rampart', 'kumamoto.jpg', '#e2e8f0', '#f59e0b', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.2)',
+    '--accent-soft': 'rgba(245, 158, 11, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
+    '--panel-glass': 'rgba(10, 10, 12, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,6,8,0.55) 0%, rgba(6,6,8,0.22) 42%, rgba(6,6,8,0.52) 100%)',
+  }),
+  themed('nagashino', 'Nagashino Palisade', 'nagashino.jpg', '#fb923c', '#94a3b8', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 8, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,4,0.55) 0%, rgba(8,4,4,0.22) 42%, rgba(8,6,6,0.52) 100%)',
+  }),
+  themed('noroshi', 'Signal Fires', 'noroshi.jpg', '#f97316', '#fbbf24', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(249, 115, 22, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.16)',
+    '--brand-glow': 'rgba(249, 115, 22, 0.42)',
+    '--panel-glass': 'rgba(10, 6, 8, 0.64)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,2,4,0.58) 0%, rgba(6,2,4,0.22) 42%, rgba(6,4,6,0.55) 100%)',
+  }),
+  themed('kagemusha', 'Banner Tide', 'kagemusha.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.42)',
+    '--panel-glass': 'rgba(12, 8, 6, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,4,0.55) 0%, rgba(8,4,4,0.2) 44%, rgba(8,6,4,0.52) 100%)',
+  }),
+  themed('inuyama', 'Inuyama Keep', 'inuyama.jpg', '#f8fafc', '#f59e0b', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(248, 250, 252, 0.2)',
+    '--accent-soft': 'rgba(245, 158, 11, 0.14)',
+    '--brand-glow': 'rgba(245, 158, 11, 0.38)',
+    '--panel-glass': 'rgba(10, 12, 12, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,8,0.5) 0%, rgba(6,8,8,0.18) 44%, rgba(6,8,8,0.48) 100%)',
+  }),
+  themed('hikone', 'Hikone Keep', 'hikone.jpg', '#fbbf24', '#38bdf8', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 12, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,10,0.5) 0%, rgba(6,8,10,0.18) 44%, rgba(6,8,10,0.48) 100%)',
+  }),
+  themed('kacchu', 'Armor Gate', 'kacchu.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.42)',
+    '--panel-glass': 'rgba(12, 6, 6, 0.64)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,2,2,0.58) 0%, rgba(8,2,2,0.22) 42%, rgba(8,4,4,0.55) 100%)',
+  }),
+  themed('yabusame', 'Yabusame Ground', 'yabusame.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,4,0.52) 0%, rgba(8,4,4,0.2) 44%, rgba(8,6,4,0.5) 100%)',
   }),
 ];
 
