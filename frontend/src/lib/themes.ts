@@ -75,18 +75,14 @@ export type ThemeId =
   | 'yoshino'
   | 'maruyama'
   | 'meguro'
-  | 'goryokaku'
   | 'kakunodate'
   | 'hirosaki'
-  | 'togetsu'
   | 'nara'
   | 'kamakura'
   | 'matsumoto'
   | 'kenroku'
   | 'rikugien'
   | 'chidori'
-  | 'takato'
-  | 'sakurajima'
   | 'kawazu'
   | 'daigo'
   | 'osaka'
@@ -864,15 +860,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(8,2,10,0.58) 0%, rgba(8,2,10,0.22) 42%, rgba(8,4,10,0.55) 100%)',
   }),
-  themed('goryokaku', 'Goryokaku Star', 'goryokaku.jpg', '#f9a8d4', '#38bdf8', {
-    '--text': '#fff1f7',
-    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
-    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
-    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
-    '--panel-glass': 'rgba(10, 10, 16, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,8,14,0.5) 0%, rgba(6,8,14,0.18) 44%, rgba(6,8,14,0.48) 100%)',
-  }),
   themed('kakunodate', 'Samurai Lane', 'kakunodate.jpg', '#fb7185', '#f59e0b', {
     '--text': '#fff1f2',
     '--focus-ring': 'rgba(251, 113, 133, 0.22)',
@@ -890,15 +877,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(12, 10, 14, 0.58)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(8,6,10,0.5) 0%, rgba(8,6,10,0.18) 44%, rgba(8,6,10,0.48) 100%)',
-  }),
-  themed('togetsu', 'Togetsu Bridge', 'togetsu.jpg', '#fb7185', '#4ade80', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
-    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
-    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
-    '--panel-glass': 'rgba(10, 10, 10, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,8,6,0.5) 0%, rgba(6,8,6,0.18) 44%, rgba(6,8,6,0.48) 100%)',
   }),
   themed('nara', 'Nara Blossom', 'nara.jpg', '#f472b6', '#fbbf24', {
     '--text': '#fff1f7',
@@ -953,24 +931,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(10, 8, 14, 0.58)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,6,12,0.5) 0%, rgba(6,6,12,0.18) 44%, rgba(6,6,12,0.48) 100%)',
-  }),
-  themed('takato', 'Takato Ruin', 'takato.jpg', '#fb7185', '#fbbf24', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
-    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
-    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
-    '--panel-glass': 'rgba(12, 8, 10, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,4,8,0.5) 0%, rgba(8,4,8,0.18) 44%, rgba(8,6,8,0.48) 100%)',
-  }),
-  themed('sakurajima', 'Sakurajima Shore', 'sakurajima.jpg', '#fb7185', '#94a3b8', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
-    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
-    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
-    '--panel-glass': 'rgba(10, 8, 12, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,4,10,0.52) 0%, rgba(6,4,10,0.2) 44%, rgba(6,6,10,0.5) 100%)',
   }),
   themed('kawazu', 'Kawazu Pink', 'kawazu.jpg', '#ec4899', '#fb7185', {
     '--text': '#fff1f7',
