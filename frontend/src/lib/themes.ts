@@ -49,20 +49,16 @@ export type ThemeId =
   | 'shirakawa'
   | 'miyajima'
   | 'koyo'
-  | 'wisteria'
   | 'onsen'
   | 'nikko'
   | 'himeji'
   | 'aso'
-  | 'seto'
   | 'kepler'
   | 'xenon'
   | 'spore'
   | 'magma'
   | 'tide'
   | 'veil'
-  | 'cinder'
-  | 'prism'
   | 'oasis'
   | 'thorn'
   | 'nimbus'
@@ -614,15 +610,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(10,4,4,0.55) 0%, rgba(10,4,4,0.2) 42%, rgba(10,6,4,0.52) 100%)',
   }),
-  themed('wisteria', 'Wisteria Tunnel', 'wisteria.jpg', '#c084fc', '#f0abfc', {
-    '--text': '#faf5ff',
-    '--focus-ring': 'rgba(192, 132, 252, 0.22)',
-    '--accent-soft': 'rgba(240, 171, 252, 0.16)',
-    '--brand-glow': 'rgba(192, 132, 252, 0.45)',
-    '--panel-glass': 'rgba(12, 8, 18, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,4,14,0.5) 0%, rgba(8,4,14,0.18) 44%, rgba(8,6,14,0.48) 100%)',
-  }),
   themed('onsen', 'Snow Onsen', 'onsen.jpg', '#fbbf24', '#67e8f9', {
     '--text': '#fffbeb',
     '--focus-ring': 'rgba(251, 191, 36, 0.22)',
@@ -658,15 +645,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(12, 10, 8, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(8,6,4,0.52) 0%, rgba(8,6,4,0.2) 44%, rgba(8,6,4,0.5) 100%)',
-  }),
-  themed('seto', 'Inland Sea', 'seto.jpg', '#38bdf8', '#fbbf24', {
-    '--text': '#f0f9ff',
-    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
-    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
-    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
-    '--panel-glass': 'rgba(8, 12, 16, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,8,12,0.5) 0%, rgba(4,8,12,0.18) 44%, rgba(6,8,12,0.48) 100%)',
   }),
   themed('kepler', 'Twin Suns', 'kepler.jpg', '#f59e0b', '#f43f5e', {
     '--text': '#fff7ed',
@@ -721,24 +699,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(6, 12, 10, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,8,8,0.52) 0%, rgba(4,8,8,0.2) 44%, rgba(4,8,8,0.5) 100%)',
-  }),
-  themed('cinder', 'Cinder Grove', 'cinder.jpg', '#fb7185', '#f97316', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
-    '--accent-soft': 'rgba(249, 115, 22, 0.16)',
-    '--brand-glow': 'rgba(249, 115, 22, 0.4)',
-    '--panel-glass': 'rgba(16, 8, 6, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(10,4,4,0.55) 0%, rgba(10,4,4,0.22) 42%, rgba(8,4,4,0.52) 100%)',
-  }),
-  themed('prism', 'Prism Range', 'prism.jpg', '#67e8f9', '#c084fc', {
-    '--text': '#ecfeff',
-    '--focus-ring': 'rgba(103, 232, 249, 0.22)',
-    '--accent-soft': 'rgba(192, 132, 252, 0.14)',
-    '--brand-glow': 'rgba(103, 232, 249, 0.42)',
-    '--panel-glass': 'rgba(8, 12, 20, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,8,16,0.5) 0%, rgba(4,8,16,0.18) 44%, rgba(6,8,16,0.48) 100%)',
   }),
   themed('oasis', 'Sky Oasis', 'oasis.jpg', '#2dd4bf', '#fbbf24', {
     '--text': '#ecfdf5',
