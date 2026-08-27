@@ -70,7 +70,27 @@ export type ThemeId =
   | 'halo'
   | 'vanta'
   | 'oracle'
-  | 'lichen';
+  | 'lichen'
+  | 'hanami'
+  | 'yoshino'
+  | 'maruyama'
+  | 'meguro'
+  | 'goryokaku'
+  | 'kakunodate'
+  | 'hirosaki'
+  | 'togetsu'
+  | 'nara'
+  | 'kamakura'
+  | 'matsumoto'
+  | 'kenroku'
+  | 'rikugien'
+  | 'chidori'
+  | 'takato'
+  | 'sakurajima'
+  | 'kawazu'
+  | 'daigo'
+  | 'osaka'
+  | 'inokashira';
 
 export type Theme = {
   id: ThemeId;
@@ -807,6 +827,186 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(10, 10, 8, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,6,4,0.52) 0%, rgba(6,6,4,0.2) 44%, rgba(6,8,6,0.5) 100%)',
+  }),
+  themed('hanami', 'Hanami Grove', 'hanami.jpg', '#fb7185', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.42)',
+    '--panel-glass': 'rgba(14, 8, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,8,0.52) 0%, rgba(10,4,8,0.2) 44%, rgba(10,6,8,0.5) 100%)',
+  }),
+  themed('yoshino', 'Yoshino Peak', 'yoshino.jpg', '#f9a8d4', '#93c5fd', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(147, 197, 253, 0.14)',
+    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 14, 0.56)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,6,12,0.48) 0%, rgba(8,6,12,0.16) 44%, rgba(8,6,12,0.46) 100%)',
+  }),
+  themed('maruyama', 'Weeping Maruyama', 'maruyama.jpg', '#f472b6', '#fbbf24', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.42)',
+    '--panel-glass': 'rgba(14, 6, 12, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,2,8,0.55) 0%, rgba(10,2,8,0.22) 42%, rgba(8,4,8,0.52) 100%)',
+  }),
+  themed('meguro', 'Meguro Night', 'meguro.jpg', '#fb7185', '#fcd34d', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(252, 211, 77, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.42)',
+    '--panel-glass': 'rgba(12, 6, 12, 0.64)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,2,10,0.58) 0%, rgba(8,2,10,0.22) 42%, rgba(8,4,10,0.55) 100%)',
+  }),
+  themed('goryokaku', 'Goryokaku Star', 'goryokaku.jpg', '#f9a8d4', '#38bdf8', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 16, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,14,0.5) 0%, rgba(6,8,14,0.18) 44%, rgba(6,8,14,0.48) 100%)',
+  }),
+  themed('kakunodate', 'Samurai Lane', 'kakunodate.jpg', '#fb7185', '#f59e0b', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(245, 158, 11, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(14, 8, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,6,0.52) 0%, rgba(10,4,6,0.2) 44%, rgba(10,6,6,0.5) 100%)',
+  }),
+  themed('hirosaki', 'Hirosaki Moat', 'hirosaki.jpg', '#f9a8d4', '#e2e8f0', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(226, 232, 240, 0.14)',
+    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 14, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,6,10,0.5) 0%, rgba(8,6,10,0.18) 44%, rgba(8,6,10,0.48) 100%)',
+  }),
+  themed('togetsu', 'Togetsu Bridge', 'togetsu.jpg', '#fb7185', '#4ade80', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,6,0.5) 0%, rgba(6,8,6,0.18) 44%, rgba(6,8,6,0.48) 100%)',
+  }),
+  themed('nara', 'Nara Blossom', 'nara.jpg', '#f472b6', '#fbbf24', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,8,0.5) 0%, rgba(8,4,8,0.18) 44%, rgba(8,6,8,0.48) 100%)',
+  }),
+  themed('kamakura', 'Kamakura Path', 'kamakura.jpg', '#fb7185', '#fcd34d', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(252, 211, 77, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,6,0.52) 0%, rgba(8,4,6,0.2) 44%, rgba(8,6,6,0.5) 100%)',
+  }),
+  themed('matsumoto', 'Matsumoto Keep', 'matsumoto.jpg', '#f472b6', '#cbd5e1', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(203, 213, 225, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,6,10,0.52) 0%, rgba(6,6,10,0.2) 44%, rgba(6,6,10,0.5) 100%)',
+  }),
+  themed('kenroku', 'Kenrokuen Dawn', 'kenroku.jpg', '#f9a8d4', '#fbbf24', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,6,8,0.5) 0%, rgba(8,6,8,0.18) 44%, rgba(8,6,8,0.48) 100%)',
+  }),
+  themed('rikugien', 'Rikugien Night', 'rikugien.jpg', '#e879f9', '#fb7185', {
+    '--text': '#fdf4ff',
+    '--focus-ring': 'rgba(232, 121, 249, 0.22)',
+    '--accent-soft': 'rgba(251, 113, 133, 0.16)',
+    '--brand-glow': 'rgba(232, 121, 249, 0.42)',
+    '--panel-glass': 'rgba(12, 6, 14, 0.64)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,2,10,0.58) 0%, rgba(8,2,10,0.22) 42%, rgba(8,4,10,0.55) 100%)',
+  }),
+  themed('chidori', 'Chidori Moat', 'chidori.jpg', '#f472b6', '#67e8f9', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(103, 232, 249, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(10, 8, 14, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,6,12,0.5) 0%, rgba(6,6,12,0.18) 44%, rgba(6,6,12,0.48) 100%)',
+  }),
+  themed('takato', 'Takato Ruin', 'takato.jpg', '#fb7185', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,8,0.5) 0%, rgba(8,4,8,0.18) 44%, rgba(8,6,8,0.48) 100%)',
+  }),
+  themed('sakurajima', 'Sakurajima Shore', 'sakurajima.jpg', '#fb7185', '#94a3b8', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(10, 8, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,4,10,0.52) 0%, rgba(6,4,10,0.2) 44%, rgba(6,6,10,0.5) 100%)',
+  }),
+  themed('kawazu', 'Kawazu Pink', 'kawazu.jpg', '#ec4899', '#fb7185', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(236, 72, 153, 0.22)',
+    '--accent-soft': 'rgba(251, 113, 133, 0.16)',
+    '--brand-glow': 'rgba(236, 72, 153, 0.42)',
+    '--panel-glass': 'rgba(14, 6, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,2,8,0.52) 0%, rgba(10,2,8,0.2) 44%, rgba(10,4,8,0.5) 100%)',
+  }),
+  themed('daigo', 'Daigo Pagoda', 'daigo.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.42)',
+    '--panel-glass': 'rgba(14, 8, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,6,0.52) 0%, rgba(10,4,6,0.2) 44%, rgba(10,6,6,0.5) 100%)',
+  }),
+  themed('osaka', 'Osaka Keep', 'osaka.jpg', '#f472b6', '#fbbf24', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,8,0.5) 0%, rgba(8,4,8,0.18) 44%, rgba(8,6,8,0.48) 100%)',
+  }),
+  themed('inokashira', 'Inokashira Pond', 'inokashira.jpg', '#f9a8d4', '#67e8f9', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(103, 232, 249, 0.14)',
+    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 14, 0.56)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,12,0.48) 0%, rgba(6,8,12,0.16) 44%, rgba(6,8,12,0.46) 100%)',
   }),
 ];
 
