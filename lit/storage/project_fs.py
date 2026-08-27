@@ -83,7 +83,7 @@ URGENCY_FIELD: dict[str, Any] = {
     "type": "number",
     "required": False,
     "order": "30b",
-    "default": 5,
+    "default": 88,
     "validation": {"step": 1},
     "show_in_list": True,
     "width_weight": 1,

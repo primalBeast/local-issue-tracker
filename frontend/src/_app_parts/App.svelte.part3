@@ -8,8 +8,8 @@
           project.ticket_prefix || readStoredPrefix(project.slug)
         ),
         title: '',
-        priority: 5,
-        urgency: 5,
+        priority: 88,
+        urgency: 88,
         state: 'Submitted',
       });
       items = [...items, item];

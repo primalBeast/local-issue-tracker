@@ -68,13 +68,25 @@ describe('viewport', () => {
     expect(br.y).toBeLessThanOrEqual(600.01);
   });
 
-  it('centres a focused panel without changing zoom', () => {
+  it('centres a focused panel and raises zoom to 100% when zoomed out', () => {
     const bounds = { x: 100, y: 40, width: 200, height: 80 };
     const view = focusView(bounds, { width: 800, height: 600 }, 0.4);
-    expect(view.zoom).toBe(0.4);
+    expect(view.zoom).toBe(1);
     const cx = bounds.x + bounds.width / 2;
     const cy = bounds.y + bounds.height / 2;
     const screenCenter = worldToScreen(view.pan, view.zoom, { x: cx, y: cy });
+    expect(screenCenter.x).toBeCloseTo(400);
+    expect(screenCenter.y).toBeCloseTo(300);
+  });
+
+  it('keeps zoom at or above 100% when focusing', () => {
+    const bounds = { x: 100, y: 40, width: 200, height: 80 };
+    const view = focusView(bounds, { width: 800, height: 600 }, 1.4);
+    expect(view.zoom).toBe(1.4);
+    const screenCenter = worldToScreen(view.pan, view.zoom, {
+      x: bounds.x + bounds.width / 2,
+      y: bounds.y + bounds.height / 2,
+    });
     expect(screenCenter.x).toBeCloseTo(400);
     expect(screenCenter.y).toBeCloseTo(300);
   });

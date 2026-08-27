@@ -1471,8 +1471,8 @@
           project.ticket_prefix || readStoredPrefix(project.slug)
         ),
         title: '',
-        priority: 5,
-        urgency: 5,
+        priority: 88,
+        urgency: 88,
         state: 'Submitted',
       });
       items = [...items, item];
@@ -2095,7 +2095,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-26d</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-26f</span>
         <span
           class="server-dot"
           class:ok={serverOk}

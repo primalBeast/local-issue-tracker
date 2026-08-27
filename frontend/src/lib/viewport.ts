@@ -91,13 +91,13 @@ export function fitView(
   };
 }
 
-/** Pan so `bounds` is centred. Leaves zoom unchanged. */
+/** Pan so `bounds` is centred. Zoom stays as-is unless it is below 100%. */
 export function focusView(
   bounds: Rect,
   viewport: { width: number; height: number },
   zoom: number
 ): { zoom: number; pan: Point } {
-  const z = zoom <= 0 ? 1 : zoom;
+  const z = !Number.isFinite(zoom) || zoom < 1 ? 1 : zoom;
   const vw = Math.max(1, viewport.width);
   const vh = Math.max(1, viewport.height);
   const cx = bounds.x + bounds.width / 2;
