@@ -95,7 +95,6 @@ export type ThemeId =
   | 'kagemusha'
   | 'inuyama'
   | 'kacchu'
-  | 'yabusame'
   | 'ueno'
   | 'tetsugaku'
   | 'heian'
@@ -1058,15 +1057,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(12, 6, 6, 0.64)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(8,2,2,0.58) 0%, rgba(8,2,2,0.22) 42%, rgba(8,4,4,0.55) 100%)',
-  }),
-  themed('yabusame', 'Yabusame Ground', 'yabusame.jpg', '#f43f5e', '#fbbf24', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
-    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
-    '--brand-glow': 'rgba(244, 63, 94, 0.4)',
-    '--panel-glass': 'rgba(12, 8, 6, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,4,4,0.52) 0%, rgba(8,4,4,0.2) 44%, rgba(8,6,4,0.5) 100%)',
   }),
   themed('ueno', 'Ueno Canopy', 'ueno.jpg', '#fb7185', '#fbbf24', {
     '--text': '#fff1f2',
