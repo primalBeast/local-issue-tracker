@@ -94,7 +94,6 @@ export type ThemeId =
   | 'noroshi'
   | 'kagemusha'
   | 'inuyama'
-  | 'hikone'
   | 'kacchu'
   | 'yabusame';
 
@@ -1040,15 +1039,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(10, 12, 12, 0.58)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,8,8,0.5) 0%, rgba(6,8,8,0.18) 44%, rgba(6,8,8,0.48) 100%)',
-  }),
-  themed('hikone', 'Hikone Keep', 'hikone.jpg', '#fbbf24', '#38bdf8', {
-    '--text': '#fffbeb',
-    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
-    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
-    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
-    '--panel-glass': 'rgba(10, 10, 12, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,8,10,0.5) 0%, rgba(6,8,10,0.18) 44%, rgba(6,8,10,0.48) 100%)',
   }),
   themed('kacchu', 'Armor Gate', 'kacchu.jpg', '#f43f5e', '#fbbf24', {
     '--text': '#fff1f2',
