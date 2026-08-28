@@ -95,7 +95,17 @@ export type ThemeId =
   | 'kagemusha'
   | 'inuyama'
   | 'kacchu'
-  | 'yabusame';
+  | 'yabusame'
+  | 'ueno'
+  | 'tetsugaku'
+  | 'heian'
+  | 'gyoen'
+  | 'korakuen'
+  | 'odawara'
+  | 'mifuneyama'
+  | 'asakusa'
+  | 'koishikawa'
+  | 'tsuwano';
 
 export type Theme = {
   id: ThemeId;
@@ -1057,6 +1067,96 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(12, 8, 6, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(8,4,4,0.52) 0%, rgba(8,4,4,0.2) 44%, rgba(8,6,4,0.5) 100%)',
+  }),
+  themed('ueno', 'Ueno Canopy', 'ueno.jpg', '#fb7185', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,8,0.5) 0%, rgba(8,4,8,0.18) 44%, rgba(8,6,8,0.48) 100%)',
+  }),
+  themed('tetsugaku', 'Philosopher Path', 'tetsugaku.jpg', '#f9a8d4', '#67e8f9', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(103, 232, 249, 0.14)',
+    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 14, 0.56)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,12,0.48) 0%, rgba(6,8,12,0.16) 44%, rgba(6,8,12,0.46) 100%)',
+  }),
+  themed('heian', 'Heian Shrine', 'heian.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.42)',
+    '--panel-glass': 'rgba(14, 8, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,6,0.52) 0%, rgba(10,4,6,0.2) 44%, rgba(10,6,6,0.5) 100%)',
+  }),
+  themed('gyoen', 'Gyoen Lawn', 'gyoen.jpg', '#f9a8d4', '#a3e635', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(163, 230, 53, 0.14)',
+    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 10, 0.56)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,6,0.48) 0%, rgba(6,8,6,0.16) 44%, rgba(6,8,6,0.46) 100%)',
+  }),
+  themed('korakuen', 'Korakuen Pond', 'korakuen.jpg', '#f472b6', '#38bdf8', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 14, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,12,0.5) 0%, rgba(6,8,12,0.18) 44%, rgba(6,8,12,0.48) 100%)',
+  }),
+  themed('odawara', 'Odawara Keep', 'odawara.jpg', '#fb7185', '#fcd34d', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(252, 211, 77, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,8,0.5) 0%, rgba(8,4,8,0.18) 44%, rgba(8,6,8,0.48) 100%)',
+  }),
+  themed('mifuneyama', 'Mifuneyama Night', 'mifuneyama.jpg', '#e879f9', '#fb7185', {
+    '--text': '#fdf4ff',
+    '--focus-ring': 'rgba(232, 121, 249, 0.22)',
+    '--accent-soft': 'rgba(251, 113, 133, 0.16)',
+    '--brand-glow': 'rgba(232, 121, 249, 0.42)',
+    '--panel-glass': 'rgba(12, 6, 14, 0.64)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,2,10,0.58) 0%, rgba(8,2,10,0.22) 42%, rgba(8,4,10,0.55) 100%)',
+  }),
+  themed('asakusa', 'Asakusa Bloom', 'asakusa.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.42)',
+    '--panel-glass': 'rgba(14, 8, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,6,0.52) 0%, rgba(10,4,6,0.2) 44%, rgba(10,6,6,0.5) 100%)',
+  }),
+  themed('koishikawa', 'Koishikawa Garden', 'koishikawa.jpg', '#f9a8d4', '#4ade80', {
+    '--text': '#fff1f7',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 10, 0.56)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,6,0.48) 0%, rgba(6,8,6,0.16) 44%, rgba(6,8,6,0.46) 100%)',
+  }),
+  themed('tsuwano', 'Tsuwano Lane', 'tsuwano.jpg', '#fb7185', '#f59e0b', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(245, 158, 11, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(14, 8, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,4,6,0.52) 0%, rgba(10,4,6,0.2) 44%, rgba(10,6,6,0.5) 100%)',
   }),
 ];
 
