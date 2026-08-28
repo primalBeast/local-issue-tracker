@@ -250,6 +250,11 @@
           return;
         }
       }
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         e.preventDefault();
         toggleSidebar();

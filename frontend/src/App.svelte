@@ -250,6 +250,11 @@
           return;
         }
       }
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
         e.preventDefault();
         toggleSidebar();
@@ -2095,7 +2100,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-28a</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-28b</span>
         <span
           class="server-dot"
           class:ok={serverOk}

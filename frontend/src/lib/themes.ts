@@ -104,7 +104,27 @@ export type ThemeId =
   | 'mifuneyama'
   | 'asakusa'
   | 'koishikawa'
-  | 'tsuwano';
+  | 'tsuwano'
+  | 'matterhorn'
+  | 'lauterbrunnen'
+  | 'grindelwald'
+  | 'interlaken'
+  | 'lucerne'
+  | 'zermatt'
+  | 'jungfrau'
+  | 'eiger'
+  | 'geneva'
+  | 'montreux'
+  | 'stmoritz'
+  | 'davos'
+  | 'rhinefall'
+  | 'pilatus'
+  | 'titlis'
+  | 'bernina'
+  | 'appenzell'
+  | 'oeschinen'
+  | 'blausee'
+  | 'chillon';
 
 export type Theme = {
   id: ThemeId;
@@ -1147,6 +1167,186 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(14, 8, 8, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(10,4,6,0.52) 0%, rgba(10,4,6,0.2) 44%, rgba(10,6,6,0.5) 100%)',
+  }),
+  themed('matterhorn', 'Matterhorn Dawn', 'matterhorn.jpg', '#f9a8d4', '#38bdf8', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
+    '--panel-glass': 'rgba(8, 10, 16, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,14,0.5) 0%, rgba(4,8,14,0.18) 44%, rgba(6,8,14,0.48) 100%)',
+  }),
+  themed('lauterbrunnen', 'Lauterbrunnen Vale', 'lauterbrunnen.jpg', '#4ade80', '#38bdf8', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,8,0.5) 0%, rgba(4,8,8,0.18) 44%, rgba(6,8,8,0.48) 100%)',
+  }),
+  themed('grindelwald', 'Grindelwald Alp', 'grindelwald.jpg', '#a3e635', '#38bdf8', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(163, 230, 53, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(163, 230, 53, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,6,0.5) 0%, rgba(4,8,6,0.18) 44%, rgba(6,8,8,0.48) 100%)',
+  }),
+  themed('interlaken', 'Interlaken Lakes', 'interlaken.jpg', '#22d3ee', '#fbbf24', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 14, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,10,0.5) 0%, rgba(4,8,10,0.18) 44%, rgba(6,8,10,0.48) 100%)',
+  }),
+  themed('lucerne', 'Lucerne Bridge', 'lucerne.jpg', '#fb923c', '#38bdf8', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 14, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,12,0.5) 0%, rgba(6,8,12,0.18) 44%, rgba(6,8,12,0.48) 100%)',
+  }),
+  themed('zermatt', 'Zermatt Glow', 'zermatt.jpg', '#fb7185', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,8,0.52) 0%, rgba(8,4,8,0.2) 44%, rgba(8,6,8,0.5) 100%)',
+  }),
+  themed('jungfrau', 'Jungfrau Ridge', 'jungfrau.jpg', '#e2e8f0', '#7dd3fc', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.2)',
+    '--accent-soft': 'rgba(125, 211, 252, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
+    '--panel-glass': 'rgba(8, 12, 18, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,14,0.5) 0%, rgba(4,8,14,0.18) 44%, rgba(6,8,14,0.48) 100%)',
+  }),
+  themed('eiger', 'Eiger Wall', 'eiger.jpg', '#94a3b8', '#4ade80', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(148, 163, 184, 0.2)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(148, 163, 184, 0.35)',
+    '--panel-glass': 'rgba(8, 10, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,6,8,0.52) 0%, rgba(4,6,8,0.2) 44%, rgba(6,8,8,0.5) 100%)',
+  }),
+  themed('geneva', 'Geneva Shore', 'geneva.jpg', '#38bdf8', '#fbbf24', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,12,0.5) 0%, rgba(4,8,12,0.18) 44%, rgba(6,8,12,0.48) 100%)',
+  }),
+  themed('montreux', 'Montreux Riviera', 'montreux.jpg', '#fb923c', '#22d3ee', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 14, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,12,0.5) 0%, rgba(6,8,12,0.18) 44%, rgba(6,8,12,0.48) 100%)',
+  }),
+  themed('stmoritz', 'St. Moritz Ice', 'stmoritz.jpg', '#e2e8f0', '#38bdf8', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.2)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,14,0.5) 0%, rgba(4,8,14,0.18) 44%, rgba(6,8,14,0.48) 100%)',
+  }),
+  themed('davos', 'Davos Valley', 'davos.jpg', '#67e8f9', '#94a3b8', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(103, 232, 249, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(103, 232, 249, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,12,0.5) 0%, rgba(4,8,12,0.18) 44%, rgba(6,8,12,0.48) 100%)',
+  }),
+  themed('rhinefall', 'Rhine Falls', 'rhinefall.jpg', '#38bdf8', '#4ade80', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 14, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,10,0.5) 0%, rgba(4,8,10,0.18) 44%, rgba(6,8,10,0.48) 100%)',
+  }),
+  themed('pilatus', 'Pilatus Cloud', 'pilatus.jpg', '#fbbf24', '#94a3b8', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 12, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,10,0.5) 0%, rgba(6,8,10,0.18) 44%, rgba(6,8,10,0.48) 100%)',
+  }),
+  themed('titlis', 'Titlis Ice', 'titlis.jpg', '#e2e8f0', '#67e8f9', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.2)',
+    '--accent-soft': 'rgba(103, 232, 249, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
+    '--panel-glass': 'rgba(8, 12, 18, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,14,0.5) 0%, rgba(4,8,14,0.18) 44%, rgba(6,8,14,0.48) 100%)',
+  }),
+  themed('bernina', 'Bernina Viaduct', 'bernina.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,6,0.52) 0%, rgba(8,4,6,0.2) 44%, rgba(8,6,6,0.5) 100%)',
+  }),
+  themed('appenzell', 'Appenzell Meadow', 'appenzell.jpg', '#4ade80', '#fbbf24', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 8, 0.56)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,6,0.48) 0%, rgba(4,8,6,0.16) 44%, rgba(6,8,6,0.46) 100%)',
+  }),
+  themed('oeschinen', 'Oeschinen Lake', 'oeschinen.jpg', '#22d3ee', '#4ade80', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 14, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,10,0.5) 0%, rgba(4,8,10,0.18) 44%, rgba(6,8,10,0.48) 100%)',
+  }),
+  themed('blausee', 'Blausee Spring', 'blausee.jpg', '#22d3ee', '#34d399', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
+    '--accent-soft': 'rgba(52, 211, 153, 0.14)',
+    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 12, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,8,0.5) 0%, rgba(4,8,8,0.18) 44%, rgba(6,8,8,0.48) 100%)',
+  }),
+  themed('chillon', 'Chillon Castle', 'chillon.jpg', '#fbbf24', '#38bdf8', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,12,0.52) 0%, rgba(6,8,12,0.2) 44%, rgba(6,8,12,0.5) 100%)',
   }),
 ];
 
