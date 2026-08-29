@@ -29,17 +29,11 @@ export type ThemeId =
   | 'takayama'
   | 'obsidian'
   | 'biolume'
-  | 'torii'
   | 'kowloon'
   | 'petra'
   | 'saguaro'
-  | 'lofoten'
-  | 'orchid'
-  | 'polar'
   | 'karst'
-  | 'opera'
   | 'reef'
-  | 'geode'
   | 'fuji'
   | 'bamboo'
   | 'kinkaku'
@@ -60,12 +54,8 @@ export type ThemeId =
   | 'tide'
   | 'veil'
   | 'oasis'
-  | 'thorn'
   | 'nimbus'
-  | 'rift'
-  | 'bloom'
   | 'mirror'
-  | 'forge'
   | 'mist'
   | 'halo'
   | 'vanta'
@@ -109,11 +99,7 @@ export type ThemeId =
   | 'lauterbrunnen'
   | 'grindelwald'
   | 'interlaken'
-  | 'lucerne'
-  | 'zermatt'
   | 'jungfrau'
-  | 'eiger'
-  | 'geneva'
   | 'montreux'
   | 'stmoritz'
   | 'davos'
@@ -484,15 +470,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(2,8,8,0.55) 0%, rgba(2,8,8,0.22) 42%, rgba(2,10,8,0.52) 100%)',
   }),
-  themed('torii', 'Thousand Torii', 'torii.jpg', '#f43f5e', '#fb923c', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
-    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
-    '--brand-glow': 'rgba(244, 63, 94, 0.42)',
-    '--panel-glass': 'rgba(14, 6, 6, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(10,4,4,0.55) 0%, rgba(10,4,4,0.22) 42%, rgba(8,4,4,0.52) 100%)',
-  }),
   themed('kowloon', 'Neon Harbor', 'kowloon.jpg', '#22d3ee', '#e879f9', {
     '--text': '#ecfeff',
     '--focus-ring': 'rgba(34, 211, 238, 0.22)',
@@ -520,33 +497,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(8,4,14,0.55) 0%, rgba(8,4,14,0.22) 42%, rgba(8,6,14,0.52) 100%)',
   }),
-  themed('lofoten', 'Lofoten Gold', 'lofoten.jpg', '#fbbf24', '#38bdf8', {
-    '--text': '#fffbeb',
-    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
-    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
-    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
-    '--panel-glass': 'rgba(8, 12, 18, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,8,14,0.52) 0%, rgba(4,8,14,0.2) 44%, rgba(6,8,14,0.5) 100%)',
-  }),
-  themed('orchid', 'Orchid Ruin', 'orchid.jpg', '#e879f9', '#f472b6', {
-    '--text': '#fdf4ff',
-    '--focus-ring': 'rgba(232, 121, 249, 0.22)',
-    '--accent-soft': 'rgba(244, 114, 182, 0.16)',
-    '--brand-glow': 'rgba(232, 121, 249, 0.42)',
-    '--panel-glass': 'rgba(12, 6, 14, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,4,10,0.52) 0%, rgba(8,4,10,0.2) 44%, rgba(8,4,12,0.5) 100%)',
-  }),
-  themed('polar', 'Polar Ember', 'polar.jpg', '#fb7185', '#38bdf8', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
-    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
-    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
-    '--panel-glass': 'rgba(10, 8, 14, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,4,10,0.52) 0%, rgba(6,4,10,0.2) 44%, rgba(6,6,12,0.5) 100%)',
-  }),
   themed('karst', 'Karst Pagoda', 'karst.jpg', '#fbbf24', '#4ade80', {
     '--text': '#fffbeb',
     '--focus-ring': 'rgba(251, 191, 36, 0.22)',
@@ -556,15 +506,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,8,6,0.5) 0%, rgba(4,8,6,0.18) 44%, rgba(4,8,8,0.48) 100%)',
   }),
-  themed('opera', 'Velvet Opera', 'opera.jpg', '#fb7185', '#fbbf24', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
-    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
-    '--brand-glow': 'rgba(251, 113, 133, 0.42)',
-    '--panel-glass': 'rgba(16, 6, 10, 0.64)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(10,2,6,0.58) 0%, rgba(10,2,6,0.22) 42%, rgba(8,4,6,0.55) 100%)',
-  }),
   themed('reef', 'Coral Cathedral', 'reef.jpg', '#22d3ee', '#fb7185', {
     '--text': '#ecfeff',
     '--focus-ring': 'rgba(34, 211, 238, 0.22)',
@@ -573,15 +514,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(4, 14, 20, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(2,8,14,0.52) 0%, rgba(2,8,14,0.2) 44%, rgba(2,10,16,0.5) 100%)',
-  }),
-  themed('geode', 'Amethyst Geode', 'geode.jpg', '#c084fc', '#f0abfc', {
-    '--text': '#faf5ff',
-    '--focus-ring': 'rgba(192, 132, 252, 0.22)',
-    '--accent-soft': 'rgba(240, 171, 252, 0.14)',
-    '--brand-glow': 'rgba(192, 132, 252, 0.45)',
-    '--panel-glass': 'rgba(12, 6, 20, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,2,16,0.55) 0%, rgba(8,2,16,0.22) 42%, rgba(8,4,16,0.52) 100%)',
   }),
   themed('fuji', 'Fuji Dawn', 'fuji.jpg', '#fb923c', '#fcd34d', {
     '--text': '#fff7ed',
@@ -763,15 +695,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,10,10,0.5) 0%, rgba(4,10,10,0.18) 44%, rgba(4,10,10,0.48) 100%)',
   }),
-  themed('thorn', 'Thorn Sea', 'thorn.jpg', '#fb923c', '#38bdf8', {
-    '--text': '#fff7ed',
-    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
-    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
-    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
-    '--panel-glass': 'rgba(12, 8, 6, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,4,4,0.55) 0%, rgba(8,4,4,0.2) 42%, rgba(8,6,6,0.52) 100%)',
-  }),
   themed('nimbus', 'Cloud Ocean', 'nimbus.jpg', '#fda4af', '#c4b5fd', {
     '--text': '#fff1f2',
     '--focus-ring': 'rgba(253, 164, 175, 0.22)',
@@ -781,24 +704,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(10,6,12,0.48) 0%, rgba(10,6,12,0.16) 44%, rgba(10,8,12,0.46) 100%)',
   }),
-  themed('rift', 'Plasma Rift', 'rift.jpg', '#38bdf8', '#818cf8', {
-    '--text': '#f0f9ff',
-    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
-    '--accent-soft': 'rgba(129, 140, 248, 0.14)',
-    '--brand-glow': 'rgba(56, 189, 248, 0.42)',
-    '--panel-glass': 'rgba(6, 8, 18, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(2,4,12,0.55) 0%, rgba(2,4,12,0.22) 42%, rgba(4,4,12,0.52) 100%)',
-  }),
-  themed('bloom', 'Night Bloom', 'bloom.jpg', '#e879f9', '#22d3ee', {
-    '--text': '#fdf4ff',
-    '--focus-ring': 'rgba(232, 121, 249, 0.22)',
-    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
-    '--brand-glow': 'rgba(232, 121, 249, 0.42)',
-    '--panel-glass': 'rgba(10, 6, 18, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,2,14,0.55) 0%, rgba(6,2,14,0.22) 42%, rgba(6,4,14,0.52) 100%)',
-  }),
   themed('mirror', 'Mirror World', 'mirror.jpg', '#93c5fd', '#fde68a', {
     '--text': '#f0f9ff',
     '--focus-ring': 'rgba(147, 197, 253, 0.22)',
@@ -807,15 +712,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(8, 10, 16, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,6,12,0.52) 0%, rgba(4,6,12,0.2) 44%, rgba(6,6,12,0.5) 100%)',
-  }),
-  themed('forge', 'Star Forge', 'forge.jpg', '#f97316', '#f43f5e', {
-    '--text': '#fff7ed',
-    '--focus-ring': 'rgba(249, 115, 22, 0.22)',
-    '--accent-soft': 'rgba(244, 63, 94, 0.16)',
-    '--brand-glow': 'rgba(249, 115, 22, 0.42)',
-    '--panel-glass': 'rgba(16, 6, 6, 0.64)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(10,2,2,0.58) 0%, rgba(10,2,2,0.22) 42%, rgba(8,4,4,0.55) 100%)',
   }),
   themed('mist', 'Acid Mist', 'mist.jpg', '#a3e635', '#34d399', {
     '--text': '#ecfdf5',
@@ -1204,24 +1100,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,8,10,0.5) 0%, rgba(4,8,10,0.18) 44%, rgba(6,8,10,0.48) 100%)',
   }),
-  themed('lucerne', 'Lucerne Bridge', 'lucerne.jpg', '#fb923c', '#38bdf8', {
-    '--text': '#fff7ed',
-    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
-    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
-    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
-    '--panel-glass': 'rgba(10, 10, 14, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,8,12,0.5) 0%, rgba(6,8,12,0.18) 44%, rgba(6,8,12,0.48) 100%)',
-  }),
-  themed('zermatt', 'Zermatt Glow', 'zermatt.jpg', '#fb7185', '#fbbf24', {
-    '--text': '#fff1f2',
-    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
-    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
-    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
-    '--panel-glass': 'rgba(12, 8, 10, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,4,8,0.52) 0%, rgba(8,4,8,0.2) 44%, rgba(8,6,8,0.5) 100%)',
-  }),
   themed('jungfrau', 'Jungfrau Ridge', 'jungfrau.jpg', '#e2e8f0', '#7dd3fc', {
     '--text': '#f8fafc',
     '--focus-ring': 'rgba(226, 232, 240, 0.2)',
@@ -1230,24 +1108,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(8, 12, 18, 0.58)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,8,14,0.5) 0%, rgba(4,8,14,0.18) 44%, rgba(6,8,14,0.48) 100%)',
-  }),
-  themed('eiger', 'Eiger Wall', 'eiger.jpg', '#94a3b8', '#4ade80', {
-    '--text': '#f8fafc',
-    '--focus-ring': 'rgba(148, 163, 184, 0.2)',
-    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
-    '--brand-glow': 'rgba(148, 163, 184, 0.35)',
-    '--panel-glass': 'rgba(8, 10, 12, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,6,8,0.52) 0%, rgba(4,6,8,0.2) 44%, rgba(6,8,8,0.5) 100%)',
-  }),
-  themed('geneva', 'Geneva Shore', 'geneva.jpg', '#38bdf8', '#fbbf24', {
-    '--text': '#f0f9ff',
-    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
-    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
-    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
-    '--panel-glass': 'rgba(8, 12, 16, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,8,12,0.5) 0%, rgba(4,8,12,0.18) 44%, rgba(6,8,12,0.48) 100%)',
   }),
   themed('montreux', 'Montreux Riviera', 'montreux.jpg', '#fb923c', '#22d3ee', {
     '--text': '#fff7ed',
