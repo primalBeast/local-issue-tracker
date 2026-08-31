@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import type { Editor } from '@tiptap/core';
-  import { formatNoteDateStamp } from './noteDate';
+  import { findNoteDateAround, formatNoteDate, formatNoteDateStamp } from './noteDate';
 
   interface Props {
     value?: unknown;
@@ -62,7 +62,7 @@
             return {
               'Ctrl-q': () => this.editor.commands.toggleStrike(),
               'Ctrl-Q': () => this.editor.commands.toggleStrike(),
-              'Mod-;': () => this.editor.commands.insertContent(formatNoteDateStamp()),
+              'Mod-;': () => applyDateHotkey(this.editor),
             };
           },
         });
@@ -148,6 +148,19 @@
     return e.code === 'Semicolon' || e.key === ';';
   }
 
+  function applyDateHotkey(ed: Editor): boolean {
+    const fromPos = ed.state.selection.$from;
+    if (fromPos.parent.isTextblock) {
+      const hit = findNoteDateAround(fromPos.parent.textContent, fromPos.parentOffset);
+      if (hit) {
+        const from = fromPos.start() + hit.start;
+        const to = fromPos.start() + hit.end;
+        return ed.chain().focus().insertContentAt({ from, to }, formatNoteDate()).run();
+      }
+    }
+    return ed.chain().focus().insertContent(formatNoteDateStamp()).run();
+  }
+
   function onNotesHotkey(e: KeyboardEvent) {
     if (isStrikeHotkey(e)) {
       e.preventDefault();
@@ -161,7 +174,7 @@
       e.preventDefault();
       e.stopPropagation();
       if (!editor) return;
-      editor.chain().focus().insertContent(formatNoteDateStamp()).run();
+      applyDateHotkey(editor);
       toolbarTick += 1;
     }
   }
