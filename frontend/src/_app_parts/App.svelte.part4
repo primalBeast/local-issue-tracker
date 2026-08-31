@@ -133,7 +133,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-30a</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-30j</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -653,7 +653,7 @@
                         onclick={() => clickListSort(f.id)}
                       >{f.list_label || f.label}{listSortMark(f.id)}</th>
                     {/each}
-                    {#if listHasWaiting}
+                    {#if waitingSinceField}
                       <th
                         class="sortable"
                         class:sorted={workspace.sort?.field === '_waiting'}
@@ -683,18 +683,39 @@
                         ></span>
                       </td>
                       {#each allItemsColumns as f}
-                        <td>{f.id === 'waiting_for' && !isItemWaiting(it) ? '' : String(it.fields[f.id] ?? '')}</td>
+                        <td
+                          class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
+                          oncontextmenu={(e) => beginListEdit(e, it, f)}
+                        >
+                          <AllItemsCell
+                            def={f}
+                            value={it.fields[f.id]}
+                            display={listCellDisplay(f, it)}
+                            editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
+                            onCommit={(value) => patchItemFields(it.id, f.id, value)}
+                            onEnd={endListEdit}
+                          />
+                        </td>
                       {/each}
-                      {#if listHasWaiting}
-                        <td>
-                          {#if isItemWaiting(it)}
-                            <span class="waiting-badge">
-                              {formatWaitingDays(
-                                liveSeconds(it.waiting.current_started_at, nowTick) ??
-                                  it.waiting.current_seconds
-                              )}
-                            </span>
-                          {/if}
+                      {#if waitingSinceField}
+                        {@const sinceDef = waitingSinceField}
+                        <td
+                          class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
+                          oncontextmenu={(e) => beginListEdit(e, it, sinceDef)}
+                        >
+                          <AllItemsCell
+                            def={sinceDef}
+                            value={it.fields.waiting_since}
+                            display={isItemWaiting(it)
+                              ? formatWaitingDays(
+                                  liveSeconds(it.waiting.current_started_at, nowTick) ??
+                                    it.waiting.current_seconds
+                                )
+                              : ''}
+                            editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
+                            onCommit={(value) => patchItemFields(it.id, 'waiting_since', value)}
+                            onEnd={endListEdit}
+                          />
                         </td>
                       {/if}
                       <td class="updated-date">{formatItemUpdatedDate(it.updated_at)}</td>

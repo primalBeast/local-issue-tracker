@@ -13,6 +13,7 @@
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
+  import AllItemsCell from './lib/AllItemsCell.svelte';
   import TemplateEditor from './lib/TemplateEditor.svelte';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupBodyBlocks, groupFieldsByRow, pickField } from './lib/fieldLayout';
@@ -101,6 +102,7 @@
   let templateEditorOpen = $state(false);
   /** Extra External Fixing ticket-URL slots revealed with +. */
   let extraTicketSlots = $state<Record<string, number>>({});
+  let listEdit = $state<{ itemId: string; fieldId: string } | null>(null);
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -222,10 +224,8 @@
         )
       : items
   );
-  let listHasWaiting = $derived(filteredItems.some(isItemWaiting));
-  let allItemsColumns = $derived(
-    listHasWaiting ? listFields : listFields.filter((f) => f.id !== 'waiting_for')
-  );
+  let allItemsColumns = $derived(listFields);
+  let waitingSinceField = $derived(fieldDefs.find((f) => f.id === 'waiting_since') ?? null);
   let openItemIds = $derived(
     new Set(
       (workspace?.panels || [])
@@ -254,6 +254,11 @@
           e.stopPropagation();
           return;
         }
+      }
+      if (listEdit && e.key === 'Tab') {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
@@ -309,6 +314,9 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
+      if (listEdit && !t?.closest?.('.list-cell-edit, td.list-editing')) {
+        endListEdit();
+      }
       if (itemDeleteConfirm) {
         if (!t?.closest?.('.confirm-dialog')) itemDeleteConfirm = null;
         return;
@@ -1528,10 +1536,24 @@
 
   function patchItemFields(itemId: string, id: string, value: unknown) {
     const patch: Record<string, unknown> = { [id]: value };
+    const current = detailCache[itemId] || items.find((i) => i.id === itemId);
     if (id === 'state' && value === 'Done') patch.waiting = false;
     if (id === 'waiting' && value === true) {
-      const current = detailCache[itemId];
       if (!current?.fields?.waiting_since) patch.waiting_since = todayLocalDate();
+    }
+    if (id === 'waiting_for') {
+      const name = String(value ?? '').trim();
+      if (name) {
+        patch.waiting = true;
+        if (!current?.fields?.waiting_since) patch.waiting_since = todayLocalDate();
+      } else {
+        patch.waiting = false;
+      }
+    }
+    if (id === 'waiting_since') {
+      const date = String(value ?? '').trim();
+      const hadDate = String(current?.fields?.waiting_since ?? '').trim();
+      if (date && (!hadDate || !current || !isItemWaiting(current))) patch.waiting = true;
     }
     scheduleItemPatch(itemId, patch);
   }
@@ -1644,14 +1666,46 @@
     });
   }
 
+  const LIST_EDIT_TYPES = new Set(['text', 'number', 'select', 'checkbox', 'date', 'datetime', 'url']);
+
+  function waitingEditable(item: Item): boolean {
+    const waitingDef = fieldDefs.find((d) => d.id === 'waiting');
+    return !waitingDef || isVisible(waitingDef, item.fields);
+  }
+
+  function canListEditCell(f: FieldDef, item: Item): boolean {
+    if (!LIST_EDIT_TYPES.has(f.type)) return false;
+    if (f.id === 'waiting_for' || f.id === 'waiting_since') return waitingEditable(item);
+    return isVisible(f, item.fields);
+  }
+
+  function listCellDisplay(f: FieldDef, item: Item): string {
+    if (f.id === 'waiting_for' && !isItemWaiting(item)) return '';
+    if (f.type === 'checkbox') return item.fields[f.id] ? 'Yes' : '';
+    return String(item.fields[f.id] ?? '');
+  }
+
+  function beginListEdit(e: MouseEvent, item: Item, field: FieldDef) {
+    if (!canListEditCell(field, item)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    itemContextMenu = null;
+    listEdit = { itemId: item.id, fieldId: field.id };
+  }
+
+  function endListEdit() {
+    listEdit = null;
+  }
+
   function clickListSort(field: string) {
+    const firstDir = field === '_updated' ? 'desc' : 'asc';
     updateWorkspace((ws) => {
-      if (!ws.sort) ws.sort = { field, direction: 'asc' };
+      if (!ws.sort) ws.sort = { field, direction: firstDir };
       else if (ws.sort.field === field) {
         ws.sort.direction = ws.sort.direction === 'asc' ? 'desc' : 'asc';
       } else {
         ws.sort.field = field;
-        ws.sort.direction = 'asc';
+        ws.sort.direction = firstDir;
       }
     });
   }
@@ -1715,7 +1769,6 @@
     const placed = layoutColumnMajor(ordered, origin, viewH);
     const byId = new Map(placed.map((p) => [p.id, p]));
     updateWorkspace((ws) => {
-      ws.sort = { field: sortBy, direction: 'asc' };
       ws.panels = ws.panels.map((p) => {
         const n = byId.get(p.id);
         return n ? { ...p, x: snapToGrid(n.x, z), y: snapToGrid(n.y, z) } : p;
@@ -2149,7 +2202,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-30a</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-30j</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2669,7 +2722,7 @@
                         onclick={() => clickListSort(f.id)}
                       >{f.list_label || f.label}{listSortMark(f.id)}</th>
                     {/each}
-                    {#if listHasWaiting}
+                    {#if waitingSinceField}
                       <th
                         class="sortable"
                         class:sorted={workspace.sort?.field === '_waiting'}
@@ -2699,18 +2752,39 @@
                         ></span>
                       </td>
                       {#each allItemsColumns as f}
-                        <td>{f.id === 'waiting_for' && !isItemWaiting(it) ? '' : String(it.fields[f.id] ?? '')}</td>
+                        <td
+                          class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
+                          oncontextmenu={(e) => beginListEdit(e, it, f)}
+                        >
+                          <AllItemsCell
+                            def={f}
+                            value={it.fields[f.id]}
+                            display={listCellDisplay(f, it)}
+                            editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
+                            onCommit={(value) => patchItemFields(it.id, f.id, value)}
+                            onEnd={endListEdit}
+                          />
+                        </td>
                       {/each}
-                      {#if listHasWaiting}
-                        <td>
-                          {#if isItemWaiting(it)}
-                            <span class="waiting-badge">
-                              {formatWaitingDays(
-                                liveSeconds(it.waiting.current_started_at, nowTick) ??
-                                  it.waiting.current_seconds
-                              )}
-                            </span>
-                          {/if}
+                      {#if waitingSinceField}
+                        {@const sinceDef = waitingSinceField}
+                        <td
+                          class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
+                          oncontextmenu={(e) => beginListEdit(e, it, sinceDef)}
+                        >
+                          <AllItemsCell
+                            def={sinceDef}
+                            value={it.fields.waiting_since}
+                            display={isItemWaiting(it)
+                              ? formatWaitingDays(
+                                  liveSeconds(it.waiting.current_started_at, nowTick) ??
+                                    it.waiting.current_seconds
+                                )
+                              : ''}
+                            editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
+                            onCommit={(value) => patchItemFields(it.id, 'waiting_since', value)}
+                            onEnd={endListEdit}
+                          />
                         </td>
                       {/if}
                       <td class="updated-date">{formatItemUpdatedDate(it.updated_at)}</td>

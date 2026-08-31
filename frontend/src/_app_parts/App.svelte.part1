@@ -13,6 +13,7 @@
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
+  import AllItemsCell from './lib/AllItemsCell.svelte';
   import TemplateEditor from './lib/TemplateEditor.svelte';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupBodyBlocks, groupFieldsByRow, pickField } from './lib/fieldLayout';
@@ -101,6 +102,7 @@
   let templateEditorOpen = $state(false);
   /** Extra External Fixing ticket-URL slots revealed with +. */
   let extraTicketSlots = $state<Record<string, number>>({});
+  let listEdit = $state<{ itemId: string; fieldId: string } | null>(null);
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -222,10 +224,8 @@
         )
       : items
   );
-  let listHasWaiting = $derived(filteredItems.some(isItemWaiting));
-  let allItemsColumns = $derived(
-    listHasWaiting ? listFields : listFields.filter((f) => f.id !== 'waiting_for')
-  );
+  let allItemsColumns = $derived(listFields);
+  let waitingSinceField = $derived(fieldDefs.find((f) => f.id === 'waiting_since') ?? null);
   let openItemIds = $derived(
     new Set(
       (workspace?.panels || [])
@@ -254,6 +254,11 @@
           e.stopPropagation();
           return;
         }
+      }
+      if (listEdit && e.key === 'Tab') {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
@@ -309,6 +314,9 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
+      if (listEdit && !t?.closest?.('.list-cell-edit, td.list-editing')) {
+        endListEdit();
+      }
       if (itemDeleteConfirm) {
         if (!t?.closest?.('.confirm-dialog')) itemDeleteConfirm = null;
         return;

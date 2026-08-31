@@ -1343,6 +1343,69 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 .table th.sorted { color: var(--accent); }
 .table tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .table tr.clickable { cursor: pointer; }
+.table .list-cell-label {
+  display: block;
+  min-height: 1.35em;
+}
+.table td.list-editing {
+  padding: 2px 4px;
+  cursor: auto;
+  overflow: visible;
+}
+.table td.list-editing:has(.list-cell-select) {
+  padding: 0;
+}
+.table .list-cell-edit {
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  margin: 0;
+  font: inherit;
+  cursor: auto;
+}
+.table .list-cell-edit[type='checkbox'] {
+  width: auto;
+  height: auto;
+}
+.table .list-cell-select {
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: calc(22px * var(--list-select-size, 4));
+  padding: 2px;
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  overflow: hidden;
+}
+.table .list-select-opt {
+  flex: 0 0 22px;
+  height: 22px;
+  width: 100%;
+  line-height: 22px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.table .list-select-opt:hover {
+  background: var(--bg-hover);
+  border-color: transparent;
+}
+.table .list-select-opt:active {
+  transform: none;
+}
+.table .list-select-opt.selected {
+  background: var(--accent-soft);
+}
 .table td.updated-date {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
