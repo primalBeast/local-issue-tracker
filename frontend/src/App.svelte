@@ -1674,6 +1674,7 @@
   }
 
   function canListEditCell(f: FieldDef, item: Item): boolean {
+    if (f.id === 'ticket_key' || f.id === keyField()) return false;
     if (!LIST_EDIT_TYPES.has(f.type)) return false;
     if (f.id === 'waiting_for' || f.id === 'waiting_since') return waitingEditable(item);
     return isVisible(f, item.fields);
@@ -2202,7 +2203,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-30j</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-30k</span>
         <span
           class="server-dot"
           class:ok={serverOk}

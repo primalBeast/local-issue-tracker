@@ -193,6 +193,7 @@
   }
 
   function canListEditCell(f: FieldDef, item: Item): boolean {
+    if (f.id === 'ticket_key' || f.id === keyField()) return false;
     if (!LIST_EDIT_TYPES.has(f.type)) return false;
     if (f.id === 'waiting_for' || f.id === 'waiting_since') return waitingEditable(item);
     return isVisible(f, item.fields);
