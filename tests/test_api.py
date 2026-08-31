@@ -55,6 +55,37 @@ def test_seeded_project_and_fields(client: TestClient):
     assert "Waiting For" not in by_id["state"]["options"]
     assert by_id["waiting"]["type"] == "checkbox"
     assert by_id["waiting"]["visible_when"] == {"field": "state", "not_equals": "Done"}
+    assert "external_ticket" in ids
+    assert "external_ticket_2" in ids
+    assert "external_ticket_3" in ids
+    assert by_id["external_ticket"]["type"] == "url"
+    assert by_id["external_ticket"]["visible_when"] == {
+        "field": "state",
+        "starts_with": "External Fixing",
+    }
+
+
+def test_external_ticket_url_field(client: TestClient):
+    slug = client.get("/api/projects").json()[0]["slug"]
+    created = client.post(
+        f"/api/projects/{slug}/items",
+        json={"fields": {"ticket_key": "EXT-1", "title": "Ext", "priority": 3, "state": "Submitted"}},
+    )
+    assert created.status_code == 201, created.text
+    item = created.json()
+    patched = client.patch(
+        f"/api/projects/{slug}/items/{item['id']}",
+        json={
+            "fields": {
+                "state": "External Fixing – Support",
+                "external_ticket": "https://jira.example/browse/SHOP-9",
+            },
+            "version": item["version"],
+        },
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["fields"]["external_ticket"] == "https://jira.example/browse/SHOP-9"
+    assert patched.json()["fields"]["state"].startswith("External Fixing")
 
 
 def test_item_crud_and_lean_list(client: TestClient):
@@ -351,14 +382,20 @@ def test_project_name_and_ticket_prefix(client: TestClient):
     got = client.get(f"/api/projects/{slug}")
     assert got.status_code == 200
     assert got.json()["ticket_prefix"] == "NEW-"
+    assert got.json()["url_prefix"] == ""
     assert got.json()["data_path"].replace("\\", "/").endswith(f"/{slug}")
     patched = client.patch(
         f"/api/projects/{slug}",
-        json={"name": "Shop Tracker", "ticket_prefix": "SHOP-"},
+        json={
+            "name": "Shop Tracker",
+            "ticket_prefix": "SHOP-",
+            "url_prefix": "https://jira.example/browse/",
+        },
     )
     assert patched.status_code == 200
     assert patched.json()["name"] == "Shop Tracker"
     assert patched.json()["ticket_prefix"] == "SHOP-"
+    assert patched.json()["url_prefix"] == "https://jira.example/browse/"
     created = client.post(
         "/api/projects",
         json={"slug": "other-proj", "name": "Other", "ticket_prefix": "OT-"},
@@ -366,8 +403,12 @@ def test_project_name_and_ticket_prefix(client: TestClient):
     assert created.status_code == 201
     assert created.json()["name"] == "Other"
     assert created.json()["ticket_prefix"] == "OT-"
+    assert created.json()["url_prefix"] == ""
     settings = client.get("/api/settings").json()
     assert settings["ticket_prefix_by_project"]["other-proj"] == "OT-"
+    cleared = client.patch(f"/api/projects/{slug}", json={"url_prefix": "  "})
+    assert cleared.status_code == 200
+    assert cleared.json()["url_prefix"] == ""
 
 
 def test_delete_project_confirm(client: TestClient):

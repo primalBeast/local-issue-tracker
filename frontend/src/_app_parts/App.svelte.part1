@@ -9,7 +9,7 @@
     type Workspace,
   } from './lib/api';
   import { panelColors } from './lib/color';
-  import { itemMatchesFilters, sortItems } from './lib/filters';
+  import { isVisible, itemMatchesFilters, sortItems } from './lib/filters';
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
@@ -43,6 +43,8 @@
     waitingNameChoices,
   } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
+  import { ticketHref } from './lib/ticketUrl';
+  import { isExternalTicketId, slotsToShow } from './lib/urlTicket';
   import {
     appearanceFromWorkspace,
     applyPanelTransparency,
@@ -97,6 +99,8 @@
   let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
   let itemDeleteConfirm = $state<{ id: string; name: string } | null>(null);
   let templateEditorOpen = $state(false);
+  /** Extra External Fixing ticket-URL slots revealed with +. */
+  let extraTicketSlots = $state<Record<string, number>>({});
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -107,6 +111,7 @@
   let projectEditor = $state<{
     name: string;
     ticket_prefix: string;
+    url_prefix: string;
     newName: string;
     newPrefix: string;
     newTemplate: string;

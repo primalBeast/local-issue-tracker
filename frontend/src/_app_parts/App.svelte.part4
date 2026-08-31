@@ -133,7 +133,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-28c</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-29a</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -189,6 +189,17 @@
             type="text"
             bind:value={projectEditor.ticket_prefix}
             placeholder="NEW-"
+            onkeydown={(e) => {
+              if (e.key === 'Enter') void saveProjectEditor();
+              if (e.key === 'Escape') projectEditor = null;
+            }}
+          />
+          <label class="field-label" for="project-url-prefix-input" style="margin-top:10px">URL prefix</label>
+          <input
+            id="project-url-prefix-input"
+            type="text"
+            bind:value={projectEditor.url_prefix}
+            placeholder="https://example.com/browse/"
             onkeydown={(e) => {
               if (e.key === 'Enter') void saveProjectEditor();
               if (e.key === 'Escape') projectEditor = null;
@@ -451,6 +462,10 @@
                   description={String(item.fields.title ?? '')}
                   keyFieldLabel={headerEditLabel(keyField(), 'Ticket number')}
                   descriptionLabel={headerEditLabel('title', 'Description')}
+                  ticketLaunchHref={ticketHref(
+                    project.url_prefix,
+                    String(item.fields[keyField()] ?? '')
+                  )}
                   onTicketKey={(value) => scheduleItemPatch(item.id, { [keyField()]: value })}
                   onDescription={(value) => scheduleItemPatch(item.id, { title: value })}
                 />
@@ -538,22 +553,40 @@
                       </div>
                       {/if}
                     {:else}
+                      {@const shown = visibleBodyFields(
+                        block.row.fields,
+                        detailCache[item.id].fields,
+                        item.id
+                      )}
+                      {@const addUrl = canAddExternalTicket(
+                        shown,
+                        block.row.fields,
+                        detailCache[item.id].fields,
+                        item.id
+                      )}
+                      {#if shown.length}
                       <div
                         class="field-row"
-                        class:field-row-multi={block.row.fields.length > 1}
-                        class:field-row-fill={isNotesFillRow(block.row)}
+                        class:field-row-multi={shown.length > 1}
+                        class:field-row-fill={isNotesFillRow({ row: block.row.row, fields: shown })}
                       >
-                        {#each block.row.fields as def (def.id)}
-                          <div class="field-col" style:flex={`${fieldFlex(def, block.row.fields)} 1 0`}>
+                        {#each shown as def, di (def.id)}
+                          <div class="field-col" style:flex={`${fieldFlex(def, shown)} 1 0`}>
                             <FieldRenderer
                               {def}
-                              fill={isNotesFillRow(block.row)}
+                              fill={isNotesFillRow({ row: block.row.row, fields: shown })}
                               fields={detailCache[item.id].fields}
+                              addSlot={addUrl &&
+                                di === shown.length - 1 &&
+                                isExternalTicketId(def.id)}
+                              onAddSlot={() =>
+                                revealExternalTicketSlot(item.id, detailCache[item.id].fields)}
                               onchange={(id, value) => patchItemFields(item.id, id, value)}
                             />
                           </div>
                         {/each}
                       </div>
+                      {/if}
                     {/if}
                   {/each}
                 {/key}

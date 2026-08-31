@@ -12,6 +12,9 @@ export function isVisible(def: FieldDef, fields: Record<string, unknown>): boole
   if (Object.prototype.hasOwnProperty.call(vw, 'not_equals') && value === vw.not_equals) {
     return false;
   }
+  if (typeof vw.starts_with === 'string') {
+    if (!String(value ?? '').startsWith(vw.starts_with)) return false;
+  }
   return true;
 }
 

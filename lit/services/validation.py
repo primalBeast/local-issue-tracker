@@ -16,6 +16,7 @@ CONTROL_TYPES = frozenset(
         "number",
         "date",
         "datetime",
+        "url",
     }
 )
 
@@ -131,7 +132,7 @@ def _is_empty(value: Any, fdef: dict[str, Any]) -> bool:
     if value is None:
         return True
     ftype = fdef.get("type")
-    if ftype in ("text", "textarea", "select", "date", "datetime") and value == "":
+    if ftype in ("text", "textarea", "select", "date", "datetime", "url") and value == "":
         return True
     if ftype == "multiselect" and value == []:
         return True
@@ -147,7 +148,7 @@ def _coerce_and_check(fdef: dict[str, Any], value: Any) -> Any:
     ftype = fdef["type"]
     val = fdef.get("validation") or {}
 
-    if ftype == "text":
+    if ftype in ("text", "url"):
         if not isinstance(value, str):
             raise ValidationError(f"{fid}: expected string", [{"field": fid, "message": "type"}])
         _check_string_rules(fid, value, val)

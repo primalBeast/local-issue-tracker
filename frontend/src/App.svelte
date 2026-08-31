@@ -9,7 +9,7 @@
     type Workspace,
   } from './lib/api';
   import { panelColors } from './lib/color';
-  import { itemMatchesFilters, sortItems } from './lib/filters';
+  import { isVisible, itemMatchesFilters, sortItems } from './lib/filters';
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
@@ -43,6 +43,8 @@
     waitingNameChoices,
   } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
+  import { ticketHref } from './lib/ticketUrl';
+  import { isExternalTicketId, slotsToShow } from './lib/urlTicket';
   import {
     appearanceFromWorkspace,
     applyPanelTransparency,
@@ -97,6 +99,8 @@
   let boardRemoveConfirm = $state<{ id: string; name: string } | null>(null);
   let itemDeleteConfirm = $state<{ id: string; name: string } | null>(null);
   let templateEditorOpen = $state(false);
+  /** Extra External Fixing ticket-URL slots revealed with +. */
+  let extraTicketSlots = $state<Record<string, number>>({});
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -107,6 +111,7 @@
   let projectEditor = $state<{
     name: string;
     ticket_prefix: string;
+    url_prefix: string;
     newName: string;
     newPrefix: string;
     newTemplate: string;
@@ -1489,6 +1494,38 @@
     }
   }
 
+  function visibleBodyFields(
+    defs: FieldDef[],
+    fields: Record<string, unknown>,
+    itemId: string
+  ): FieldDef[] {
+    const slots = slotsToShow(extraTicketSlots[itemId], fields);
+    return defs.filter((d) => {
+      if (!isVisible(d, fields)) return false;
+      if (!isExternalTicketId(d.id)) return true;
+      const idx = ['external_ticket', 'external_ticket_2', 'external_ticket_3'].indexOf(d.id);
+      return idx >= 0 && idx < slots;
+    });
+  }
+
+  function canAddExternalTicket(
+    shown: FieldDef[],
+    rowDefs: FieldDef[],
+    fields: Record<string, unknown>,
+    itemId: string
+  ): boolean {
+    if (!rowDefs.some((d) => isExternalTicketId(d.id))) return false;
+    if (!shown.some((d) => isExternalTicketId(d.id))) return false;
+    return slotsToShow(extraTicketSlots[itemId], fields) < 3;
+  }
+
+  function revealExternalTicketSlot(itemId: string, fields: Record<string, unknown>) {
+    extraTicketSlots = {
+      ...extraTicketSlots,
+      [itemId]: Math.min(3, slotsToShow(extraTicketSlots[itemId], fields) + 1),
+    };
+  }
+
   function patchItemFields(itemId: string, id: string, value: unknown) {
     const patch: Record<string, unknown> = { [id]: value };
     if (id === 'state' && value === 'Done') patch.waiting = false;
@@ -1857,6 +1894,7 @@
     projectEditor = {
       name: project.name,
       ticket_prefix: project.ticket_prefix || readStoredPrefix(project.slug) || 'NEW-',
+      url_prefix: String(project.url_prefix ?? ''),
       newName: '',
       newPrefix: 'NEW-',
       newTemplate: 'issue-tracker',
@@ -1877,7 +1915,7 @@
     templateEditorOpen = true;
   }
 
-  async function persistProjectMeta(name: string, prefixRaw: string, toast: boolean) {
+  async function persistProjectMeta(name: string, prefixRaw: string, urlPrefixRaw: string, toast: boolean) {
     if (!project) return false;
     const trimmed = name.trim();
     if (!trimmed) {
@@ -1885,11 +1923,16 @@
       return false;
     }
     const ticket_prefix = normalizeTicketPrefix(prefixRaw);
+    const url_prefix = String(urlPrefixRaw ?? '').trim();
     writeStoredPrefix(project.slug, ticket_prefix);
     try {
       await api.patchSettings({ ticket_prefix_by_project: { [project.slug]: ticket_prefix } });
-      const saved = await api.patchProject(project.slug, { name: trimmed, ticket_prefix });
-      project = { ...saved, ticket_prefix: saved.ticket_prefix || ticket_prefix };
+      const saved = await api.patchProject(project.slug, { name: trimmed, ticket_prefix, url_prefix });
+      project = {
+        ...saved,
+        ticket_prefix: saved.ticket_prefix || ticket_prefix,
+        url_prefix: saved.url_prefix ?? url_prefix,
+      };
       writeStoredPrefix(project.slug, project.ticket_prefix || ticket_prefix);
       projects = projects.map((p) => (p.slug === saved.slug ? project! : p));
       if (toast) showToast('Project updated');
@@ -1903,12 +1946,18 @@
 
   async function saveProjectEditor() {
     if (!project || !projectEditor) return;
-    const ok = await persistProjectMeta(projectEditor.name, projectEditor.ticket_prefix, true);
+    const ok = await persistProjectMeta(
+      projectEditor.name,
+      projectEditor.ticket_prefix,
+      projectEditor.url_prefix,
+      true
+    );
     if (ok && projectEditor) {
       projectEditor = {
         ...projectEditor,
         name: project.name,
         ticket_prefix: project.ticket_prefix || projectEditor.ticket_prefix,
+        url_prefix: String(project.url_prefix ?? projectEditor.url_prefix),
       };
     }
   }
@@ -1917,7 +1966,7 @@
     const ed = projectEditor;
     if (!ed) return;
     projectEditor = null;
-    if (save) await persistProjectMeta(ed.name, ed.ticket_prefix, false);
+    if (save) await persistProjectMeta(ed.name, ed.ticket_prefix, ed.url_prefix, false);
   }
 
   async function switchProject(slug: string) {
@@ -2100,7 +2149,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-28c</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-29a</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2156,6 +2205,17 @@
             type="text"
             bind:value={projectEditor.ticket_prefix}
             placeholder="NEW-"
+            onkeydown={(e) => {
+              if (e.key === 'Enter') void saveProjectEditor();
+              if (e.key === 'Escape') projectEditor = null;
+            }}
+          />
+          <label class="field-label" for="project-url-prefix-input" style="margin-top:10px">URL prefix</label>
+          <input
+            id="project-url-prefix-input"
+            type="text"
+            bind:value={projectEditor.url_prefix}
+            placeholder="https://example.com/browse/"
             onkeydown={(e) => {
               if (e.key === 'Enter') void saveProjectEditor();
               if (e.key === 'Escape') projectEditor = null;
@@ -2418,6 +2478,10 @@
                   description={String(item.fields.title ?? '')}
                   keyFieldLabel={headerEditLabel(keyField(), 'Ticket number')}
                   descriptionLabel={headerEditLabel('title', 'Description')}
+                  ticketLaunchHref={ticketHref(
+                    project.url_prefix,
+                    String(item.fields[keyField()] ?? '')
+                  )}
                   onTicketKey={(value) => scheduleItemPatch(item.id, { [keyField()]: value })}
                   onDescription={(value) => scheduleItemPatch(item.id, { title: value })}
                 />
@@ -2505,22 +2569,40 @@
                       </div>
                       {/if}
                     {:else}
+                      {@const shown = visibleBodyFields(
+                        block.row.fields,
+                        detailCache[item.id].fields,
+                        item.id
+                      )}
+                      {@const addUrl = canAddExternalTicket(
+                        shown,
+                        block.row.fields,
+                        detailCache[item.id].fields,
+                        item.id
+                      )}
+                      {#if shown.length}
                       <div
                         class="field-row"
-                        class:field-row-multi={block.row.fields.length > 1}
-                        class:field-row-fill={isNotesFillRow(block.row)}
+                        class:field-row-multi={shown.length > 1}
+                        class:field-row-fill={isNotesFillRow({ row: block.row.row, fields: shown })}
                       >
-                        {#each block.row.fields as def (def.id)}
-                          <div class="field-col" style:flex={`${fieldFlex(def, block.row.fields)} 1 0`}>
+                        {#each shown as def, di (def.id)}
+                          <div class="field-col" style:flex={`${fieldFlex(def, shown)} 1 0`}>
                             <FieldRenderer
                               {def}
-                              fill={isNotesFillRow(block.row)}
+                              fill={isNotesFillRow({ row: block.row.row, fields: shown })}
                               fields={detailCache[item.id].fields}
+                              addSlot={addUrl &&
+                                di === shown.length - 1 &&
+                                isExternalTicketId(def.id)}
+                              onAddSlot={() =>
+                                revealExternalTicketSlot(item.id, detailCache[item.id].fields)}
                               onchange={(id, value) => patchItemFields(item.id, id, value)}
                             />
                           </div>
                         {/each}
                       </div>
+                      {/if}
                     {/if}
                   {/each}
                 {/key}

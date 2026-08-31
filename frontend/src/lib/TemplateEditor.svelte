@@ -26,6 +26,7 @@
     'number',
     'date',
     'datetime',
+    'url',
   ] as const;
 
   const RESERVED = new Set(['ticket_key', 'title', 'waiting', 'waiting_for', 'waiting_since', 'notes']);
@@ -188,6 +189,9 @@
       if (vw.not_equals === true) return `unless ${name} is checked`;
       if (vw.not_equals === false) return `unless ${name} is off`;
       return `unless ${name} is ${String(vw.not_equals)}`;
+    }
+    if (typeof vw.starts_with === 'string') {
+      return `when ${name} starts with ${vw.starts_with}`;
     }
     return null;
   }

@@ -26,6 +26,18 @@ describe('isVisible', () => {
     expect(isVisible(def, { waiting: true })).toBe(true);
     expect(isVisible(def, { waiting: false })).toBe(false);
   });
+
+  it('shows external ticket fields when state starts with External Fixing', () => {
+    const def = field({
+      id: 'external_ticket',
+      type: 'url',
+      visible_when: { field: 'state', starts_with: 'External Fixing' },
+    });
+    expect(isVisible(def, { state: 'External Fixing – Support' })).toBe(true);
+    expect(isVisible(def, { state: 'External Fixing – PS' })).toBe(true);
+    expect(isVisible(def, { state: 'Submitted' })).toBe(false);
+    expect(isVisible(def, { state: 'In fixing' })).toBe(false);
+  });
 });
 
 describe('itemMatchesFilters', () => {

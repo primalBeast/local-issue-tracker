@@ -59,6 +59,8 @@ def load_project(slug: str) -> dict[str, Any]:
         data["ticket_prefix"] = overlay
     elif not data.get("ticket_prefix"):
         data["ticket_prefix"] = "NEW-"
+    raw_url = data.get("url_prefix")
+    data["url_prefix"] = str(raw_url).strip() if isinstance(raw_url, str) else ""
     data["data_path"] = str(project_dir(slug))
     return data
 
@@ -68,6 +70,7 @@ def save_project(slug: str, data: dict[str, Any]) -> dict[str, Any]:
     data.pop("data_path", None)
     data["slug"] = slug
     data["updated_at"] = _now()
+    data["url_prefix"] = str(data.get("url_prefix") or "").strip()
     dest = project_dir(slug)
     write_json(dest / "project.json", data)
     prefix = data.get("ticket_prefix")
@@ -176,6 +179,61 @@ WAITING_CHECKBOX_FIELD: dict[str, Any] = {
 }
 
 WAITING_VISIBLE_WHEN = {"field": "waiting", "equals": True}
+
+EXTERNAL_TICKET_VISIBLE_WHEN = {"field": "state", "starts_with": "External Fixing"}
+EXTERNAL_TICKET_FIELDS: list[dict[str, Any]] = [
+    {
+        "id": "external_ticket",
+        "label": "Ticket",
+        "type": "url",
+        "required": False,
+        "order": "45a",
+        "default": "",
+        "placeholder": "Full URL",
+        "visible_when": dict(EXTERNAL_TICKET_VISIBLE_WHEN),
+        "show_in_list": False,
+    },
+    {
+        "id": "external_ticket_2",
+        "label": "Ticket",
+        "type": "url",
+        "required": False,
+        "order": "45b",
+        "default": "",
+        "placeholder": "Full URL",
+        "visible_when": dict(EXTERNAL_TICKET_VISIBLE_WHEN),
+        "show_in_list": False,
+    },
+    {
+        "id": "external_ticket_3",
+        "label": "Ticket",
+        "type": "url",
+        "required": False,
+        "order": "45c",
+        "default": "",
+        "placeholder": "Full URL",
+        "visible_when": dict(EXTERNAL_TICKET_VISIBLE_WHEN),
+        "show_in_list": False,
+    },
+]
+
+
+def ensure_external_ticket_fields(data: dict[str, Any]) -> bool:
+    """Add External Fixing ticket-URL slots if the project schema is missing them."""
+    fields = data.get("fields")
+    if not isinstance(fields, list):
+        return False
+    changed = False
+    have = {f.get("id") for f in fields if isinstance(f, dict)}
+    for spec in EXTERNAL_TICKET_FIELDS:
+        fid = spec["id"]
+        if fid in have:
+            continue
+        _insert_field_before(fields, spec, ("waiting", "waiting_for", "waiting_since", "notes"))
+        have.add(fid)
+        changed = True
+    data["fields"] = fields
+    return changed
 
 
 def _set_visible_when(field: dict[str, Any], visible_when: dict[str, Any]) -> bool:
@@ -412,6 +470,8 @@ def load_fields(slug: str) -> dict[str, Any]:
             pass
     if ensure_waiting_as_field(data, slug):
         changed = True
+    if ensure_external_ticket_fields(data):
+        changed = True
     if ensure_unbounded_int_fields(data):
         changed = True
     if changed:
@@ -533,6 +593,7 @@ def _copy_template(
         proj["ticket_prefix"] = ticket_prefix
     elif not proj.get("ticket_prefix"):
         proj["ticket_prefix"] = "NEW-"
+    proj["url_prefix"] = ""
     now = _now()
     proj["created_at"] = now
     proj["updated_at"] = now

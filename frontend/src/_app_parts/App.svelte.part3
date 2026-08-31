@@ -21,6 +21,38 @@
     }
   }
 
+  function visibleBodyFields(
+    defs: FieldDef[],
+    fields: Record<string, unknown>,
+    itemId: string
+  ): FieldDef[] {
+    const slots = slotsToShow(extraTicketSlots[itemId], fields);
+    return defs.filter((d) => {
+      if (!isVisible(d, fields)) return false;
+      if (!isExternalTicketId(d.id)) return true;
+      const idx = ['external_ticket', 'external_ticket_2', 'external_ticket_3'].indexOf(d.id);
+      return idx >= 0 && idx < slots;
+    });
+  }
+
+  function canAddExternalTicket(
+    shown: FieldDef[],
+    rowDefs: FieldDef[],
+    fields: Record<string, unknown>,
+    itemId: string
+  ): boolean {
+    if (!rowDefs.some((d) => isExternalTicketId(d.id))) return false;
+    if (!shown.some((d) => isExternalTicketId(d.id))) return false;
+    return slotsToShow(extraTicketSlots[itemId], fields) < 3;
+  }
+
+  function revealExternalTicketSlot(itemId: string, fields: Record<string, unknown>) {
+    extraTicketSlots = {
+      ...extraTicketSlots,
+      [itemId]: Math.min(3, slotsToShow(extraTicketSlots[itemId], fields) + 1),
+    };
+  }
+
   function patchItemFields(itemId: string, id: string, value: unknown) {
     const patch: Record<string, unknown> = { [id]: value };
     if (id === 'state' && value === 'Done') patch.waiting = false;
@@ -389,6 +421,7 @@
     projectEditor = {
       name: project.name,
       ticket_prefix: project.ticket_prefix || readStoredPrefix(project.slug) || 'NEW-',
+      url_prefix: String(project.url_prefix ?? ''),
       newName: '',
       newPrefix: 'NEW-',
       newTemplate: 'issue-tracker',
@@ -409,7 +442,7 @@
     templateEditorOpen = true;
   }
 
-  async function persistProjectMeta(name: string, prefixRaw: string, toast: boolean) {
+  async function persistProjectMeta(name: string, prefixRaw: string, urlPrefixRaw: string, toast: boolean) {
     if (!project) return false;
     const trimmed = name.trim();
     if (!trimmed) {
@@ -417,11 +450,16 @@
       return false;
     }
     const ticket_prefix = normalizeTicketPrefix(prefixRaw);
+    const url_prefix = String(urlPrefixRaw ?? '').trim();
     writeStoredPrefix(project.slug, ticket_prefix);
     try {
       await api.patchSettings({ ticket_prefix_by_project: { [project.slug]: ticket_prefix } });
-      const saved = await api.patchProject(project.slug, { name: trimmed, ticket_prefix });
-      project = { ...saved, ticket_prefix: saved.ticket_prefix || ticket_prefix };
+      const saved = await api.patchProject(project.slug, { name: trimmed, ticket_prefix, url_prefix });
+      project = {
+        ...saved,
+        ticket_prefix: saved.ticket_prefix || ticket_prefix,
+        url_prefix: saved.url_prefix ?? url_prefix,
+      };
       writeStoredPrefix(project.slug, project.ticket_prefix || ticket_prefix);
       projects = projects.map((p) => (p.slug === saved.slug ? project! : p));
       if (toast) showToast('Project updated');
@@ -435,12 +473,18 @@
 
   async function saveProjectEditor() {
     if (!project || !projectEditor) return;
-    const ok = await persistProjectMeta(projectEditor.name, projectEditor.ticket_prefix, true);
+    const ok = await persistProjectMeta(
+      projectEditor.name,
+      projectEditor.ticket_prefix,
+      projectEditor.url_prefix,
+      true
+    );
     if (ok && projectEditor) {
       projectEditor = {
         ...projectEditor,
         name: project.name,
         ticket_prefix: project.ticket_prefix || projectEditor.ticket_prefix,
+        url_prefix: String(project.url_prefix ?? projectEditor.url_prefix),
       };
     }
   }
@@ -449,7 +493,7 @@
     const ed = projectEditor;
     if (!ed) return;
     projectEditor = null;
-    if (save) await persistProjectMeta(ed.name, ed.ticket_prefix, false);
+    if (save) await persistProjectMeta(ed.name, ed.ticket_prefix, ed.url_prefix, false);
   }
 
   async function switchProject(slug: string) {

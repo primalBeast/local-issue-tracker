@@ -92,6 +92,48 @@
       "filterable": true
     },
     {
+      "id": "external_ticket",
+      "label": "Ticket",
+      "type": "url",
+      "required": false,
+      "order": "45a",
+      "default": "",
+      "placeholder": "Full URL",
+      "visible_when": {
+        "field": "state",
+        "starts_with": "External Fixing"
+      },
+      "show_in_list": false
+    },
+    {
+      "id": "external_ticket_2",
+      "label": "Ticket",
+      "type": "url",
+      "required": false,
+      "order": "45b",
+      "default": "",
+      "placeholder": "Full URL",
+      "visible_when": {
+        "field": "state",
+        "starts_with": "External Fixing"
+      },
+      "show_in_list": false
+    },
+    {
+      "id": "external_ticket_3",
+      "label": "Ticket",
+      "type": "url",
+      "required": false,
+      "order": "45c",
+      "default": "",
+      "placeholder": "Full URL",
+      "visible_when": {
+        "field": "state",
+        "starts_with": "External Fixing"
+      },
+      "show_in_list": false
+    },
+    {
       "id": "waiting",
       "label": "Waiting for...",
       "type": "checkbox",

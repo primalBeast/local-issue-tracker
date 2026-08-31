@@ -39,6 +39,7 @@ class ProjectPatch(BaseModel):
     primary_identifier_field: str | None = None
     compact_mode_zoom_threshold: float | None = None
     ticket_prefix: str | None = None
+    url_prefix: str | None = None
 
 
 class ProjectDelete(BaseModel):

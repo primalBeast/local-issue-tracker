@@ -2,21 +2,35 @@
   import type { FieldDef } from './api';
   import { isVisible } from './filters';
   import RichText from './RichText.svelte';
+  import UrlTicketField from './UrlTicketField.svelte';
 
   interface Props {
     def: FieldDef;
     fields: Record<string, unknown>;
     onchange: (id: string, value: unknown) => void;
     fill?: boolean;
+    addSlot?: boolean;
+    onAddSlot?: () => void;
   }
 
-  let { def, fields, onchange, fill = false }: Props = $props();
+  let { def, fields, onchange, fill = false, addSlot = false, onAddSlot }: Props = $props();
 
   let visible = $derived(isVisible(def, fields));
   let value = $derived(fields[def.id]);
 </script>
 
 {#if visible}
+  {#if def.type === 'url'}
+    <UrlTicketField
+      id={def.id}
+      label={def.label}
+      value={String(value ?? '')}
+      placeholder={def.placeholder || 'Full URL'}
+      showAdd={addSlot}
+      onchange={(v) => onchange(def.id, v)}
+      onAdd={onAddSlot}
+    />
+  {:else}
   <div class="field-group" class:field-group-fill={fill}>
     <label class="field-label" for={def.id}>{def.label}{def.required ? ' *' : ''}</label>
 
@@ -116,4 +130,5 @@
       <div style="color:var(--text-faint);font-size:11px;margin-top:3px">{def.help_text}</div>
     {/if}
   </div>
+  {/if}
 {/if}

@@ -12,6 +12,8 @@ export type Project = {
   };
   primary_identifier_field: string;
   ticket_prefix?: string;
+  /** Prepended to the ticket number on title-bar double-click. Empty means do not launch. */
+  url_prefix?: string;
   /** Absolute folder on disk for this project. */
   data_path?: string;
   compact_mode_zoom_threshold: number;
@@ -43,7 +45,7 @@ export type FieldDef = {
   /** Optional All Items column title (falls back to label). */
   list_label?: string;
   show_in_compact?: boolean;
-  visible_when?: { field: string; equals?: unknown; not_equals?: unknown };
+  visible_when?: { field: string; equals?: unknown; not_equals?: unknown; starts_with?: string };
   help_text?: string;
   /** Share of the line, 1–100. Fields on the same line should sum to 100. */
   width?: number;

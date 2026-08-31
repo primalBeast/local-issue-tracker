@@ -6,6 +6,8 @@
     descriptionLabel?: string;
     onTicketKey: (value: string) => void;
     onDescription: (value: string) => void;
+    /** When set, double-clicking the ticket number opens this URL. */
+    ticketLaunchHref?: string | null;
   }
 
   let {
@@ -15,6 +17,7 @@
     descriptionLabel = 'Description',
     onTicketKey,
     onDescription,
+    ticketLaunchHref = null,
   }: Props = $props();
 
   let descTrimmed = $derived(String(description ?? '').trim());
@@ -23,6 +26,14 @@
 
   function keyLabel(): string {
     return String(ticketKey ?? '').trim() || 'Untitled';
+  }
+
+  function onKeyDblClick(e: MouseEvent) {
+    const href = String(ticketLaunchHref ?? '').trim();
+    if (!href) return;
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(href, '_blank', 'noopener,noreferrer');
   }
 
   function toggle(e: MouseEvent) {
@@ -45,7 +56,15 @@
 
 <div class="item-title-bar">
   <div class="item-title-row">
-    <div class="item-title-key">{keyLabel()}</div>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="item-title-key"
+      class:launchable={!!ticketLaunchHref}
+      title={ticketLaunchHref ? 'Open ticket URL' : undefined}
+      ondblclick={onKeyDblClick}
+    >
+      {keyLabel()}
+    </div>
     {#if descTrimmed}
       <div class="item-title-desc" title={descTrimmed}>{descTrimmed}</div>
     {/if}
