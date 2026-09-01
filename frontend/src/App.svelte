@@ -55,6 +55,7 @@
     parseTransparentPanels,
     resolveTheme,
     THEME_STORAGE_KEY,
+    THEME_MENU,
     THEMES,
     TRANSPARENCY_BY_THEME_KEY,
     TRANSPARENT_PANELS_KEY,
@@ -529,10 +530,10 @@
 
   function moveThemeHighlight(delta: number) {
     if (!themeMenuOpen) openThemeMenu();
-    const idx = THEMES.findIndex((t) => t.id === highlightedThemeId);
-    const next = THEMES[(Math.max(idx, 0) + delta + THEMES.length) % THEMES.length];
-    previewTheme(next.id);
-    scrollThemeHighlightIntoView(next.id);
+    const idx = THEME_MENU.findIndex((e) => e.theme.id === highlightedThemeId);
+    const next = THEME_MENU[(Math.max(idx, 0) + delta + THEME_MENU.length) % THEME_MENU.length];
+    previewTheme(next.theme.id);
+    scrollThemeHighlightIntoView(next.theme.id);
   }
 
   function onThemePickerKey(e: KeyboardEvent) {
@@ -549,16 +550,16 @@
     if (e.key === 'Home') {
       e.preventDefault();
       if (!themeMenuOpen) openThemeMenu();
-      previewTheme(THEMES[0].id);
-      scrollThemeHighlightIntoView(THEMES[0].id);
+      previewTheme(THEME_MENU[0].theme.id);
+      scrollThemeHighlightIntoView(THEME_MENU[0].theme.id);
       return;
     }
     if (e.key === 'End') {
       e.preventDefault();
       if (!themeMenuOpen) openThemeMenu();
-      const last = THEMES[THEMES.length - 1];
-      previewTheme(last.id);
-      scrollThemeHighlightIntoView(last.id);
+      const last = THEME_MENU[THEME_MENU.length - 1];
+      previewTheme(last.theme.id);
+      scrollThemeHighlightIntoView(last.theme.id);
       return;
     }
     if (e.key === 'Enter') {
@@ -2192,17 +2193,20 @@
               </label>
             {/if}
             <ul class="theme-menu" role="listbox" aria-label="Theme">
-              {#each THEMES as t, i}
+              {#each THEME_MENU as entry, i (entry.theme.id)}
+                {#if i === 0 || THEME_MENU[i - 1].group !== entry.group}
+                  <li class="theme-group" role="presentation">{entry.group}</li>
+                {/if}
                 <li
                   role="option"
-                  data-theme-id={t.id}
-                  aria-selected={t.id === committedThemeId}
-                  class:active={t.id === highlightedThemeId}
-                  onpointerdown={() => previewTheme(t.id)}
-                  ondblclick={() => void setTheme(t.id)}
+                  data-theme-id={entry.theme.id}
+                  aria-selected={entry.theme.id === committedThemeId}
+                  class:active={entry.theme.id === highlightedThemeId}
+                  onpointerdown={() => previewTheme(entry.theme.id)}
+                  ondblclick={() => void setTheme(entry.theme.id)}
                 >
-                  <span class="theme-num">{i + 1}</span>
-                  {t.name}
+                  <span class="theme-num">{entry.num}</span>
+                  {entry.theme.name}
                 </li>
               {/each}
             </ul>
@@ -2221,7 +2225,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-31g</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01a</span>
         <span
           class="server-dot"
           class:ok={serverOk}

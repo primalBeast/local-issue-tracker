@@ -424,6 +424,23 @@ body.lit-zoom-scrubbing * {
   cursor: pointer;
   white-space: nowrap;
 }
+.theme-menu .theme-group {
+  cursor: default;
+  padding: 10px 8px 3px;
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.theme-menu .theme-group:first-child {
+  margin-top: 0;
+  padding-top: 4px;
+  border-top: none;
+}
 .theme-num {
   display: inline-block;
   min-width: 1.7em;

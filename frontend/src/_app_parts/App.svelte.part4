@@ -104,17 +104,20 @@
               </label>
             {/if}
             <ul class="theme-menu" role="listbox" aria-label="Theme">
-              {#each THEMES as t, i}
+              {#each THEME_MENU as entry, i (entry.theme.id)}
+                {#if i === 0 || THEME_MENU[i - 1].group !== entry.group}
+                  <li class="theme-group" role="presentation">{entry.group}</li>
+                {/if}
                 <li
                   role="option"
-                  data-theme-id={t.id}
-                  aria-selected={t.id === committedThemeId}
-                  class:active={t.id === highlightedThemeId}
-                  onpointerdown={() => previewTheme(t.id)}
-                  ondblclick={() => void setTheme(t.id)}
+                  data-theme-id={entry.theme.id}
+                  aria-selected={entry.theme.id === committedThemeId}
+                  class:active={entry.theme.id === highlightedThemeId}
+                  onpointerdown={() => previewTheme(entry.theme.id)}
+                  ondblclick={() => void setTheme(entry.theme.id)}
                 >
-                  <span class="theme-num">{i + 1}</span>
-                  {t.name}
+                  <span class="theme-num">{entry.num}</span>
+                  {entry.theme.name}
                 </li>
               {/each}
             </ul>
@@ -133,7 +136,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-31g</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01a</span>
         <span
           class="server-dot"
           class:ok={serverOk}

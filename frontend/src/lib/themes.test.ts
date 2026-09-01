@@ -8,6 +8,8 @@ import {
   parseTransparencyMap,
   parseTransparentPanels,
   resolveTheme,
+  THEME_GROUPS,
+  THEME_MENU,
   THEMES,
   transparencyForTheme,
 } from './themes';
@@ -20,6 +22,15 @@ describe('themes', () => {
     expect(THEMES[0].name.toLowerCase()).toContain('default');
     expect(THEMES).toHaveLength(152);
     expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(151);
+  });
+
+  it('groups every look into the theme menu without duplicates', () => {
+    const grouped = THEME_GROUPS.flatMap((g) => g.ids);
+    expect(grouped).toHaveLength(THEMES.length);
+    expect(new Set(grouped).size).toBe(THEMES.length);
+    expect(THEME_MENU).toHaveLength(THEMES.length);
+    const ids = new Set(THEMES.map((t) => t.id));
+    for (const id of grouped) expect(ids.has(id), `unknown grouped id ${id}`).toBe(true);
   });
 
   it('maps the legacy dark setting to midnight', () => {

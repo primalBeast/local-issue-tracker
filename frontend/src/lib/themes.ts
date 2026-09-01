@@ -1610,6 +1610,228 @@ export const THEMES: Theme[] = [
   }),
 ];
 
+export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
+  { label: 'Default', ids: ['midnight'] },
+  {
+    label: 'Night skies',
+    ids: [
+      'aurora',
+      'ember',
+      'abyss',
+      'lunar',
+      'sakura',
+      'solar',
+      'glacier',
+      'verdant',
+      'dune',
+      'cobalt',
+      'iris',
+      'lacquer',
+    ],
+  },
+  {
+    label: 'Solar system',
+    ids: [
+      'europa',
+      'titan',
+      'io',
+      'triton',
+      'phobos',
+      'enceladus',
+      'earthrise',
+      'rings',
+      'umbra',
+      'horizon',
+    ],
+  },
+  {
+    label: 'Night cities',
+    ids: ['shibuya', 'shinjuku', 'dotonbori', 'ginzan', 'takayama', 'kowloon'],
+  },
+  {
+    label: 'Earth landscapes',
+    ids: ['obsidian', 'biolume', 'petra', 'saguaro', 'karst', 'reef'],
+  },
+  {
+    label: 'Japan',
+    ids: [
+      'fuji',
+      'bamboo',
+      'kinkaku',
+      'nachi',
+      'kasuga',
+      'yakushima',
+      'shirakawa',
+      'miyajima',
+      'koyo',
+      'onsen',
+      'nikko',
+      'himeji',
+      'aso',
+    ],
+  },
+  {
+    label: 'Alien worlds',
+    ids: [
+      'kepler',
+      'xenon',
+      'spore',
+      'magma',
+      'tide',
+      'veil',
+      'oasis',
+      'nimbus',
+      'mirror',
+      'mist',
+      'halo',
+      'vanta',
+      'oracle',
+      'lichen',
+    ],
+  },
+  {
+    label: 'Sakura',
+    ids: [
+      'hanami',
+      'yoshino',
+      'maruyama',
+      'meguro',
+      'kakunodate',
+      'hirosaki',
+      'nara',
+      'kamakura',
+      'matsumoto',
+      'kenroku',
+      'rikugien',
+      'chidori',
+      'kawazu',
+      'daigo',
+      'osaka',
+      'inokashira',
+      'ueno',
+      'tetsugaku',
+      'heian',
+      'gyoen',
+      'korakuen',
+      'odawara',
+      'mifuneyama',
+      'asakusa',
+      'koishikawa',
+      'tsuwano',
+    ],
+  },
+  {
+    label: 'Samurai',
+    ids: [
+      'sekigahara',
+      'azuchi',
+      'kumamoto',
+      'nagashino',
+      'noroshi',
+      'kagemusha',
+      'inuyama',
+      'kacchu',
+    ],
+  },
+  {
+    label: 'Switzerland',
+    ids: [
+      'matterhorn',
+      'lauterbrunnen',
+      'grindelwald',
+      'interlaken',
+      'jungfrau',
+      'montreux',
+      'stmoritz',
+      'davos',
+      'rhinefall',
+      'pilatus',
+      'titlis',
+      'bernina',
+      'appenzell',
+      'oeschinen',
+      'blausee',
+      'chillon',
+    ],
+  },
+  {
+    label: 'Ocean',
+    ids: [
+      'malos',
+      'bora',
+      'napali',
+      'faroe',
+      'swell',
+      'sandbar',
+      'berg',
+      'apostles',
+      'moonpath',
+      'trades',
+    ],
+  },
+  {
+    label: 'Underwater',
+    ids: [
+      'cenote',
+      'kelp',
+      'manta',
+      'dropoff',
+      'jelly',
+      'hadal',
+      'honu',
+      'bluehole',
+      'anemone',
+      'humpback',
+    ],
+  },
+  {
+    label: 'Alien ocean',
+    ids: [
+      'aethersea',
+      'glassreef',
+      'twinmoon',
+      'rustshore',
+      'vapor',
+      'prismtide',
+      'goldlagoon',
+      'stormwell',
+      'nightglass',
+      'spirecoast',
+    ],
+  },
+  {
+    label: 'Alien depths',
+    ids: [
+      'voidkelp',
+      'crystalreef',
+      'abyssfish',
+      'magmawell',
+      'silkjell',
+      'leviathan',
+      'starfall',
+      'amethyst',
+      'ionvent',
+      'moonpool',
+    ],
+  },
+];
+
+export type ThemeMenuEntry = { group: string; theme: Theme; num: number };
+
+export const THEME_MENU: ThemeMenuEntry[] = (() => {
+  const byId = new Map(THEMES.map((t) => [t.id, t]));
+  const out: ThemeMenuEntry[] = [];
+  let num = 1;
+  for (const g of THEME_GROUPS) {
+    for (const id of g.ids) {
+      const theme = byId.get(id);
+      if (!theme) continue;
+      out.push({ group: g.label, theme, num: num++ });
+    }
+  }
+  return out;
+})();
+
 const ALIASES: Record<string, ThemeId> = {
   dark: 'midnight',
   default: 'midnight',
