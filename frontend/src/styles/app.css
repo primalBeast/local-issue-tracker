@@ -1346,14 +1346,15 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 .table .list-cell-label {
   display: block;
   min-height: 1.35em;
+  width: 100%;
+}
+.table td.list-editable {
+  min-width: 4ch;
 }
 .table td.list-editing {
   padding: 2px 4px;
   cursor: auto;
   overflow: visible;
-}
-.table td.list-editing:has(.list-cell-select) {
-  padding: 0;
 }
 .table .list-cell-edit {
   width: 100%;
@@ -1367,19 +1368,33 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   width: auto;
   height: auto;
 }
-.table .list-cell-select {
-  display: flex;
-  flex-direction: column;
-  height: auto;
-  min-height: calc(22px * var(--list-select-size, 4));
-  padding: 2px;
+.table .list-select-anchor {
+  display: block;
+  box-sizing: border-box;
+  line-height: 24px;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: var(--bg-input);
   border: 1px solid var(--accent);
   border-radius: 8px;
   box-shadow: 0 0 0 3px var(--focus-ring);
-  overflow: hidden;
 }
-.table .list-select-opt {
+.list-select-popup {
+  position: fixed;
+  z-index: 2200;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px var(--focus-ring), var(--shadow);
+}
+.list-select-popup .list-select-opt {
   flex: 0 0 22px;
   height: 22px;
   width: 100%;
@@ -1396,14 +1411,14 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   text-overflow: ellipsis;
   cursor: pointer;
 }
-.table .list-select-opt:hover {
+.list-select-popup .list-select-opt:hover {
   background: var(--bg-hover);
   border-color: transparent;
 }
-.table .list-select-opt:active {
+.list-select-popup .list-select-opt:active {
   transform: none;
 }
-.table .list-select-opt.selected {
+.list-select-popup .list-select-opt.selected {
   background: var(--accent-soft);
 }
 .table td.updated-date {

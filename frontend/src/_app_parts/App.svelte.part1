@@ -103,6 +103,7 @@
   /** Extra External Fixing ticket-URL slots revealed with +. */
   let extraTicketSlots = $state<Record<string, number>>({});
   let listEdit = $state<{ itemId: string; fieldId: string } | null>(null);
+  let listEditAnchor = $state<Item | null>(null);
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -215,15 +216,19 @@
     );
   }
 
-  let filteredItems = $derived(
-    workspace
-      ? sortItems(
-          items.filter((it) => itemMatchesFilters(it, workspace!.filters.active, fieldDefs)),
-          workspace.sort,
-          fieldDefs
-        )
-      : items
-  );
+  let filteredItems = $derived.by(() => {
+    if (!workspace) return items;
+    const filtered = items.filter((it) =>
+      itemMatchesFilters(it, workspace!.filters.active, fieldDefs)
+    );
+    if (!workspace.sort) return filtered;
+    const liveById = new Map(filtered.map((it) => [it.id, it]));
+    const source =
+      listEdit && listEditAnchor && liveById.has(listEdit.itemId)
+        ? filtered.map((it) => (it.id === listEdit.itemId ? listEditAnchor! : it))
+        : filtered;
+    return sortItems(source, workspace.sort, fieldDefs).map((it) => liveById.get(it.id) ?? it);
+  });
   let allItemsColumns = $derived(listFields);
   let waitingSinceField = $derived(fieldDefs.find((f) => f.id === 'waiting_since') ?? null);
   let openItemIds = $derived(
@@ -314,7 +319,7 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
-      if (listEdit && !t?.closest?.('.list-cell-edit, td.list-editing')) {
+      if (listEdit && !t?.closest?.('.list-cell-edit, td.list-editing, .list-select-popup')) {
         endListEdit();
       }
       if (itemDeleteConfirm) {

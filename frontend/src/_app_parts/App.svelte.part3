@@ -187,15 +187,25 @@
 
   const LIST_EDIT_TYPES = new Set(['text', 'number', 'select', 'checkbox', 'date', 'datetime', 'url']);
 
-  function waitingEditable(item: Item): boolean {
-    const waitingDef = fieldDefs.find((d) => d.id === 'waiting');
-    return !waitingDef || isVisible(waitingDef, item.fields);
+  function waitingForChoices(current: unknown): string[] {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    const add = (raw: unknown) => {
+      const n = String(raw ?? '').trim();
+      if (!n || seen.has(n)) return;
+      seen.add(n);
+      names.push(n);
+    };
+    for (const n of fieldDefs.find((d) => d.id === 'waiting_for')?.options ?? []) add(n);
+    for (const it of items) add(it.fields.waiting_for);
+    add(current);
+    return names;
   }
 
   function canListEditCell(f: FieldDef, item: Item): boolean {
     if (f.id === 'ticket_key' || f.id === keyField()) return false;
+    if (f.id === 'waiting_for' || f.id === 'waiting_since') return true;
     if (!LIST_EDIT_TYPES.has(f.type)) return false;
-    if (f.id === 'waiting_for' || f.id === 'waiting_since') return waitingEditable(item);
     return isVisible(f, item.fields);
   }
 
@@ -209,12 +219,15 @@
     if (!canListEditCell(field, item)) return;
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
     itemContextMenu = null;
+    listEditAnchor = { ...item, fields: { ...item.fields }, waiting: { ...item.waiting } };
     listEdit = { itemId: item.id, fieldId: field.id };
   }
 
   function endListEdit() {
     listEdit = null;
+    listEditAnchor = null;
   }
 
   function clickListSort(field: string) {

@@ -133,7 +133,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-30k</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-31e</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -668,11 +668,15 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {#each filteredItems as it}
+                  {#each filteredItems as it (it.id)}
                     <tr
                       class="clickable"
                       ondblclick={(e) => onAllItemsRowDblClick(e, it.id)}
-                      oncontextmenu={(e) => openItemContextMenu(e, it)}
+                      oncontextmenu={(e) => {
+                        const t = e.target as HTMLElement | null;
+                        if (t?.closest?.('td.list-editable, td.list-editing')) return;
+                        openItemContextMenu(e, it);
+                      }}
                     >
                       <td class="open-dot-col">
                         <span
@@ -684,11 +688,12 @@
                       </td>
                       {#each allItemsColumns as f}
                         <td
+                          class:list-editable={canListEditCell(f, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
                           oncontextmenu={(e) => beginListEdit(e, it, f)}
                         >
                           <AllItemsCell
-                            def={f}
+                            def={f.id === 'waiting_for' ? { ...f, type: 'select', options: waitingForChoices(it.fields[f.id]) } : f}
                             value={it.fields[f.id]}
                             display={listCellDisplay(f, it)}
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
@@ -700,6 +705,7 @@
                       {#if waitingSinceField}
                         {@const sinceDef = waitingSinceField}
                         <td
+                          class:list-editable={canListEditCell(sinceDef, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
                           oncontextmenu={(e) => beginListEdit(e, it, sinceDef)}
                         >

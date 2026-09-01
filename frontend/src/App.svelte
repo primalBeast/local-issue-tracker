@@ -103,6 +103,7 @@
   /** Extra External Fixing ticket-URL slots revealed with +. */
   let extraTicketSlots = $state<Record<string, number>>({});
   let listEdit = $state<{ itemId: string; fieldId: string } | null>(null);
+  let listEditAnchor = $state<Item | null>(null);
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -215,15 +216,19 @@
     );
   }
 
-  let filteredItems = $derived(
-    workspace
-      ? sortItems(
-          items.filter((it) => itemMatchesFilters(it, workspace!.filters.active, fieldDefs)),
-          workspace.sort,
-          fieldDefs
-        )
-      : items
-  );
+  let filteredItems = $derived.by(() => {
+    if (!workspace) return items;
+    const filtered = items.filter((it) =>
+      itemMatchesFilters(it, workspace!.filters.active, fieldDefs)
+    );
+    if (!workspace.sort) return filtered;
+    const liveById = new Map(filtered.map((it) => [it.id, it]));
+    const source =
+      listEdit && listEditAnchor && liveById.has(listEdit.itemId)
+        ? filtered.map((it) => (it.id === listEdit.itemId ? listEditAnchor! : it))
+        : filtered;
+    return sortItems(source, workspace.sort, fieldDefs).map((it) => liveById.get(it.id) ?? it);
+  });
   let allItemsColumns = $derived(listFields);
   let waitingSinceField = $derived(fieldDefs.find((f) => f.id === 'waiting_since') ?? null);
   let openItemIds = $derived(
@@ -314,7 +319,7 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
-      if (listEdit && !t?.closest?.('.list-cell-edit, td.list-editing')) {
+      if (listEdit && !t?.closest?.('.list-cell-edit, td.list-editing, .list-select-popup')) {
         endListEdit();
       }
       if (itemDeleteConfirm) {
@@ -1668,15 +1673,25 @@
 
   const LIST_EDIT_TYPES = new Set(['text', 'number', 'select', 'checkbox', 'date', 'datetime', 'url']);
 
-  function waitingEditable(item: Item): boolean {
-    const waitingDef = fieldDefs.find((d) => d.id === 'waiting');
-    return !waitingDef || isVisible(waitingDef, item.fields);
+  function waitingForChoices(current: unknown): string[] {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    const add = (raw: unknown) => {
+      const n = String(raw ?? '').trim();
+      if (!n || seen.has(n)) return;
+      seen.add(n);
+      names.push(n);
+    };
+    for (const n of fieldDefs.find((d) => d.id === 'waiting_for')?.options ?? []) add(n);
+    for (const it of items) add(it.fields.waiting_for);
+    add(current);
+    return names;
   }
 
   function canListEditCell(f: FieldDef, item: Item): boolean {
     if (f.id === 'ticket_key' || f.id === keyField()) return false;
+    if (f.id === 'waiting_for' || f.id === 'waiting_since') return true;
     if (!LIST_EDIT_TYPES.has(f.type)) return false;
-    if (f.id === 'waiting_for' || f.id === 'waiting_since') return waitingEditable(item);
     return isVisible(f, item.fields);
   }
 
@@ -1690,12 +1705,15 @@
     if (!canListEditCell(field, item)) return;
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
     itemContextMenu = null;
+    listEditAnchor = { ...item, fields: { ...item.fields }, waiting: { ...item.waiting } };
     listEdit = { itemId: item.id, fieldId: field.id };
   }
 
   function endListEdit() {
     listEdit = null;
+    listEditAnchor = null;
   }
 
   function clickListSort(field: string) {
@@ -2203,7 +2221,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-30k</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-08-31e</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2738,11 +2756,15 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {#each filteredItems as it}
+                  {#each filteredItems as it (it.id)}
                     <tr
                       class="clickable"
                       ondblclick={(e) => onAllItemsRowDblClick(e, it.id)}
-                      oncontextmenu={(e) => openItemContextMenu(e, it)}
+                      oncontextmenu={(e) => {
+                        const t = e.target as HTMLElement | null;
+                        if (t?.closest?.('td.list-editable, td.list-editing')) return;
+                        openItemContextMenu(e, it);
+                      }}
                     >
                       <td class="open-dot-col">
                         <span
@@ -2754,11 +2776,12 @@
                       </td>
                       {#each allItemsColumns as f}
                         <td
+                          class:list-editable={canListEditCell(f, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
                           oncontextmenu={(e) => beginListEdit(e, it, f)}
                         >
                           <AllItemsCell
-                            def={f}
+                            def={f.id === 'waiting_for' ? { ...f, type: 'select', options: waitingForChoices(it.fields[f.id]) } : f}
                             value={it.fields[f.id]}
                             display={listCellDisplay(f, it)}
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
@@ -2770,6 +2793,7 @@
                       {#if waitingSinceField}
                         {@const sinceDef = waitingSinceField}
                         <td
+                          class:list-editable={canListEditCell(sinceDef, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
                           oncontextmenu={(e) => beginListEdit(e, it, sinceDef)}
                         >
