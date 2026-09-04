@@ -115,7 +115,11 @@ export type Workspace = {
     active: Record<string, unknown>;
     presets: Array<{ id: string; name: string; filter: Record<string, unknown> }>;
   };
-  sort: { field: string; direction: 'asc' | 'desc' };
+  sort: {
+    field: string;
+    direction: 'asc' | 'desc';
+    secondary?: { field: string; direction: 'asc' | 'desc' };
+  };
   panels: Panel[];
 };
 

@@ -158,13 +158,15 @@ label.field-label {
 .field-col { min-width: 0; flex: 1 1 0; }
 .field-row-multi .field-group { margin-bottom: 8px; }
 
-.url-ticket-control {
+.url-ticket-control,
+.name-select-control {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
 }
-.url-ticket-control input {
+.url-ticket-control input,
+.name-select-control select {
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -1358,6 +1360,7 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 }
 .table th.sortable:hover { color: var(--text); }
 .table th.sorted { color: var(--accent); }
+.table th.sorted-secondary { color: var(--text); }
 .table tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .table tr.clickable { cursor: pointer; }
 .table .list-cell-label {
@@ -1564,6 +1567,24 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 .notes-hover-empty {
   color: var(--text-muted, #9aa3b2);
   font-style: italic;
+}
+.name-add-popup {
+  position: fixed;
+  z-index: 2300;
+  width: 220px;
+  padding: 8px;
+  outline: none;
+  background: color-mix(in srgb, var(--bg, #0b0d12) 85%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px var(--focus-ring), var(--shadow);
+}
+.name-add-popup input {
+  width: 100%;
+  margin: 0;
+}
+.name-add-popup input.name-add-dup {
+  color: var(--text-muted, #9aa3b2);
 }
 
 .waiting-badge {

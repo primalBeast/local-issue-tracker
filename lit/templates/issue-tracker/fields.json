@@ -75,20 +75,22 @@
     {
       "id": "dn_assigned_to",
       "label": "DN Assigned To",
-      "type": "text",
+      "type": "select",
       "required": false,
       "order": "40a",
       "default": "",
+      "options": [],
       "filterable": true,
       "show_in_list": true
     },
     {
       "id": "customer_assigned_to",
       "label": "Customer Assigned To",
-      "type": "text",
+      "type": "select",
       "required": false,
       "order": "40b",
       "default": "",
+      "options": [],
       "filterable": true
     },
     {

@@ -59,4 +59,22 @@ describe('sortItems', () => {
     const desc = sortItems([a, b], { field: '_updated', direction: 'desc' });
     expect(desc.map((i) => i.id)).toEqual(['b', 'a']);
   });
+
+  it('breaks primary ties with the secondary column', () => {
+    const defs: FieldDef[] = [
+      field({ id: 'priority', type: 'number' }),
+      field({ id: 'state', type: 'text' }),
+    ];
+    const list: Item[] = [
+      { id: 'a', updated_at: '', fields: { priority: 1, state: 'B' } } as Item,
+      { id: 'b', updated_at: '', fields: { priority: 1, state: 'A' } } as Item,
+      { id: 'c', updated_at: '', fields: { priority: 2, state: 'A' } } as Item,
+    ];
+    const out = sortItems(
+      list,
+      { field: 'priority', direction: 'asc', secondary: { field: 'state', direction: 'asc' } },
+      defs
+    );
+    expect(out.map((i) => i.id)).toEqual(['b', 'a', 'c']);
+  });
 });

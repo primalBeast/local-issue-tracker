@@ -202,9 +202,56 @@
     return names;
   }
 
+  function listCellDef(f: FieldDef, item: Item): FieldDef {
+    if (f.id === 'waiting_for') {
+      return { ...f, type: 'select', options: waitingForChoices(item.fields[f.id]) };
+    }
+    if (isAssignedField(f.id)) {
+      return { ...f, type: 'select', options: waitingNameChoices(f.options, item.fields[f.id]) };
+    }
+    return f;
+  }
+
+  function assignedPanelDef(def: FieldDef, fields: Record<string, unknown>): FieldDef {
+    if (!isAssignedField(def.id)) return def;
+    return { ...def, type: 'select', options: waitingNameChoices(def.options, fields[def.id]) };
+  }
+
+  async function openAssignedNameAdd(itemId: string, fieldId: string, anchor: HTMLElement) {
+    const r = anchor.getBoundingClientRect();
+    let left = r.left;
+    const width = 220;
+    if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+    nameAdd = { itemId, fieldId, top: r.bottom + 4, left, draft: '' };
+    await tick();
+    nameAddInputEl?.focus();
+  }
+
+  async function submitAssignedNameAdd() {
+    if (!nameAdd || !project || !fieldsDoc) return;
+    const name = nameAdd.draft.trim();
+    if (!name) return;
+    const fieldId = nameAdd.fieldId;
+    const itemId = nameAdd.itemId;
+    const current = fieldsDoc.fields.find((f) => f.id === fieldId);
+    if (!current || nameAlreadyListed(current.options, name)) return;
+    const fields = fieldsDoc.fields.map((f) => {
+      if (f.id !== fieldId) return f;
+      return { ...f, type: 'select' as const, options: [...(f.options ?? []), name] };
+    });
+    try {
+      fieldsDoc = await api.putFields(project.slug, { ...fieldsDoc, fields });
+      patchItemFields(itemId, fieldId, name);
+      nameAdd = null;
+    } catch (err) {
+      showToast('Could not save name');
+      console.error(err);
+    }
+  }
+
   function canListEditCell(f: FieldDef, item: Item): boolean {
     if (f.id === 'ticket_key' || f.id === keyField()) return false;
-    if (f.id === 'waiting_for' || f.id === 'waiting_since') return true;
+    if (f.id === 'waiting_for' || f.id === 'waiting_since' || isAssignedField(f.id)) return true;
     if (!LIST_EDIT_TYPES.has(f.type)) return false;
     return isVisible(f, item.fields);
   }
@@ -301,22 +348,51 @@
     return () => window.removeEventListener('scroll', hide, true);
   });
 
+  function listSortFirstDir(field: string): 'asc' | 'desc' {
+    return field === '_updated' ? 'desc' : 'asc';
+  }
+
   function clickListSort(field: string) {
-    const firstDir = field === '_updated' ? 'desc' : 'asc';
+    const firstDir = listSortFirstDir(field);
     updateWorkspace((ws) => {
       if (!ws.sort) ws.sort = { field, direction: firstDir };
       else if (ws.sort.field === field) {
         ws.sort.direction = ws.sort.direction === 'asc' ? 'desc' : 'asc';
       } else {
+        if (ws.sort.secondary?.field === field) delete ws.sort.secondary;
         ws.sort.field = field;
         ws.sort.direction = firstDir;
       }
     });
   }
 
+  function secondaryListSort(field: string) {
+    const firstDir = listSortFirstDir(field);
+    updateWorkspace((ws) => {
+      if (!ws.sort) ws.sort = { field: 'priority', direction: 'asc' };
+      if (ws.sort.field === field) return;
+      if (ws.sort.secondary?.field === field) {
+        ws.sort.secondary.direction = ws.sort.secondary.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        ws.sort.secondary = { field, direction: firstDir };
+      }
+    });
+  }
+
+  function onListHeaderContext(e: MouseEvent, field: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    secondaryListSort(field);
+  }
+
   function listSortMark(field: string): string {
-    if (workspace?.sort?.field !== field) return '';
-    return workspace.sort.direction === 'desc' ? ' ▼' : ' ▲';
+    if (workspace?.sort?.field === field) {
+      return workspace.sort.direction === 'desc' ? ' ▼' : ' ▲';
+    }
+    if (workspace?.sort?.secondary?.field === field) {
+      return workspace.sort.secondary.direction === 'desc' ? ' ▼' : ' ▲';
+    }
+    return '';
   }
 
   function formatItemUpdatedDate(iso: string | undefined): string {

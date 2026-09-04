@@ -50,21 +50,34 @@ export function itemMatchesFilters(
   return true;
 }
 
+export type ListSortDir = 'asc' | 'desc';
+export type ListSortKey = { field: string; direction: ListSortDir };
+export type ListSort = ListSortKey & { secondary?: ListSortKey };
+
+function compareListField(a: Item, b: Item, field: string, defs: FieldDef[]): number {
+  if (field === '_waiting') {
+    const aw = isItemWaiting(a) ? (a.waiting?.current_seconds ?? 0) : -1;
+    const bw = isItemWaiting(b) ? (b.waiting?.current_seconds ?? 0) : -1;
+    return aw - bw;
+  }
+  if (field === '_updated') {
+    return String(a.updated_at ?? '').localeCompare(String(b.updated_at ?? ''));
+  }
+  return compareItemFields(a, b, field, defs);
+}
+
 export function sortItems(
   items: Item[],
-  sort: { field: string; direction: 'asc' | 'desc' },
+  sort: ListSort,
   defs: FieldDef[] = []
 ): Item[] {
-  const dir = sort.direction === 'desc' ? -1 : 1;
   return [...items].sort((a, b) => {
-    if (sort.field === '_waiting') {
-      const aw = isItemWaiting(a) ? (a.waiting?.current_seconds ?? 0) : -1;
-      const bw = isItemWaiting(b) ? (b.waiting?.current_seconds ?? 0) : -1;
-      return (aw - bw) * dir;
-    }
-    if (sort.field === '_updated') {
-      return String(a.updated_at ?? '').localeCompare(String(b.updated_at ?? '')) * dir;
-    }
-    return compareItemFields(a, b, sort.field, defs) * dir;
+    const dir = sort.direction === 'desc' ? -1 : 1;
+    const primary = compareListField(a, b, sort.field, defs) * dir;
+    if (primary !== 0) return primary;
+    const secondary = sort.secondary;
+    if (!secondary || secondary.field === sort.field) return 0;
+    const sdir = secondary.direction === 'desc' ? -1 : 1;
+    return compareListField(a, b, secondary.field, defs) * sdir;
   });
 }

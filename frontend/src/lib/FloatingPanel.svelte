@@ -250,7 +250,7 @@
   oncontextmenu={(e) => {
     if (!oncontext) return;
     const t = e.target as HTMLElement | null;
-    if (t?.closest?.('input, textarea, select, button, .ProseMirror, .item-title-editor')) return;
+    if (t?.closest?.('input, textarea, select, button, .ProseMirror, .item-title-editor, th.sortable, .name-add-popup')) return;
     e.preventDefault();
     e.stopPropagation();
     oncontext(e);

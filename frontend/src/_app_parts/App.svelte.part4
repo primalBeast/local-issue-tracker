@@ -136,7 +136,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01h</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01k</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -380,6 +380,43 @@
       </div>
     {/if}
 
+    {#if nameAdd}
+      {@const dup = nameAlreadyListed(
+        fieldDefs.find((f) => f.id === nameAdd.fieldId)?.options,
+        nameAdd.draft
+      )}
+      <div
+        class="name-add-popup"
+        role="dialog"
+        tabindex="-1"
+        aria-label="Add name"
+        style:top="{nameAdd.top}px"
+        style:left="{nameAdd.left}px"
+        onpointerdown={(e) => e.stopPropagation()}
+      >
+        <input
+          bind:this={nameAddInputEl}
+          class:name-add-dup={dup}
+          type="text"
+          placeholder="New name"
+          value={nameAdd.draft}
+          oninput={(e) => {
+            if (nameAdd) nameAdd = { ...nameAdd, draft: e.currentTarget.value };
+          }}
+          onkeydown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              nameAdd = null;
+              return;
+            }
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            void submitAssignedNameAdd();
+          }}
+        />
+      </div>
+    {/if}
+
     {#if itemDeleteConfirm}
       <div class="confirm-backdrop" role="presentation">
         <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
@@ -595,7 +632,7 @@
                         {#each shown as def, di (def.id)}
                           <div class="field-col" style:flex={`${fieldFlex(def, shown)} 1 0`}>
                             <FieldRenderer
-                              {def}
+                              def={assignedPanelDef(def, detailCache[item.id].fields)}
                               fill={isNotesFillRow({ row: block.row.row, fields: shown })}
                               fields={detailCache[item.id].fields}
                               addSlot={addUrl &&
@@ -603,6 +640,9 @@
                                 isExternalTicketId(def.id)}
                               onAddSlot={() =>
                                 revealExternalTicketSlot(item.id, detailCache[item.id].fields)}
+                              onAddOption={isAssignedField(def.id)
+                                ? (el) => void openAssignedNameAdd(item.id, def.id, el)
+                                : undefined}
                               onchange={(id, value) => patchItemFields(item.id, id, value)}
                             />
                           </div>
@@ -626,7 +666,7 @@
                 {#snippet filterGroup(ff: FieldDef)}
                   <div class="filter-group">
                     <div class="filter-group-title">{ff.label}</div>
-                    {#if ff.type === 'select' && ff.options}
+                    {#if (ff.type === 'select' || isAssignedField(ff.id)) && ff.options}
                       {#each filterCheckboxOptions(ff) as opt}
                         <label class="check-row">
                           <input
@@ -671,21 +711,27 @@
                       <th
                         class="sortable"
                         class:sorted={workspace.sort?.field === f.id}
+                        class:sorted-secondary={workspace.sort?.secondary?.field === f.id}
                         style:width={f.list_width || undefined}
                         onclick={() => clickListSort(f.id)}
+                        oncontextmenu={(e) => onListHeaderContext(e, f.id)}
                       >{f.list_label || f.label}{listSortMark(f.id)}</th>
                     {/each}
                     {#if waitingSinceField}
                       <th
                         class="sortable"
                         class:sorted={workspace.sort?.field === '_waiting'}
+                        class:sorted-secondary={workspace.sort?.secondary?.field === '_waiting'}
                         onclick={() => clickListSort('_waiting')}
+                        oncontextmenu={(e) => onListHeaderContext(e, '_waiting')}
                       >Waiting{listSortMark('_waiting')}</th>
                     {/if}
                     <th
                       class="sortable"
                       class:sorted={workspace.sort?.field === '_updated'}
+                      class:sorted-secondary={workspace.sort?.secondary?.field === '_updated'}
                       onclick={() => clickListSort('_updated')}
+                      oncontextmenu={(e) => onListHeaderContext(e, '_updated')}
                     >Updated{listSortMark('_updated')}</th>
                   </tr>
                 </thead>
@@ -719,7 +765,7 @@
                           oncontextmenu={(e) => beginListEdit(e, it, f)}
                         >
                           <AllItemsCell
-                            def={f.id === 'waiting_for' ? { ...f, type: 'select', options: waitingForChoices(it.fields[f.id]) } : f}
+                            def={listCellDef(f, it)}
                             value={it.fields[f.id]}
                             display={listCellDisplay(f, it)}
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}

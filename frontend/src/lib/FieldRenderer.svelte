@@ -11,9 +11,10 @@
     fill?: boolean;
     addSlot?: boolean;
     onAddSlot?: () => void;
+    onAddOption?: (anchor: HTMLElement) => void;
   }
 
-  let { def, fields, onchange, fill = false, addSlot = false, onAddSlot }: Props = $props();
+  let { def, fields, onchange, fill = false, addSlot = false, onAddSlot, onAddOption }: Props = $props();
 
   let visible = $derived(isVisible(def, fields));
   let value = $derived(fields[def.id]);
@@ -102,15 +103,39 @@
         onblur={finishNumberEdit}
       />
     {:else if def.type === 'select'}
-      <select
-        id={def.id}
-        value={String(value ?? '')}
-        onchange={(e) => onchange(def.id, e.currentTarget.value)}
-      >
-        {#each def.options || [] as opt}
-          <option value={opt}>{opt}</option>
-        {/each}
-      </select>
+      {#if onAddOption}
+        <div class="name-select-control">
+          <select
+            id={def.id}
+            value={String(value ?? '')}
+            onchange={(e) => onchange(def.id, e.currentTarget.value)}
+          >
+            {#if !def.required}
+              <option value=""></option>
+            {/if}
+            {#each def.options || [] as opt}
+              <option value={opt}>{opt}</option>
+            {/each}
+          </select>
+          <button
+            type="button"
+            class="ghost url-ticket-add name-option-add"
+            title="Add a name"
+            onpointerdown={(e) => e.stopPropagation()}
+            onclick={(e) => onAddOption(e.currentTarget)}
+          >+</button>
+        </div>
+      {:else}
+        <select
+          id={def.id}
+          value={String(value ?? '')}
+          onchange={(e) => onchange(def.id, e.currentTarget.value)}
+        >
+          {#each def.options || [] as opt}
+            <option value={opt}>{opt}</option>
+          {/each}
+        </select>
+      {/if}
     {:else if def.type === 'checkbox'}
       <label class="check-row">
         <input

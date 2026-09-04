@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import {
     api,
     type FieldDef,
@@ -46,6 +46,7 @@
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import { ticketHref } from './lib/ticketUrl';
   import { isExternalTicketId, slotsToShow } from './lib/urlTicket';
+  import { isAssignedField, nameAlreadyListed } from './lib/assigned';
   import { lastNoteLines, notesFieldText } from './lib/notePreview';
   import {
     appearanceFromWorkspace,
@@ -114,6 +115,8 @@
   } | null>(null);
   let notesHoverGen = 0;
   let notesHoverHideTimer: ReturnType<typeof setTimeout> | null = null;
+  let nameAdd = $state<{ itemId: string; fieldId: string; top: number; left: number; draft: string } | null>(null);
+  let nameAddInputEl = $state<HTMLInputElement | undefined>(undefined);
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -158,11 +161,9 @@
   );
   const ALL_ITEMS_FILTER_ROW_IDS: string[] = ['state', 'dn_assigned_to', 'customer_assigned_to'];
   const ALL_ITEMS_HIDDEN_FILTER_IDS: string[] = ['priority', 'urgency', 'waiting_for'];
-  const ASSIGNED_FILTER_IDS: string[] = ['dn_assigned_to', 'customer_assigned_to'];
-
   function filterCheckboxOptions(ff: FieldDef): string[] {
     const opts = ff.options || [];
-    if (!ASSIGNED_FILTER_IDS.includes(ff.id)) return opts;
+    if (!isAssignedField(ff.id)) return opts;
     return opts.filter((o) => {
       const s = String(o ?? '').trim();
       return s !== '' && s !== '-';
@@ -294,6 +295,10 @@
           itemDeleteConfirm = null;
           return;
         }
+        if (nameAdd) {
+          nameAdd = null;
+          return;
+        }
         if (notesHover) {
           hideNotesHover();
         }
@@ -334,6 +339,9 @@
       const t = e.target as HTMLElement | null;
       if (listEdit && !t?.closest?.('.list-cell-edit, td.list-editing, .list-select-popup, .list-date-popup')) {
         endListEdit();
+      }
+      if (nameAdd && !t?.closest?.('.name-add-popup, .name-option-add')) {
+        nameAdd = null;
       }
       if (itemDeleteConfirm) {
         if (!t?.closest?.('.confirm-dialog')) itemDeleteConfirm = null;
@@ -1701,9 +1709,56 @@
     return names;
   }
 
+  function listCellDef(f: FieldDef, item: Item): FieldDef {
+    if (f.id === 'waiting_for') {
+      return { ...f, type: 'select', options: waitingForChoices(item.fields[f.id]) };
+    }
+    if (isAssignedField(f.id)) {
+      return { ...f, type: 'select', options: waitingNameChoices(f.options, item.fields[f.id]) };
+    }
+    return f;
+  }
+
+  function assignedPanelDef(def: FieldDef, fields: Record<string, unknown>): FieldDef {
+    if (!isAssignedField(def.id)) return def;
+    return { ...def, type: 'select', options: waitingNameChoices(def.options, fields[def.id]) };
+  }
+
+  async function openAssignedNameAdd(itemId: string, fieldId: string, anchor: HTMLElement) {
+    const r = anchor.getBoundingClientRect();
+    let left = r.left;
+    const width = 220;
+    if (left + width > window.innerWidth - 8) left = Math.max(8, window.innerWidth - width - 8);
+    nameAdd = { itemId, fieldId, top: r.bottom + 4, left, draft: '' };
+    await tick();
+    nameAddInputEl?.focus();
+  }
+
+  async function submitAssignedNameAdd() {
+    if (!nameAdd || !project || !fieldsDoc) return;
+    const name = nameAdd.draft.trim();
+    if (!name) return;
+    const fieldId = nameAdd.fieldId;
+    const itemId = nameAdd.itemId;
+    const current = fieldsDoc.fields.find((f) => f.id === fieldId);
+    if (!current || nameAlreadyListed(current.options, name)) return;
+    const fields = fieldsDoc.fields.map((f) => {
+      if (f.id !== fieldId) return f;
+      return { ...f, type: 'select' as const, options: [...(f.options ?? []), name] };
+    });
+    try {
+      fieldsDoc = await api.putFields(project.slug, { ...fieldsDoc, fields });
+      patchItemFields(itemId, fieldId, name);
+      nameAdd = null;
+    } catch (err) {
+      showToast('Could not save name');
+      console.error(err);
+    }
+  }
+
   function canListEditCell(f: FieldDef, item: Item): boolean {
     if (f.id === 'ticket_key' || f.id === keyField()) return false;
-    if (f.id === 'waiting_for' || f.id === 'waiting_since') return true;
+    if (f.id === 'waiting_for' || f.id === 'waiting_since' || isAssignedField(f.id)) return true;
     if (!LIST_EDIT_TYPES.has(f.type)) return false;
     return isVisible(f, item.fields);
   }
@@ -1800,22 +1855,51 @@
     return () => window.removeEventListener('scroll', hide, true);
   });
 
+  function listSortFirstDir(field: string): 'asc' | 'desc' {
+    return field === '_updated' ? 'desc' : 'asc';
+  }
+
   function clickListSort(field: string) {
-    const firstDir = field === '_updated' ? 'desc' : 'asc';
+    const firstDir = listSortFirstDir(field);
     updateWorkspace((ws) => {
       if (!ws.sort) ws.sort = { field, direction: firstDir };
       else if (ws.sort.field === field) {
         ws.sort.direction = ws.sort.direction === 'asc' ? 'desc' : 'asc';
       } else {
+        if (ws.sort.secondary?.field === field) delete ws.sort.secondary;
         ws.sort.field = field;
         ws.sort.direction = firstDir;
       }
     });
   }
 
+  function secondaryListSort(field: string) {
+    const firstDir = listSortFirstDir(field);
+    updateWorkspace((ws) => {
+      if (!ws.sort) ws.sort = { field: 'priority', direction: 'asc' };
+      if (ws.sort.field === field) return;
+      if (ws.sort.secondary?.field === field) {
+        ws.sort.secondary.direction = ws.sort.secondary.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        ws.sort.secondary = { field, direction: firstDir };
+      }
+    });
+  }
+
+  function onListHeaderContext(e: MouseEvent, field: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    secondaryListSort(field);
+  }
+
   function listSortMark(field: string): string {
-    if (workspace?.sort?.field !== field) return '';
-    return workspace.sort.direction === 'desc' ? ' ▼' : ' ▲';
+    if (workspace?.sort?.field === field) {
+      return workspace.sort.direction === 'desc' ? ' ▼' : ' ▲';
+    }
+    if (workspace?.sort?.secondary?.field === field) {
+      return workspace.sort.secondary.direction === 'desc' ? ' ▼' : ' ▲';
+    }
+    return '';
   }
 
   function formatItemUpdatedDate(iso: string | undefined): string {
@@ -2308,7 +2392,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01h</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01k</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2552,6 +2636,43 @@
       </div>
     {/if}
 
+    {#if nameAdd}
+      {@const dup = nameAlreadyListed(
+        fieldDefs.find((f) => f.id === nameAdd.fieldId)?.options,
+        nameAdd.draft
+      )}
+      <div
+        class="name-add-popup"
+        role="dialog"
+        tabindex="-1"
+        aria-label="Add name"
+        style:top="{nameAdd.top}px"
+        style:left="{nameAdd.left}px"
+        onpointerdown={(e) => e.stopPropagation()}
+      >
+        <input
+          bind:this={nameAddInputEl}
+          class:name-add-dup={dup}
+          type="text"
+          placeholder="New name"
+          value={nameAdd.draft}
+          oninput={(e) => {
+            if (nameAdd) nameAdd = { ...nameAdd, draft: e.currentTarget.value };
+          }}
+          onkeydown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              nameAdd = null;
+              return;
+            }
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            void submitAssignedNameAdd();
+          }}
+        />
+      </div>
+    {/if}
+
     {#if itemDeleteConfirm}
       <div class="confirm-backdrop" role="presentation">
         <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
@@ -2767,7 +2888,7 @@
                         {#each shown as def, di (def.id)}
                           <div class="field-col" style:flex={`${fieldFlex(def, shown)} 1 0`}>
                             <FieldRenderer
-                              {def}
+                              def={assignedPanelDef(def, detailCache[item.id].fields)}
                               fill={isNotesFillRow({ row: block.row.row, fields: shown })}
                               fields={detailCache[item.id].fields}
                               addSlot={addUrl &&
@@ -2775,6 +2896,9 @@
                                 isExternalTicketId(def.id)}
                               onAddSlot={() =>
                                 revealExternalTicketSlot(item.id, detailCache[item.id].fields)}
+                              onAddOption={isAssignedField(def.id)
+                                ? (el) => void openAssignedNameAdd(item.id, def.id, el)
+                                : undefined}
                               onchange={(id, value) => patchItemFields(item.id, id, value)}
                             />
                           </div>
@@ -2798,7 +2922,7 @@
                 {#snippet filterGroup(ff: FieldDef)}
                   <div class="filter-group">
                     <div class="filter-group-title">{ff.label}</div>
-                    {#if ff.type === 'select' && ff.options}
+                    {#if (ff.type === 'select' || isAssignedField(ff.id)) && ff.options}
                       {#each filterCheckboxOptions(ff) as opt}
                         <label class="check-row">
                           <input
@@ -2843,21 +2967,27 @@
                       <th
                         class="sortable"
                         class:sorted={workspace.sort?.field === f.id}
+                        class:sorted-secondary={workspace.sort?.secondary?.field === f.id}
                         style:width={f.list_width || undefined}
                         onclick={() => clickListSort(f.id)}
+                        oncontextmenu={(e) => onListHeaderContext(e, f.id)}
                       >{f.list_label || f.label}{listSortMark(f.id)}</th>
                     {/each}
                     {#if waitingSinceField}
                       <th
                         class="sortable"
                         class:sorted={workspace.sort?.field === '_waiting'}
+                        class:sorted-secondary={workspace.sort?.secondary?.field === '_waiting'}
                         onclick={() => clickListSort('_waiting')}
+                        oncontextmenu={(e) => onListHeaderContext(e, '_waiting')}
                       >Waiting{listSortMark('_waiting')}</th>
                     {/if}
                     <th
                       class="sortable"
                       class:sorted={workspace.sort?.field === '_updated'}
+                      class:sorted-secondary={workspace.sort?.secondary?.field === '_updated'}
                       onclick={() => clickListSort('_updated')}
+                      oncontextmenu={(e) => onListHeaderContext(e, '_updated')}
                     >Updated{listSortMark('_updated')}</th>
                   </tr>
                 </thead>
@@ -2891,7 +3021,7 @@
                           oncontextmenu={(e) => beginListEdit(e, it, f)}
                         >
                           <AllItemsCell
-                            def={f.id === 'waiting_for' ? { ...f, type: 'select', options: waitingForChoices(it.fields[f.id]) } : f}
+                            def={listCellDef(f, it)}
                             value={it.fields[f.id]}
                             display={listCellDisplay(f, it)}
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
