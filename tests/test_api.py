@@ -48,7 +48,9 @@ def test_seeded_project_and_fields(client: TestClient):
     assert "urgency" in ids
     assert "waiting_since" in ids
     assert "waiting" in ids
+    assert "alternate_ticket" in ids
     by_id = {f["id"]: f for f in fields["fields"]}
+    assert by_id["alternate_ticket"]["show_in_list"] is False
     assert by_id["priority"]["order"] == "30a"
     assert by_id["urgency"]["order"] == "30b"
     assert by_id["state"]["order"] == "30c"

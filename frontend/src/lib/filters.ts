@@ -1,4 +1,5 @@
 import type { FieldDef, Item } from './api';
+import { notesFieldText } from './notePreview';
 import { compareItemFields } from './panelSort';
 import { isItemWaiting } from './waiting';
 
@@ -48,6 +49,28 @@ export function itemMatchesFilters(
     }
   }
   return true;
+}
+
+function fieldSearchText(value: unknown): string {
+  if (value == null || value === '') return '';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) return value.map(fieldSearchText).filter(Boolean).join(' ');
+  if (typeof value === 'object' && (value as { type?: string }).type === 'doc') {
+    return notesFieldText(value);
+  }
+  return '';
+}
+
+/** True when `query` is empty or appears in any ticket field (case-insensitive). */
+export function itemMatchesSearch(item: Item, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  for (const value of Object.values(item.fields || {})) {
+    if (fieldSearchText(value).toLowerCase().includes(q)) return true;
+  }
+  return String(item.updated_at ?? '').toLowerCase().includes(q);
 }
 
 export type ListSortDir = 'asc' | 'desc';

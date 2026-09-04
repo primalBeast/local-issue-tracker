@@ -218,6 +218,39 @@ EXTERNAL_TICKET_FIELDS: list[dict[str, Any]] = [
 ]
 
 
+ALTERNATE_TICKET_FIELD: dict[str, Any] = {
+    "id": "alternate_ticket",
+    "label": "Alternate ticket",
+    "type": "text",
+    "required": False,
+    "order": 21,
+    "default": "",
+    "placeholder": "Related ticket number",
+    "show_in_list": False,
+    "show_in_compact": False,
+}
+
+
+def ensure_alternate_ticket_field(data: dict[str, Any]) -> bool:
+    """Add Alternate ticket if the project schema is missing it."""
+    fields = data.get("fields")
+    if not isinstance(fields, list):
+        return False
+    if any(isinstance(f, dict) and f.get("id") == "alternate_ticket" for f in fields):
+        return False
+    spec = dict(ALTERNATE_TICKET_FIELD)
+    title_idx = next(
+        (i for i, f in enumerate(fields) if isinstance(f, dict) and f.get("id") == "title"),
+        None,
+    )
+    if title_idx is not None:
+        fields.insert(title_idx + 1, spec)
+    else:
+        _insert_field_before(fields, spec, ("priority", "state", "waiting", "notes"))
+    data["fields"] = fields
+    return True
+
+
 def ensure_external_ticket_fields(data: dict[str, Any]) -> bool:
     """Add External Fixing ticket-URL slots if the project schema is missing them."""
     fields = data.get("fields")
@@ -471,6 +504,8 @@ def load_fields(slug: str) -> dict[str, Any]:
     if ensure_waiting_as_field(data, slug):
         changed = True
     if ensure_external_ticket_fields(data):
+        changed = True
+    if ensure_alternate_ticket_field(data):
         changed = True
     if ensure_unbounded_int_fields(data):
         changed = True

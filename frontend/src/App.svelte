@@ -9,7 +9,7 @@
     type Workspace,
   } from './lib/api';
   import { panelColors } from './lib/color';
-  import { isVisible, itemMatchesFilters, sortItems } from './lib/filters';
+  import { isVisible, itemMatchesFilters, itemMatchesSearch, sortItems } from './lib/filters';
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
@@ -107,6 +107,7 @@
   let extraTicketSlots = $state<Record<string, number>>({});
   let listEdit = $state<{ itemId: string; fieldId: string } | null>(null);
   let listEditAnchor = $state<Item | null>(null);
+  let listSearch = $state('');
   let notesHover = $state<{
     itemId: string;
     top: number;
@@ -229,9 +230,12 @@
 
   let filteredItems = $derived.by(() => {
     if (!workspace) return items;
-    const filtered = items.filter((it) =>
-      itemMatchesFilters(it, workspace!.filters.active, fieldDefs)
-    );
+    const filtered = items.filter((it) => {
+      if (!itemMatchesFilters(it, workspace!.filters.active, fieldDefs)) return false;
+      const full = detailCache[it.id];
+      const forSearch = full ? { ...it, fields: { ...it.fields, ...full.fields } } : it;
+      return itemMatchesSearch(forSearch, listSearch);
+    });
     if (!workspace.sort) return filtered;
     const liveById = new Map(filtered.map((it) => [it.id, it]));
     const source =
@@ -1637,7 +1641,7 @@
 
   /** Ticket number + description live in the header editor, not the panel body. */
   function isHeaderManagedField(f: { id: string }): boolean {
-    return f.id === 'title' || f.id === keyField();
+    return f.id === 'title' || f.id === keyField() || f.id === 'alternate_ticket';
   }
 
   function headerEditLabel(id: string, fallback: string): string {
@@ -2392,7 +2396,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01k</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-04b</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2775,14 +2779,17 @@
                 <ItemTitleBar
                   ticketKey={String(item.fields[keyField()] ?? '')}
                   description={String(item.fields.title ?? '')}
+                  alternateTicket={String(item.fields.alternate_ticket ?? '')}
                   keyFieldLabel={headerEditLabel(keyField(), 'Ticket number')}
                   descriptionLabel={headerEditLabel('title', 'Description')}
+                  alternateLabel={headerEditLabel('alternate_ticket', 'Alternate ticket')}
                   ticketLaunchHref={ticketHref(
                     project.url_prefix,
                     String(item.fields[keyField()] ?? '')
                   )}
                   onTicketKey={(value) => scheduleItemPatch(item.id, { [keyField()]: value })}
                   onDescription={(value) => scheduleItemPatch(item.id, { title: value })}
+                  onAlternateTicket={(value) => scheduleItemPatch(item.id, { alternate_ticket: value })}
                 />
               {:else}
                 <div class="panel-title">
@@ -2916,6 +2923,29 @@
                 {#each workspace.filters.presets as preset}
                   <button type="button" onclick={() => applyPreset(preset.id)}>{preset.name}</button>
                 {/each}
+                <div class="list-search">
+                  <input
+                    type="text"
+                    placeholder="Search"
+                    aria-label="Search tickets"
+                    value={listSearch}
+                    onpointerdown={(e) => e.stopPropagation()}
+                    oninput={(e) => {
+                      listSearch = e.currentTarget.value;
+                    }}
+                  />
+                  {#if listSearch}
+                    <button
+                      type="button"
+                      class="ghost list-search-clear"
+                      aria-label="Clear search"
+                      onpointerdown={(e) => e.stopPropagation()}
+                      onclick={() => {
+                        listSearch = '';
+                      }}
+                    >x</button>
+                  {/if}
+                </div>
               </div>
 
               {#if filterableFields.length}

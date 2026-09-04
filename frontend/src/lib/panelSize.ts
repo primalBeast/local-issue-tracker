@@ -9,7 +9,7 @@ export const NOTES_TOOLBAR_PX = 34;
 export const NOTES_LABEL_PX = 18;
 export const PANEL_HEADER_PX = 41;
 /** Extra header height while the ticket-number/description editor is open. */
-export const HEADER_TITLE_EDITOR_PX = 88;
+export const HEADER_TITLE_EDITOR_PX = 132;
 export const PANEL_BODY_PAD_PX = 22;
 export const FIELD_ROW_EST_PX = 62;
 

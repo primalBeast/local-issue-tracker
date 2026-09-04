@@ -27,6 +27,17 @@
       "show_in_list": true
     },
     {
+      "id": "alternate_ticket",
+      "label": "Alternate ticket",
+      "type": "text",
+      "required": false,
+      "order": 21,
+      "default": "",
+      "placeholder": "Related ticket number",
+      "show_in_list": false,
+      "show_in_compact": false
+    },
+    {
       "id": "priority",
       "label": "Priority",
       "type": "number",

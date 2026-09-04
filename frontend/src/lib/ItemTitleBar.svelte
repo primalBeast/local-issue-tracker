@@ -2,10 +2,13 @@
   interface Props {
     ticketKey: string;
     description: string;
+    alternateTicket?: string;
     keyFieldLabel?: string;
     descriptionLabel?: string;
+    alternateLabel?: string;
     onTicketKey: (value: string) => void;
     onDescription: (value: string) => void;
+    onAlternateTicket?: (value: string) => void;
     /** When set, double-clicking the ticket number opens this URL. */
     ticketLaunchHref?: string | null;
   }
@@ -13,16 +16,20 @@
   let {
     ticketKey,
     description,
+    alternateTicket = '',
     keyFieldLabel = 'Ticket number',
     descriptionLabel = 'Description',
+    alternateLabel = 'Alternate ticket',
     onTicketKey,
     onDescription,
+    onAlternateTicket,
     ticketLaunchHref = null,
   }: Props = $props();
 
   let descTrimmed = $derived(String(description ?? '').trim());
-  /** Stay open while typing. Only collapse after leaving the editor with a description. */
-  let editing = $state(!String(description ?? '').trim());
+  let keyTrimmed = $derived(String(ticketKey ?? '').trim());
+  /** Stay open while typing. Only collapse after leaving with both number and description. */
+  let editing = $state(!String(description ?? '').trim() || !String(ticketKey ?? '').trim());
 
   function keyLabel(): string {
     return String(ticketKey ?? '').trim() || 'Untitled';
@@ -39,7 +46,7 @@
   function toggle(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!descTrimmed) {
+    if (!descTrimmed || !keyTrimmed) {
       editing = true;
       return;
     }
@@ -50,7 +57,7 @@
     const root = e.currentTarget as HTMLElement;
     const next = e.relatedTarget as Node | null;
     if (next && root.contains(next)) return;
-    if (String(description ?? '').trim()) editing = false;
+    if (descTrimmed && keyTrimmed) editing = false;
   }
 </script>
 
@@ -111,6 +118,16 @@
               notes?.focus();
             });
           }}
+        />
+      </label>
+      <label class="item-title-field">
+        <span class="field-label">{alternateLabel}</span>
+        <input
+          type="text"
+          value={alternateTicket}
+          placeholder="Related ticket number"
+          autocomplete="off"
+          oninput={(e) => onAlternateTicket?.(e.currentTarget.value)}
         />
       </label>
     </div>

@@ -9,7 +9,7 @@
     type Workspace,
   } from './lib/api';
   import { panelColors } from './lib/color';
-  import { isVisible, itemMatchesFilters, sortItems } from './lib/filters';
+  import { isVisible, itemMatchesFilters, itemMatchesSearch, sortItems } from './lib/filters';
   import FieldRenderer from './lib/FieldRenderer.svelte';
   import FloatingPanel from './lib/FloatingPanel.svelte';
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
@@ -107,6 +107,7 @@
   let extraTicketSlots = $state<Record<string, number>>({});
   let listEdit = $state<{ itemId: string; fieldId: string } | null>(null);
   let listEditAnchor = $state<Item | null>(null);
+  let listSearch = $state('');
   let notesHover = $state<{
     itemId: string;
     top: number;
@@ -229,9 +230,12 @@
 
   let filteredItems = $derived.by(() => {
     if (!workspace) return items;
-    const filtered = items.filter((it) =>
-      itemMatchesFilters(it, workspace!.filters.active, fieldDefs)
-    );
+    const filtered = items.filter((it) => {
+      if (!itemMatchesFilters(it, workspace!.filters.active, fieldDefs)) return false;
+      const full = detailCache[it.id];
+      const forSearch = full ? { ...it, fields: { ...it.fields, ...full.fields } } : it;
+      return itemMatchesSearch(forSearch, listSearch);
+    });
     if (!workspace.sort) return filtered;
     const liveById = new Map(filtered.map((it) => [it.id, it]));
     const source =

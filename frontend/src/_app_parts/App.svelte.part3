@@ -130,7 +130,7 @@
 
   /** Ticket number + description live in the header editor, not the panel body. */
   function isHeaderManagedField(f: { id: string }): boolean {
-    return f.id === 'title' || f.id === keyField();
+    return f.id === 'title' || f.id === keyField() || f.id === 'alternate_ticket';
   }
 
   function headerEditLabel(id: string, fallback: string): string {

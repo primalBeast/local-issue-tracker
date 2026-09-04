@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FieldDef, Item } from './api';
-import { isVisible, itemMatchesFilters, sortItems } from './filters';
+import { isVisible, itemMatchesFilters, itemMatchesSearch, sortItems } from './filters';
 
 function field(partial: Partial<FieldDef> & Pick<FieldDef, 'id' | 'type'>): FieldDef {
   return { label: partial.id, order: 1, ...partial };
@@ -47,6 +47,32 @@ describe('itemMatchesFilters', () => {
     const idle = { fields: { waiting: false } } as never;
     expect(itemMatchesFilters(waiting, { waiting: [true] }, defs)).toBe(true);
     expect(itemMatchesFilters(idle, { waiting: [true] }, defs)).toBe(false);
+  });
+});
+
+describe('itemMatchesSearch', () => {
+  function item(fields: Record<string, unknown>, extra: Partial<Item> = {}): Item {
+    return { id: 'x', updated_at: '', fields, ...extra } as Item;
+  }
+
+  it('matches any field, case-insensitive, and ignores blank queries', () => {
+    const it = item({ ticket_key: 'NEW-12', title: 'Fix login', priority: 88 });
+    expect(itemMatchesSearch(it, '')).toBe(true);
+    expect(itemMatchesSearch(it, '  ')).toBe(true);
+    expect(itemMatchesSearch(it, 'login')).toBe(true);
+    expect(itemMatchesSearch(it, 'NEW-12')).toBe(true);
+    expect(itemMatchesSearch(it, '88')).toBe(true);
+    expect(itemMatchesSearch(it, 'xyz')).toBe(false);
+  });
+
+  it('matches TipTap notes text and does not join neighboring fields', () => {
+    const notes = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'omega' }] }],
+    };
+    expect(itemMatchesSearch(item({ title: 'aa', state: 'bb' }), 'aabb')).toBe(false);
+    expect(itemMatchesSearch(item({ notes }), 'omega')).toBe(true);
+    expect(itemMatchesSearch(item({ alternate_ticket: 'PROJ-99' }), 'proj-99')).toBe(true);
   });
 });
 

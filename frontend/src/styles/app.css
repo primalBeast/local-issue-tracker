@@ -1325,6 +1325,37 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   margin-bottom: 10px;
   align-items: center;
 }
+.list-search {
+  position: relative;
+  margin-left: auto;
+  width: 200px;
+  min-width: 140px;
+  flex: 0 1 200px;
+}
+.list-search input {
+  width: 100%;
+  padding-right: 28px;
+}
+.list-search-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 22px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.list-search-clear:hover {
+  color: var(--text);
+}
+.list-search-clear:active {
+  transform: translateY(-50%);
+}
 
 .chip {
   display: inline-flex;

@@ -29,8 +29,8 @@
     'url',
   ] as const;
 
-  const RESERVED = new Set(['ticket_key', 'title', 'waiting', 'waiting_for', 'waiting_since', 'notes']);
-  const TITLE_EDITOR_IDS = new Set(['ticket_key', 'title']);
+  const RESERVED = new Set(['ticket_key', 'title', 'alternate_ticket', 'waiting', 'waiting_for', 'waiting_since', 'notes']);
+  const TITLE_EDITOR_IDS = new Set(['ticket_key', 'title', 'alternate_ticket']);
 
   type TemplateInfo = {
     id: string;
