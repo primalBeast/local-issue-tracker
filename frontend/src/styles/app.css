@@ -1406,7 +1406,7 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   padding: 4px;
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--bg-input);
+  background: color-mix(in srgb, var(--bg, #0b0d12) 95%, transparent);
   border: 1px solid var(--accent);
   border-radius: 8px;
   box-shadow: 0 0 0 3px var(--focus-ring), var(--shadow);
@@ -1438,6 +1438,82 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 .list-select-popup .list-select-opt.selected {
   background: var(--accent-soft);
 }
+.list-date-popup {
+  position: fixed;
+  z-index: 2200;
+  width: 252px;
+  padding: 8px;
+  outline: none;
+  background: color-mix(in srgb, var(--bg, #0b0d12) 95%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px var(--focus-ring), var(--shadow);
+}
+.list-date-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.list-date-head button {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  line-height: 1;
+  background: transparent;
+  border-color: transparent;
+}
+.list-date-head button:hover {
+  background: var(--bg-hover);
+}
+.list-date-title {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+}
+.list-date-weekdays,
+.list-date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+.list-date-weekdays {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.list-date-day {
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+}
+.list-date-day:hover {
+  background: var(--bg-hover);
+  border-color: transparent;
+}
+.list-date-day:active {
+  transform: none;
+}
+.list-date-day.muted {
+  color: var(--text-faint);
+}
+.list-date-day.selected {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.list-date-day.today:not(.selected) {
+  border-color: var(--border-strong);
+}
+.list-date-clear {
+  width: 100%;
+  margin-top: 6px;
+  height: 26px;
+  background: transparent;
+}
 .table td.updated-date {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -1465,6 +1541,29 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   box-shadow:
     0 0 6px 2px rgba(74, 222, 128, 0.7),
     0 0 12px 3px rgba(74, 222, 128, 0.35);
+}
+.notes-hover-popup {
+  position: fixed;
+  z-index: 2300;
+  min-width: 160px;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 8px 10px;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg, #0b0d12) 95%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 0 0 3px var(--focus-ring), var(--shadow);
+  color: var(--text, #e8eaed);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.notes-hover-line {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.notes-hover-empty {
+  color: var(--text-muted, #9aa3b2);
+  font-style: italic;
 }
 
 .waiting-badge {

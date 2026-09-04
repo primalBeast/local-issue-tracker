@@ -136,7 +136,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01a</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01h</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -357,6 +357,25 @@
               askDeleteItemById(itemContextMenu.itemId, itemContextMenu.name);
             }}
           >Delete ticket</button>
+        {/if}
+      </div>
+    {/if}
+
+    {#if notesHover}
+      <div
+        class="notes-hover-popup"
+        role="tooltip"
+        style:top="{notesHover.top}px"
+        style:left="{notesHover.left}px"
+      >
+        {#if notesHover.lines === null}
+          <div class="notes-hover-empty">Loading…</div>
+        {:else if notesHover.lines.length === 0}
+          <div class="notes-hover-empty">No notes</div>
+        {:else}
+          {#each notesHover.lines as line}
+            <div class="notes-hover-line">{line.length ? line : '\u00a0'}</div>
+          {/each}
         {/if}
       </div>
     {/if}
@@ -681,11 +700,15 @@
                         openItemContextMenu(e, it);
                       }}
                     >
-                      <td class="open-dot-col">
+                      <td
+                        class="open-dot-col"
+                        aria-label={openItemIds.has(it.id) ? 'Open on this board' : 'Not open on this board'}
+                        onpointerenter={(e) => void showNotesHover(it.id, e.currentTarget)}
+                        onpointerleave={scheduleHideNotesHover}
+                      >
                         <span
                           class="open-dot"
                           class:lit={openItemIds.has(it.id)}
-                          title={openItemIds.has(it.id) ? 'Open on this board' : 'Not open on this board'}
                           aria-hidden="true"
                         ></span>
                       </td>

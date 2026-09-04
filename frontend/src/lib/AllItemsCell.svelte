@@ -1,7 +1,8 @@
 <script lang="ts">
   import { tick, untrack } from 'svelte';
   import type { FieldDef } from './api';
-  import { waitingNameChoices } from './waiting';
+  import { calendarMonth, monthLabel, parseIsoDate } from './listCalendar';
+  import { todayLocalDate, waitingNameChoices } from './waiting';
 
   interface Props {
     def: FieldDef;
@@ -26,10 +27,17 @@
   let selectAnchorEl = $state<HTMLElement | undefined>(undefined);
   let inputEl = $state<HTMLInputElement | undefined>(undefined);
   let selectPopup = $state({ top: 0, left: 0, width: 160, maxHeight: 240, ready: false });
+  let datePopup = $state({ top: 0, left: 0, ready: false });
+  let viewYear = $state(0);
+  let viewMonth = $state(0);
   let draft = $state('');
   let original: unknown = undefined;
   let flushed = false;
   let placingCaret = false;
+  const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  const dateCells = $derived(calendarMonth(viewYear, viewMonth));
+  const todayIso = todayLocalDate();
+  const selectedIso = $derived(String(draft || original || ''));
 
   function portalToBody(node: HTMLElement) {
     document.body.appendChild(node);
@@ -63,6 +71,28 @@
       maxHeight,
       ready: true,
     };
+  }
+
+  function positionDatePopup() {
+    const cell = selectAnchorEl?.closest('td') ?? selectAnchorEl;
+    if (!cell) return;
+    const r = cell.getBoundingClientRect();
+    const width = 252;
+    const height = def.required ? 268 : 300;
+    const gap = 4;
+    const spaceBelow = window.innerHeight - r.bottom - gap;
+    const spaceAbove = r.top - gap;
+    let top = r.bottom + gap;
+    if (spaceBelow < height && spaceAbove > spaceBelow) {
+      top = Math.max(8, r.top - height);
+    } else if (top + height > window.innerHeight - 8) {
+      top = Math.max(8, window.innerHeight - height - 8);
+    }
+    let left = r.left;
+    if (left + width > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - width - 8);
+    }
+    datePopup = { top, left, ready: true };
   }
 
   function placeCaretAtEnd(el: HTMLInputElement) {
@@ -136,21 +166,28 @@
     flushed = false;
     original = untrack(() => value);
     draft = draftFromValue(original);
-    if (def.type !== 'date') {
-      void tick().then(() => {
-        if (!editing || !inputEl) return;
-        placeCaretAtEnd(inputEl);
-      });
+    if (def.type === 'date') {
+      const d = parseIsoDate(original) ?? new Date();
+      viewYear = d.getFullYear();
+      viewMonth = d.getMonth();
+      return () => {
+        flush();
+      };
     }
+    void tick().then(() => {
+      if (!editing || !inputEl) return;
+      placeCaretAtEnd(inputEl);
+    });
     return () => {
       flush();
     };
   });
 
   $effect(() => {
-    if (!editing || def.type !== 'select') return;
+    if (!editing || (def.type !== 'select' && def.type !== 'date')) return;
     const sync = () => {
-      positionSelectPopup();
+      if (def.type === 'date') positionDatePopup();
+      else positionSelectPopup();
       selectBoxEl?.focus();
     };
     void tick().then(sync);
@@ -179,13 +216,16 @@
     onEnd();
   }
 
-  function tryShowPicker(el: EventTarget | null) {
-    const picker = el as { showPicker?: () => void };
-    try {
-      picker.showPicker?.();
-    } catch {
-      /* not a picker, or already open */
-    }
+  function pickDate(iso: string) {
+    flushed = true;
+    if (!sameValue(iso, original)) onCommit(iso);
+    onEnd();
+  }
+
+  function shiftMonth(delta: number) {
+    const d = new Date(viewYear, viewMonth + delta, 1);
+    viewYear = d.getFullYear();
+    viewMonth = d.getMonth();
   }
 </script>
 
@@ -265,23 +305,64 @@
       onkeydown={onKey}
     />
   {:else if def.type === 'date'}
-    <input
-      class="list-cell-edit"
-      type="date"
-      value={draft}
-      autofocus
+    <span class="list-cell-edit list-select-anchor" bind:this={selectAnchorEl}>{display || '\u00a0'}</span>
+    <div
+      class="list-date-popup"
+      role="dialog"
+      aria-label="Choose date"
+      tabindex="0"
+      use:portalToBody
+      bind:this={selectBoxEl}
+      style:top="{datePopup.top}px"
+      style:left="{datePopup.left}px"
+      style:visibility={datePopup.ready ? 'visible' : 'hidden'}
       onpointerdown={(e) => e.stopPropagation()}
       ondblclick={(e) => e.stopPropagation()}
-      onfocus={(e) => tryShowPicker(e.currentTarget)}
-      oninput={(e) => {
-        draft = e.currentTarget.value;
-      }}
-      onchange={(e) => {
-        draft = e.currentTarget.value;
-      }}
-      onblur={finish}
+      onblur={onEnd}
       onkeydown={onKey}
-    />
+    >
+      <div class="list-date-head">
+        <button
+          type="button"
+          aria-label="Previous month"
+          onpointerdown={(e) => e.preventDefault()}
+          onclick={() => shiftMonth(-1)}
+        >‹</button>
+        <div class="list-date-title">{monthLabel(viewYear, viewMonth)}</div>
+        <button
+          type="button"
+          aria-label="Next month"
+          onpointerdown={(e) => e.preventDefault()}
+          onclick={() => shiftMonth(1)}
+        >›</button>
+      </div>
+      <div class="list-date-weekdays">
+        {#each WEEKDAYS as w, i (i)}
+          <span>{w}</span>
+        {/each}
+      </div>
+      <div class="list-date-grid">
+        {#each dateCells as cell (cell.iso)}
+          <button
+            type="button"
+            class="list-date-day"
+            class:muted={!cell.inMonth}
+            class:selected={cell.iso === selectedIso}
+            class:today={cell.iso === todayIso}
+            onpointerdown={(e) => e.preventDefault()}
+            onclick={() => pickDate(cell.iso)}
+          >{cell.day}</button>
+        {/each}
+      </div>
+      {#if !def.required}
+        <button
+          type="button"
+          class="list-date-clear"
+          onpointerdown={(e) => e.preventDefault()}
+          onclick={() => pickDate('')}
+        >Clear</button>
+      {/if}
+    </div>
   {:else if def.type === 'datetime'}
     <input
       class="list-cell-edit"

@@ -17,6 +17,43 @@
 
   let visible = $derived(isVisible(def, fields));
   let value = $derived(fields[def.id]);
+  let numberFocused = $state(false);
+  let numberDraft = $state('');
+  let numberOriginal: unknown = undefined;
+
+  function numberShown(): string {
+    if (numberFocused) return numberDraft;
+    if (value == null || value === '') return '';
+    return String(value);
+  }
+
+  function beginNumberEdit() {
+    if (numberFocused) return;
+    numberFocused = true;
+    numberOriginal = value;
+    numberDraft = value == null || value === '' ? '' : String(value);
+  }
+
+  function numberIsValid(raw: string): { ok: true; value: number } | { ok: false } {
+    if (raw.trim() === '') return { ok: false };
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return { ok: false };
+    const min = def.validation?.min;
+    const max = def.validation?.max;
+    if (typeof min === 'number' && n < min) return { ok: false };
+    if (typeof max === 'number' && n > max) return { ok: false };
+    return { ok: true, value: n };
+  }
+
+  function finishNumberEdit() {
+    if (!numberFocused) return;
+    const parsed = numberIsValid(numberDraft);
+    numberFocused = false;
+    if (!parsed.ok) return;
+    if (numberOriginal == null || numberOriginal === '' || Number(numberOriginal) !== parsed.value) {
+      onchange(def.id, parsed.value);
+    }
+  }
 </script>
 
 {#if visible}
@@ -56,8 +93,13 @@
         min={def.validation?.min as number | undefined}
         max={def.validation?.max as number | undefined}
         step={(def.validation?.step as number | undefined) ?? 1}
-        value={value as number}
-        oninput={(e) => onchange(def.id, e.currentTarget.value === '' ? null : Number(e.currentTarget.value))}
+        value={numberShown()}
+        onfocus={beginNumberEdit}
+        oninput={(e) => {
+          if (!numberFocused) beginNumberEdit();
+          numberDraft = e.currentTarget.value;
+        }}
+        onblur={finishNumberEdit}
       />
     {:else if def.type === 'select'}
       <select

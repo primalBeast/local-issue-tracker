@@ -46,6 +46,7 @@
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import { ticketHref } from './lib/ticketUrl';
   import { isExternalTicketId, slotsToShow } from './lib/urlTicket';
+  import { lastNoteLines, notesFieldText } from './lib/notePreview';
   import {
     appearanceFromWorkspace,
     applyPanelTransparency,
@@ -105,6 +106,14 @@
   let extraTicketSlots = $state<Record<string, number>>({});
   let listEdit = $state<{ itemId: string; fieldId: string } | null>(null);
   let listEditAnchor = $state<Item | null>(null);
+  let notesHover = $state<{
+    itemId: string;
+    top: number;
+    left: number;
+    lines: string[] | null;
+  } | null>(null);
+  let notesHoverGen = 0;
+  let notesHoverHideTimer: ReturnType<typeof setTimeout> | null = null;
   let itemContextMenu = $state<{
     itemId?: string;
     panelId?: string;
@@ -285,6 +294,9 @@
           itemDeleteConfirm = null;
           return;
         }
+        if (notesHover) {
+          hideNotesHover();
+        }
         if (itemContextMenu) {
           itemContextMenu = null;
           return;
@@ -320,7 +332,7 @@
     // with panel drag, resize, or tab clicks.
     const onDocPointerDown = (e: PointerEvent) => {
       const t = e.target as HTMLElement | null;
-      if (listEdit && !t?.closest?.('.list-cell-edit, td.list-editing, .list-select-popup')) {
+      if (listEdit && !t?.closest?.('.list-cell-edit, td.list-editing, .list-select-popup, .list-date-popup')) {
         endListEdit();
       }
       if (itemDeleteConfirm) {
@@ -1717,6 +1729,77 @@
     listEditAnchor = null;
   }
 
+  function positionNotesHover(el: HTMLElement) {
+    const r = el.getBoundingClientRect();
+    const gap = 8;
+    const estW = 320;
+    const estH = 16 + 6 * 18;
+    let left = r.right + gap;
+    if (left + estW > window.innerWidth - 8) {
+      left = Math.max(8, r.left - estW - gap);
+    }
+    let top = r.top;
+    if (top + estH > window.innerHeight - 8) {
+      top = Math.max(8, window.innerHeight - estH - 8);
+    }
+    if (top < 8) top = 8;
+    return { top, left };
+  }
+
+  function hideNotesHover() {
+    if (notesHoverHideTimer) {
+      clearTimeout(notesHoverHideTimer);
+      notesHoverHideTimer = null;
+    }
+    notesHoverGen += 1;
+    notesHover = null;
+  }
+
+  function scheduleHideNotesHover() {
+    if (notesHoverHideTimer) clearTimeout(notesHoverHideTimer);
+    notesHoverHideTimer = setTimeout(() => {
+      notesHoverHideTimer = null;
+      hideNotesHover();
+    }, 80);
+  }
+
+  async function showNotesHover(itemId: string, el: HTMLElement) {
+    if (notesHoverHideTimer) {
+      clearTimeout(notesHoverHideTimer);
+      notesHoverHideTimer = null;
+    }
+    const gen = ++notesHoverGen;
+    const pos = positionNotesHover(el);
+    const cached = detailCache[itemId];
+    notesHover = {
+      itemId,
+      top: pos.top,
+      left: pos.left,
+      lines: cached ? lastNoteLines(notesFieldText(cached.fields?.notes)) : null,
+    };
+    if (cached) return;
+    try {
+      const full = await ensureDetail(itemId);
+      if (gen !== notesHoverGen) return;
+      notesHover = {
+        itemId,
+        top: pos.top,
+        left: pos.left,
+        lines: lastNoteLines(notesFieldText(full?.fields?.notes)),
+      };
+    } catch {
+      if (gen !== notesHoverGen) return;
+      notesHover = { itemId, top: pos.top, left: pos.left, lines: [] };
+    }
+  }
+
+  $effect(() => {
+    if (!notesHover) return;
+    const hide = () => hideNotesHover();
+    window.addEventListener('scroll', hide, true);
+    return () => window.removeEventListener('scroll', hide, true);
+  });
+
   function clickListSort(field: string) {
     const firstDir = field === '_updated' ? 'desc' : 'asc';
     updateWorkspace((ws) => {
@@ -2225,7 +2308,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01a</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-01h</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2446,6 +2529,25 @@
               askDeleteItemById(itemContextMenu.itemId, itemContextMenu.name);
             }}
           >Delete ticket</button>
+        {/if}
+      </div>
+    {/if}
+
+    {#if notesHover}
+      <div
+        class="notes-hover-popup"
+        role="tooltip"
+        style:top="{notesHover.top}px"
+        style:left="{notesHover.left}px"
+      >
+        {#if notesHover.lines === null}
+          <div class="notes-hover-empty">Loading…</div>
+        {:else if notesHover.lines.length === 0}
+          <div class="notes-hover-empty">No notes</div>
+        {:else}
+          {#each notesHover.lines as line}
+            <div class="notes-hover-line">{line.length ? line : '\u00a0'}</div>
+          {/each}
         {/if}
       </div>
     {/if}
@@ -2770,11 +2872,15 @@
                         openItemContextMenu(e, it);
                       }}
                     >
-                      <td class="open-dot-col">
+                      <td
+                        class="open-dot-col"
+                        aria-label={openItemIds.has(it.id) ? 'Open on this board' : 'Not open on this board'}
+                        onpointerenter={(e) => void showNotesHover(it.id, e.currentTarget)}
+                        onpointerleave={scheduleHideNotesHover}
+                      >
                         <span
                           class="open-dot"
                           class:lit={openItemIds.has(it.id)}
-                          title={openItemIds.has(it.id) ? 'Open on this board' : 'Not open on this board'}
                           aria-hidden="true"
                         ></span>
                       </td>
