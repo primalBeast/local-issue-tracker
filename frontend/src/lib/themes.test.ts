@@ -20,8 +20,9 @@ describe('themes', () => {
   it('includes the midnight default plus one hundred and fifty-one wallpapers', () => {
     expect(THEMES[0].id).toBe('midnight');
     expect(THEMES[0].name.toLowerCase()).toContain('default');
-    expect(THEMES).toHaveLength(152);
+    expect(THEMES).toHaveLength(156);
     expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(151);
+    expect(THEMES.filter((t) => t.video)).toHaveLength(4);
   });
 
   it('groups every look into the theme menu without duplicates', () => {
@@ -47,6 +48,18 @@ describe('themes', () => {
       expect(existsSync(file), `missing ${file}`).toBe(true);
       expect(t.vars['--wallpaper']).toContain(t.wallpaper);
       expect(t.vars['--glass-blur']).not.toBe('0px');
+    }
+  });
+
+  it('ships looping videos in the Video theme group', () => {
+    const group = THEME_GROUPS.find((g) => g.label === 'Video');
+    expect(group?.ids).toEqual(['sakuravideo', 'oasisvideo', 'reefvideo', 'umbravideo']);
+    for (const id of group!.ids) {
+      const video = THEMES.find((t) => t.id === id);
+      expect(video?.video, id).toMatch(/^\/themes\/.+\.mp4$/);
+      expect(video?.vars['--wallpaper'], id).toBe('none');
+      const file = resolve(here, '../../public', video!.video!.replace(/^\//, ''));
+      expect(existsSync(file), `missing ${file}`).toBe(true);
     }
   });
 

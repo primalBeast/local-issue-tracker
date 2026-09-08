@@ -42,6 +42,26 @@
   --topbar-h: 48px;
 }
 
+.theme-video {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--bg);
+}
+html[data-theme-video='1'] #app {
+  position: relative;
+  z-index: 1;
+  background-color: transparent;
+  background-image: none;
+}
+html[data-theme-video='1'] .canvas-wrap {
+  background-color: transparent;
+}
+
 * { box-sizing: border-box; }
 
 html,

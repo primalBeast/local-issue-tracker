@@ -150,12 +150,17 @@ export type ThemeId =
   | 'starfall'
   | 'amethyst'
   | 'ionvent'
-  | 'moonpool';
+  | 'moonpool'
+  | 'sakuravideo'
+  | 'oasisvideo'
+  | 'reefvideo'
+  | 'umbravideo';
 
 export type Theme = {
   id: ThemeId;
   name: string;
   wallpaper?: string;
+  video?: string;
   vars: Record<string, string>;
 };
 
@@ -244,6 +249,21 @@ function themed(
   vars['--bg-sidebar'] = vars['--sidebar-glass'];
   vars['--bg-elevated'] = vars['--chrome-glass'];
   return { id, name, wallpaper: `/themes/${file}`, vars };
+}
+
+function videoThemed(
+  id: ThemeId,
+  name: string,
+  file: string,
+  accent: string,
+  accent2: string,
+  extras: Record<string, string>
+): Theme {
+  const theme = themed(id, name, file, accent, accent2, extras);
+  theme.wallpaper = undefined;
+  theme.video = `/themes/${file}`;
+  theme.vars['--wallpaper'] = 'none';
+  return theme;
 }
 
 export const THEMES: Theme[] = [
@@ -1608,6 +1628,42 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,8,16,0.54) 0%, rgba(6,8,16,0.2) 44%, rgba(6,8,16,0.54) 100%)',
   }),
+  videoThemed('sakuravideo', 'Sakura', 'sakura.mp4', '#fb7185', '#f472b6', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(244, 114, 182, 0.16)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(18, 8, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,4,10,0.42) 0%, rgba(12,4,10,0.12) 42%, rgba(10,4,12,0.4) 100%)',
+  }),
+  videoThemed('oasisvideo', 'Oasis', 'oasis.mp4', '#2dd4bf', '#fbbf24', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(45, 212, 191, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(45, 212, 191, 0.4)',
+    '--panel-glass': 'rgba(6, 14, 14, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,10,10,0.42) 0%, rgba(4,10,10,0.12) 44%, rgba(4,10,10,0.4) 100%)',
+  }),
+  videoThemed('reefvideo', 'Reef', 'reef.mp4', '#22d3ee', '#fb7185', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
+    '--accent-soft': 'rgba(251, 113, 133, 0.14)',
+    '--brand-glow': 'rgba(34, 211, 238, 0.42)',
+    '--panel-glass': 'rgba(4, 14, 20, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(2,8,14,0.42) 0%, rgba(2,8,14,0.12) 44%, rgba(2,10,16,0.4) 100%)',
+  }),
+  videoThemed('umbravideo', 'Umbra', 'umbra.mp4', '#fde68a', '#f43f5e', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(253, 230, 138, 0.22)',
+    '--accent-soft': 'rgba(244, 63, 94, 0.14)',
+    '--brand-glow': 'rgba(253, 230, 138, 0.4)',
+    '--panel-glass': 'rgba(10, 6, 12, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,2,10,0.42) 0%, rgba(6,2,10,0.12) 42%, rgba(6,4,10,0.4) 100%)',
+  }),
 ];
 
 export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
@@ -1814,6 +1870,7 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'moonpool',
     ],
   },
+  { label: 'Video', ids: ['sakuravideo', 'oasisvideo', 'reefvideo', 'umbravideo'] },
 ];
 
 export type ThemeMenuEntry = { group: string; theme: Theme; num: number };
@@ -1842,14 +1899,68 @@ export function resolveTheme(id: string | null | undefined): Theme {
   return THEMES.find((t) => t.id === mapped) ?? THEMES[0];
 }
 
+let themeVideoEl: HTMLVideoElement | null = null;
+
+function restartThemeVideo(el: HTMLVideoElement) {
+  try {
+    el.currentTime = 0;
+  } catch {
+    /* ignore seek errors */
+  }
+  void el.play().catch(() => {});
+}
+
+function applyThemeVideo(theme: Theme) {
+  if (typeof document === 'undefined') return;
+  if (!theme.video) {
+    if (themeVideoEl) {
+      themeVideoEl.pause();
+      themeVideoEl.removeAttribute('src');
+      themeVideoEl.load();
+      themeVideoEl.remove();
+      themeVideoEl = null;
+    }
+    return;
+  }
+  let el = themeVideoEl;
+  if (!el || !el.isConnected) {
+    el = document.createElement('video');
+    el.id = 'lit-theme-video';
+    el.className = 'theme-video';
+    el.muted = true;
+    el.defaultMuted = true;
+    el.autoplay = true;
+    el.loop = true;
+    el.playsInline = true;
+    el.preload = 'auto';
+    el.setAttribute('muted', '');
+    el.setAttribute('autoplay', '');
+    el.setAttribute('loop', '');
+    el.setAttribute('playsinline', '');
+    el.setAttribute('aria-hidden', 'true');
+    el.addEventListener('ended', () => {
+      if (themeVideoEl) restartThemeVideo(themeVideoEl);
+    });
+    document.body.prepend(el);
+    themeVideoEl = el;
+  }
+  if (el.getAttribute('src') !== theme.video) {
+    el.src = theme.video;
+  }
+  restartThemeVideo(el);
+}
+
 export function applyTheme(id: string | null | undefined): Theme {
   const theme = resolveTheme(id);
   if (typeof document === 'undefined') return theme;
   const root = document.documentElement;
   root.dataset.theme = theme.id;
+  if (theme.video) root.dataset.themeVideo = '1';
+  else delete root.dataset.themeVideo;
   for (const [key, value] of Object.entries(theme.vars)) {
     root.style.setProperty(key, value);
   }
+  applyThemeVideo(theme);
   return theme;
 }
 
