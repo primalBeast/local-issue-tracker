@@ -154,7 +154,8 @@ export type ThemeId =
   | 'sakuravideo'
   | 'oasisvideo'
   | 'reefvideo'
-  | 'umbravideo';
+  | 'umbravideo'
+  | 'uenovideo';
 
 export type Theme = {
   id: ThemeId;
@@ -1664,6 +1665,15 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,2,10,0.42) 0%, rgba(6,2,10,0.12) 42%, rgba(6,4,10,0.4) 100%)',
   }),
+  videoThemed('uenovideo', 'Ueno', 'ueno.mp4', '#fb7185', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 10, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,8,0.42) 0%, rgba(8,4,8,0.12) 44%, rgba(8,6,8,0.4) 100%)',
+  }),
 ];
 
 export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
@@ -1870,7 +1880,7 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'moonpool',
     ],
   },
-  { label: 'Video', ids: ['sakuravideo', 'oasisvideo', 'reefvideo', 'umbravideo'] },
+  { label: 'Video', ids: ['sakuravideo', 'oasisvideo', 'reefvideo', 'umbravideo', 'uenovideo'] },
 ];
 
 export type ThemeMenuEntry = { group: string; theme: Theme; num: number };

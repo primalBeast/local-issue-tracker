@@ -2396,7 +2396,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-08d</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-08e</span>
         <span
           class="server-dot"
           class:ok={serverOk}
