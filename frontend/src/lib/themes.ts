@@ -155,7 +155,34 @@ export type ThemeId =
   | 'oasisvideo'
   | 'reefvideo'
   | 'umbravideo'
-  | 'uenovideo';
+  | 'uenovideo'
+  | 'saucer'
+  | 'cropdisc'
+  | 'mothership'
+  | 'nightbeam'
+  | 'blacktri'
+  | 'foofighter'
+  | 'roswell'
+  | 'forestorbs'
+  | 'discstorm'
+  | 'lakebeam'
+  | 'saucerbay'
+  | 'canyonwreck'
+  | 'seasauce'
+  | 'neoncraft'
+  | 'mesadisc'
+  | 'radarglow'
+  | 'icehover'
+  | 'townsaucer'
+  | 'seacontact'
+  | 'pyradisc'
+  | 'railglow'
+  | 'backyard'
+  | 'usodeep'
+  | 'nightdiner'
+  | 'fogbridge'
+  | 'redwood'
+  | 'swarmdusk';
 
 export type Theme = {
   id: ThemeId;
@@ -1629,6 +1656,249 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,8,16,0.54) 0%, rgba(6,8,16,0.2) 44%, rgba(6,8,16,0.54) 100%)',
   }),
+  themed('saucer', 'Desert Saucer', 'saucer.jpg', '#22d3ee', '#67e8f9', {
+    '--text': '#e0f2fe',
+    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
+    '--accent-soft': 'rgba(103, 232, 249, 0.14)',
+    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 20, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,16,0.52) 0%, rgba(4,8,16,0.18) 44%, rgba(4,8,16,0.5) 100%)',
+  }),
+  themed('cropdisc', 'Crop Disc', 'cropdisc.jpg', '#fbbf24', '#84cc16', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(132, 204, 22, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(16, 14, 6, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,10,4,0.48) 0%, rgba(12,10,4,0.16) 44%, rgba(12,10,4,0.46) 100%)',
+  }),
+  themed('mothership', 'City Ship', 'mothership.jpg', '#22d3ee', '#a78bfa', {
+    '--text': '#e0f2fe',
+    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
+    '--accent-soft': 'rgba(167, 139, 250, 0.14)',
+    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
+    '--panel-glass': 'rgba(6, 10, 18, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,6,14,0.55) 0%, rgba(4,6,14,0.2) 42%, rgba(4,6,14,0.52) 100%)',
+  }),
+  themed('nightbeam', 'Night Beam', 'nightbeam.jpg', '#4ade80', '#e2e8f0', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(226, 232, 240, 0.12)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(6, 14, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,10,8,0.52) 0%, rgba(4,10,8,0.18) 44%, rgba(4,10,8,0.5) 100%)',
+  }),
+  themed('blacktri', 'Black Triangle', 'blacktri.jpg', '#fbbf24', '#f43f5e', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(244, 63, 94, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 14, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,6,12,0.55) 0%, rgba(6,6,12,0.2) 42%, rgba(6,6,12,0.52) 100%)',
+  }),
+  themed('foofighter', 'Foo Fighter', 'foofighter.jpg', '#fb923c', '#38bdf8', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 20, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,16,0.5) 0%, rgba(6,8,16,0.18) 44%, rgba(6,8,16,0.48) 100%)',
+  }),
+  themed('roswell', 'Roswell Draw', 'roswell.jpg', '#f59e0b', '#22d3ee', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(245, 158, 11, 0.22)',
+    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
+    '--brand-glow': 'rgba(245, 158, 11, 0.4)',
+    '--panel-glass': 'rgba(16, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,8,4,0.52) 0%, rgba(10,8,4,0.18) 44%, rgba(10,8,4,0.5) 100%)',
+  }),
+  themed('forestorbs', 'Forest Orbs', 'forestorbs.jpg', '#86efac', '#c4b5fd', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(134, 239, 172, 0.22)',
+    '--accent-soft': 'rgba(196, 181, 253, 0.14)',
+    '--brand-glow': 'rgba(134, 239, 172, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,8,0.52) 0%, rgba(4,8,8,0.18) 44%, rgba(4,8,8,0.5) 100%)',
+  }),
+  themed('discstorm', 'Storm Disc', 'discstorm.jpg', '#67e8f9', '#e2e8f0', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(103, 232, 249, 0.22)',
+    '--accent-soft': 'rgba(226, 232, 240, 0.12)',
+    '--brand-glow': 'rgba(103, 232, 249, 0.4)',
+    '--panel-glass': 'rgba(8, 10, 16, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,6,12,0.55) 0%, rgba(4,6,12,0.2) 42%, rgba(4,6,12,0.52) 100%)',
+  }),
+  themed('lakebeam', 'Lake Beam', 'lakebeam.jpg', '#34d399', '#a7f3d0', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(52, 211, 153, 0.22)',
+    '--accent-soft': 'rgba(167, 243, 208, 0.14)',
+    '--brand-glow': 'rgba(52, 211, 153, 0.4)',
+    '--panel-glass': 'rgba(4, 12, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(2,8,10,0.52) 0%, rgba(2,8,10,0.18) 44%, rgba(2,8,10,0.5) 100%)',
+  }),
+  themed('saucerbay', 'Hangar Bay', 'saucerbay.jpg', '#fbbf24', '#94a3b8', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(14, 12, 8, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,8,6,0.55) 0%, rgba(8,8,6,0.2) 42%, rgba(8,8,6,0.52) 100%)',
+  }),
+  themed('canyonwreck', 'Canyon Wreck', 'canyonwreck.jpg', '#fb923c', '#22d3ee', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(16, 10, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,6,4,0.5) 0%, rgba(12,6,4,0.18) 44%, rgba(12,6,4,0.48) 100%)',
+  }),
+  themed('seasauce', 'Sea Skip', 'seasauce.jpg', '#2dd4bf', '#94a3b8', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(45, 212, 191, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(45, 212, 191, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,12,0.5) 0%, rgba(4,8,12,0.18) 44%, rgba(4,8,12,0.48) 100%)',
+  }),
+  themed('neoncraft', 'Neon Craft', 'neoncraft.jpg', '#e879f9', '#22d3ee', {
+    '--text': '#fdf4ff',
+    '--focus-ring': 'rgba(232, 121, 249, 0.22)',
+    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
+    '--brand-glow': 'rgba(232, 121, 249, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 18, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,14,0.52) 0%, rgba(8,4,14,0.18) 44%, rgba(8,4,14,0.5) 100%)',
+  }),
+  themed('mesadisc', 'Mesa Disc', 'mesadisc.jpg', '#fb923c', '#fcd34d', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(252, 211, 77, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(14, 10, 8, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,6,4,0.48) 0%, rgba(10,6,4,0.16) 44%, rgba(10,6,4,0.46) 100%)',
+  }),
+  themed('radarglow', 'Radar Glow', 'radarglow.jpg', '#4ade80', '#f43f5e', {
+    '--text': '#ecfdf5',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(244, 63, 94, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 16, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,12,0.52) 0%, rgba(4,8,12,0.18) 44%, rgba(4,8,12,0.5) 100%)',
+  }),
+  themed('icehover', 'Ice Hover', 'icehover.jpg', '#7dd3fc', '#fde68a', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(125, 211, 252, 0.22)',
+    '--accent-soft': 'rgba(253, 230, 138, 0.14)',
+    '--brand-glow': 'rgba(125, 211, 252, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 18, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,14,0.5) 0%, rgba(4,8,14,0.16) 44%, rgba(4,8,14,0.48) 100%)',
+  }),
+  themed('townsaucer', 'Main Street', 'townsaucer.jpg', '#22d3ee', '#e879f9', {
+    '--text': '#fdf4ff',
+    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
+    '--accent-soft': 'rgba(232, 121, 249, 0.14)',
+    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
+    '--panel-glass': 'rgba(10, 8, 16, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,4,12,0.52) 0%, rgba(6,4,12,0.18) 44%, rgba(6,4,12,0.5) 100%)',
+  }),
+  themed('seacontact', 'Sea Contact', 'seacontact.jpg', '#e2e8f0', '#38bdf8', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
+    '--accent-soft': 'rgba(226, 232, 240, 0.12)',
+    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
+    '--panel-glass': 'rgba(8, 14, 20, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,10,16,0.42) 0%, rgba(4,10,16,0.14) 44%, rgba(4,10,16,0.4) 100%)',
+  }),
+  themed('pyradisc', 'Giza Disc', 'pyradisc.jpg', '#818cf8', '#fde68a', {
+    '--text': '#eef2ff',
+    '--focus-ring': 'rgba(129, 140, 248, 0.22)',
+    '--accent-soft': 'rgba(253, 230, 138, 0.14)',
+    '--brand-glow': 'rgba(129, 140, 248, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 18, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,6,14,0.52) 0%, rgba(6,6,14,0.18) 44%, rgba(6,6,14,0.5) 100%)',
+  }),
+  themed('railglow', 'Rail Glow', 'railglow.jpg', '#fbbf24', '#f43f5e', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(244, 63, 94, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,6,10,0.52) 0%, rgba(8,6,10,0.18) 44%, rgba(8,6,10,0.5) 100%)',
+  }),
+  themed('backyard', 'Backyard', 'backyard.jpg', '#60a5fa', '#a78bfa', {
+    '--text': '#eff6ff',
+    '--focus-ring': 'rgba(96, 165, 250, 0.22)',
+    '--accent-soft': 'rgba(167, 139, 250, 0.14)',
+    '--brand-glow': 'rgba(96, 165, 250, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,12,0.5) 0%, rgba(4,8,12,0.16) 44%, rgba(4,8,12,0.48) 100%)',
+  }),
+  themed('usodeep', 'USO', 'usodeep.jpg', '#22d3ee', '#2dd4bf', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
+    '--accent-soft': 'rgba(45, 212, 191, 0.14)',
+    '--brand-glow': 'rgba(34, 211, 238, 0.42)',
+    '--panel-glass': 'rgba(4, 14, 18, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(2,10,14,0.48) 0%, rgba(2,10,14,0.16) 44%, rgba(2,10,14,0.46) 100%)',
+  }),
+  themed('nightdiner', 'Night Diner', 'nightdiner.jpg', '#f472b6', '#22d3ee', {
+    '--text': '#fdf4ff',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 16, 0.62)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,4,12,0.52) 0%, rgba(8,4,12,0.18) 44%, rgba(8,4,12,0.5) 100%)',
+  }),
+  themed('fogbridge', 'Fog Bridge', 'fogbridge.jpg', '#e2e8f0', '#fb923c', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
+    '--panel-glass': 'rgba(10, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,12,0.5) 0%, rgba(6,8,12,0.16) 44%, rgba(6,8,12,0.48) 100%)',
+  }),
+  themed('redwood', 'Redwood', 'redwood.jpg', '#a3e635', '#fde68a', {
+    '--text': '#f7fee7',
+    '--focus-ring': 'rgba(163, 230, 53, 0.22)',
+    '--accent-soft': 'rgba(253, 230, 138, 0.14)',
+    '--brand-glow': 'rgba(163, 230, 53, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 8, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(4,8,4,0.48) 0%, rgba(4,8,4,0.16) 44%, rgba(4,8,4,0.46) 100%)',
+  }),
+  themed('swarmdusk', 'Dusk Swarm', 'swarmdusk.jpg', '#c084fc', '#fb923c', {
+    '--text': '#faf5ff',
+    '--focus-ring': 'rgba(192, 132, 252, 0.22)',
+    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
+    '--brand-glow': 'rgba(192, 132, 252, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 16, 0.58)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,6,12,0.48) 0%, rgba(8,6,12,0.16) 44%, rgba(8,6,12,0.46) 100%)',
+  }),
   videoThemed('sakuravideo', 'Sakura', 'sakura.mp4', '#fb7185', '#f472b6', {
     '--text': '#fff1f2',
     '--focus-ring': 'rgba(251, 113, 133, 0.22)',
@@ -1878,6 +2148,38 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'amethyst',
       'ionvent',
       'moonpool',
+    ],
+  },
+  {
+    label: 'UFOs',
+    ids: [
+      'saucer',
+      'cropdisc',
+      'mothership',
+      'nightbeam',
+      'blacktri',
+      'foofighter',
+      'roswell',
+      'forestorbs',
+      'discstorm',
+      'lakebeam',
+      'saucerbay',
+      'canyonwreck',
+      'seasauce',
+      'neoncraft',
+      'mesadisc',
+      'radarglow',
+      'icehover',
+      'townsaucer',
+      'seacontact',
+      'pyradisc',
+      'railglow',
+      'backyard',
+      'usodeep',
+      'nightdiner',
+      'fogbridge',
+      'redwood',
+      'swarmdusk',
     ],
   },
   { label: 'Video', ids: ['sakuravideo', 'oasisvideo', 'reefvideo', 'umbravideo', 'uenovideo'] },

@@ -17,11 +17,11 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe('themes', () => {
-  it('includes the midnight default plus one hundred and fifty-one wallpapers', () => {
+  it('includes the midnight default plus one hundred and seventy-eight wallpapers', () => {
     expect(THEMES[0].id).toBe('midnight');
     expect(THEMES[0].name.toLowerCase()).toContain('default');
-    expect(THEMES).toHaveLength(157);
-    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(151);
+    expect(THEMES).toHaveLength(184);
+    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(178);
     expect(THEMES.filter((t) => t.video)).toHaveLength(5);
   });
 
@@ -48,6 +48,45 @@ describe('themes', () => {
       expect(existsSync(file), `missing ${file}`).toBe(true);
       expect(t.vars['--wallpaper']).toContain(t.wallpaper);
       expect(t.vars['--glass-blur']).not.toBe('0px');
+    }
+  });
+
+  it('ships twenty-seven UFO wallpapers in the UFOs theme group', () => {
+    const group = THEME_GROUPS.find((g) => g.label === 'UFOs');
+    expect(group?.ids).toEqual([
+      'saucer',
+      'cropdisc',
+      'mothership',
+      'nightbeam',
+      'blacktri',
+      'foofighter',
+      'roswell',
+      'forestorbs',
+      'discstorm',
+      'lakebeam',
+      'saucerbay',
+      'canyonwreck',
+      'seasauce',
+      'neoncraft',
+      'mesadisc',
+      'radarglow',
+      'icehover',
+      'townsaucer',
+      'seacontact',
+      'pyradisc',
+      'railglow',
+      'backyard',
+      'usodeep',
+      'nightdiner',
+      'fogbridge',
+      'redwood',
+      'swarmdusk',
+    ]);
+    for (const id of group!.ids) {
+      const theme = THEMES.find((t) => t.id === id);
+      expect(theme?.wallpaper, id).toMatch(/^\/themes\/.+\.jpg$/);
+      const file = resolve(here, '../../public', theme!.wallpaper!.replace(/^\//, ''));
+      expect(existsSync(file), `missing ${file}`).toBe(true);
     }
   });
 
