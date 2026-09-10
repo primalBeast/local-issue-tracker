@@ -273,22 +273,26 @@
       {/each}
     </div>
   {:else if def.type === 'number'}
-    <input
-      class="list-cell-edit"
-      type="number"
-      min={def.validation?.min as number | undefined}
-      max={def.validation?.max as number | undefined}
-      step={(def.validation?.step as number | undefined) ?? 1}
-      bind:this={inputEl}
-      value={draft}
-      onpointerdown={(e) => e.stopPropagation()}
-      ondblclick={(e) => e.stopPropagation()}
-      oninput={(e) => {
-        draft = e.currentTarget.value;
-      }}
-      onblur={finish}
-      onkeydown={onKey}
-    />
+    <div class="list-cell-stack">
+      <span class="list-cell-label list-cell-sizer">{display || '\u00a0'}</span>
+      <input
+        class="list-cell-edit"
+        type="number"
+        size="1"
+        min={def.validation?.min as number | undefined}
+        max={def.validation?.max as number | undefined}
+        step={(def.validation?.step as number | undefined) ?? 1}
+        bind:this={inputEl}
+        value={draft}
+        onpointerdown={(e) => e.stopPropagation()}
+        ondblclick={(e) => e.stopPropagation()}
+        oninput={(e) => {
+          draft = e.currentTarget.value;
+        }}
+        onblur={finish}
+        onkeydown={onKey}
+      />
+    </div>
   {:else if def.type === 'checkbox'}
     <input
       class="list-cell-edit"
@@ -364,34 +368,42 @@
       {/if}
     </div>
   {:else if def.type === 'datetime'}
-    <input
-      class="list-cell-edit"
-      type="datetime-local"
-      bind:this={inputEl}
-      value={draft}
-      onpointerdown={(e) => e.stopPropagation()}
-      ondblclick={(e) => e.stopPropagation()}
-      oninput={(e) => {
-        draft = e.currentTarget.value;
-      }}
-      onblur={finish}
-      onkeydown={onKey}
-    />
+    <div class="list-cell-stack">
+      <span class="list-cell-label list-cell-sizer">{display || '\u00a0'}</span>
+      <input
+        class="list-cell-edit"
+        type="datetime-local"
+        size="1"
+        bind:this={inputEl}
+        value={draft}
+        onpointerdown={(e) => e.stopPropagation()}
+        ondblclick={(e) => e.stopPropagation()}
+        oninput={(e) => {
+          draft = e.currentTarget.value;
+        }}
+        onblur={finish}
+        onkeydown={onKey}
+      />
+    </div>
   {:else}
-    <input
-      class="list-cell-edit"
-      type="text"
-      bind:this={inputEl}
-      value={draft}
-      onpointerdown={(e) => e.stopPropagation()}
-      ondblclick={(e) => e.stopPropagation()}
-      oninput={(e) => {
-        draft = e.currentTarget.value;
-      }}
-      onblur={finish}
-      onkeydown={onKey}
-    />
+    <div class="list-cell-stack">
+      <span class="list-cell-label list-cell-sizer">{display || '\u00a0'}</span>
+      <input
+        class="list-cell-edit"
+        type="text"
+        size="1"
+        bind:this={inputEl}
+        value={draft}
+        onpointerdown={(e) => e.stopPropagation()}
+        ondblclick={(e) => e.stopPropagation()}
+        oninput={(e) => {
+          draft = e.currentTarget.value;
+        }}
+        onblur={finish}
+        onkeydown={onKey}
+      />
+    </div>
   {/if}
 {:else}
-  <span class="list-cell-label">{display}</span>
+  <span class="list-cell-label"><span class="list-cell-value">{display}</span></span>
 {/if}

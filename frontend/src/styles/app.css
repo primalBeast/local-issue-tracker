@@ -496,6 +496,19 @@ body.lit-zoom-scrubbing * {
 
 .theme-transparent:hover { color: var(--text); }
 
+.theme-dialog-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-random {
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
 .theme-transparency {
   display: flex;
   align-items: center;
@@ -1412,45 +1425,131 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 .table th.sortable:hover { color: var(--text); }
 .table th.sorted { color: var(--accent); }
 .table th.sorted-secondary { color: var(--text); }
-.table tr:hover td { background: rgba(255, 255, 255, 0.02); }
+.table tr:hover td { background: rgba(255, 255, 255, 0.06); }
 .table tr.clickable { cursor: pointer; }
+@keyframes list-value-glow {
+  0%,
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+  14%,
+  30% {
+    background-color: color-mix(in srgb, var(--accent) 36%, transparent);
+    box-shadow:
+      0 0 8px 3px color-mix(in srgb, var(--accent) 42%, transparent),
+      0 0 20px 8px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+  44% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+  56%,
+  72% {
+    background-color: color-mix(in srgb, var(--accent) 28%, transparent);
+    box-shadow:
+      0 0 7px 3px color-mix(in srgb, var(--accent) 34%, transparent),
+      0 0 16px 7px color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+}
+.table td.list-flash {
+  overflow: visible;
+  z-index: 2;
+}
+.table td.list-flash .list-cell-value {
+  padding: 0.12em 0.7em;
+  margin: -0.12em -0.7em;
+  animation: list-value-glow 3s ease-in-out;
+}
+.table td.list-flash .list-cell-value:empty {
+  min-width: 1.35em;
+  min-height: 1.35em;
+}
 .table .list-cell-label {
   display: block;
   min-height: 1.35em;
   width: 100%;
 }
+.table .list-cell-value {
+  display: inline-block;
+  max-width: 100%;
+  border: none;
+  border-radius: 999px;
+  line-height: 1.35em;
+  vertical-align: top;
+  box-decoration-break: clone;
+}
 .table td.list-editable {
   min-width: 4ch;
 }
 .table td.list-editing {
-  padding: 2px 4px;
   cursor: auto;
-  overflow: visible;
+}
+.table .list-cell-stack {
+  position: relative;
+}
+.table .list-cell-sizer {
+  visibility: hidden;
+  pointer-events: none;
 }
 .table .list-cell-edit {
+  display: block;
+  box-sizing: border-box;
   width: 100%;
+  max-width: 100%;
   min-width: 0;
-  height: 26px;
+  height: 1.35em;
   margin: 0;
+  padding: 0 2px;
   font: inherit;
+  line-height: calc(1.35em - 2px);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg-input);
+  box-shadow: none;
   cursor: auto;
+}
+.table .list-cell-stack .list-cell-edit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+.table .list-cell-edit:focus {
+  border-color: var(--accent);
+  box-shadow: none;
+  outline: none;
+}
+.table .list-cell-edit[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.table .list-cell-edit[type='number']::-webkit-outer-spin-button,
+.table .list-cell-edit[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 .table .list-cell-edit[type='checkbox'] {
   width: auto;
   height: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 .table .list-select-anchor {
   display: block;
   box-sizing: border-box;
-  line-height: 24px;
-  padding: 0 8px;
+  height: 1.35em;
+  line-height: calc(1.35em - 2px);
+  padding: 0 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   background: var(--bg-input);
   border: 1px solid var(--accent);
-  border-radius: 8px;
-  box-shadow: 0 0 0 3px var(--focus-ring);
+  border-radius: 4px;
+  box-shadow: none;
 }
 .list-select-popup {
   position: fixed;

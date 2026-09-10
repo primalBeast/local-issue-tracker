@@ -272,9 +272,46 @@
     listEdit = { itemId: item.id, fieldId: field.id };
   }
 
+  function listFlashKey(itemId: string, fieldId: string) {
+    return `${itemId}::${fieldId}`;
+  }
+
+  function flashListCell(itemId: string, fieldId: string) {
+    const key = listFlashKey(itemId, fieldId);
+    listFlash = { ...listFlash, [key]: Date.now() };
+    void tick().then(() => {
+      const el = document.querySelector(`[data-list-flash="${CSS.escape(key)}"]`);
+      if (el instanceof HTMLElement) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }
+
+  function clearListFlash(itemId: string, fieldId: string) {
+    const key = listFlashKey(itemId, fieldId);
+    if (!(key in listFlash)) return;
+    const next = { ...listFlash };
+    delete next[key];
+    listFlash = next;
+  }
+
+  function commitListCell(itemId: string, fieldId: string, value: unknown) {
+    const prev = items.find((i) => i.id === itemId)?.fields[fieldId];
+    const blank = (v: unknown) => v == null || v === '';
+    const changed = blank(prev) || blank(value) ? !blank(prev) || !blank(value) : prev !== value && String(prev) !== String(value);
+    patchItemFields(itemId, fieldId, value);
+    if (changed) flashListCell(itemId, fieldId);
+  }
+
   function endListEdit() {
+    const editing = listEdit;
     listEdit = null;
     listEditAnchor = null;
+    if (editing && listFlash[listFlashKey(editing.itemId, editing.fieldId)] != null) {
+      void tick().then(() => {
+        const key = listFlashKey(editing.itemId, editing.fieldId);
+        const el = document.querySelector(`[data-list-flash="${CSS.escape(key)}"]`);
+        if (el instanceof HTMLElement) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      });
+    }
   }
 
   function positionNotesHover(el: HTMLElement) {

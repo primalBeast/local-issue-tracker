@@ -59,6 +59,7 @@
     THEME_STORAGE_KEY,
     THEME_MENU,
     THEMES,
+    randomThemeId,
     TRANSPARENCY_BY_THEME_KEY,
     TRANSPARENT_PANELS_KEY,
     transparencyForTheme,
@@ -107,6 +108,7 @@
   let extraTicketSlots = $state<Record<string, number>>({});
   let listEdit = $state<{ itemId: string; fieldId: string } | null>(null);
   let listEditAnchor = $state<Item | null>(null);
+  let listFlash = $state<Record<string, number>>({});
   let listSearch = $state('');
   let notesHover = $state<{
     itemId: string;
@@ -347,6 +349,9 @@
       if (nameAdd && !t?.closest?.('.name-add-popup, .name-option-add')) {
         nameAdd = null;
       }
+      if (themeMenuOpen && !t?.closest?.('.theme-dialog, .theme-select')) {
+        void setTheme(highlightedThemeId);
+      }
       if (itemDeleteConfirm) {
         if (!t?.closest?.('.confirm-dialog')) itemDeleteConfirm = null;
         return;
@@ -541,6 +546,15 @@
   function closeThemeMenu(revert: boolean) {
     if (revert) previewTheme(committedThemeId);
     themeMenuOpen = false;
+  }
+
+  function pickRandomTheme() {
+    const next = randomThemeId(
+      THEME_MENU.map((e) => e.theme.id),
+      highlightedThemeId
+    );
+    previewTheme(next);
+    scrollThemeHighlightIntoView(next);
   }
 
   function scrollThemeHighlightIntoView(id: string) {

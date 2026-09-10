@@ -59,6 +59,7 @@
     THEME_STORAGE_KEY,
     THEME_MENU,
     THEMES,
+    randomThemeId,
     TRANSPARENCY_BY_THEME_KEY,
     TRANSPARENT_PANELS_KEY,
     transparencyForTheme,
@@ -107,6 +108,7 @@
   let extraTicketSlots = $state<Record<string, number>>({});
   let listEdit = $state<{ itemId: string; fieldId: string } | null>(null);
   let listEditAnchor = $state<Item | null>(null);
+  let listFlash = $state<Record<string, number>>({});
   let listSearch = $state('');
   let notesHover = $state<{
     itemId: string;
@@ -347,6 +349,9 @@
       if (nameAdd && !t?.closest?.('.name-add-popup, .name-option-add')) {
         nameAdd = null;
       }
+      if (themeMenuOpen && !t?.closest?.('.theme-dialog, .theme-select')) {
+        void setTheme(highlightedThemeId);
+      }
       if (itemDeleteConfirm) {
         if (!t?.closest?.('.confirm-dialog')) itemDeleteConfirm = null;
         return;
@@ -541,6 +546,15 @@
   function closeThemeMenu(revert: boolean) {
     if (revert) previewTheme(committedThemeId);
     themeMenuOpen = false;
+  }
+
+  function pickRandomTheme() {
+    const next = randomThemeId(
+      THEME_MENU.map((e) => e.theme.id),
+      highlightedThemeId
+    );
+    previewTheme(next);
+    scrollThemeHighlightIntoView(next);
   }
 
   function scrollThemeHighlightIntoView(id: string) {
@@ -1783,9 +1797,46 @@
     listEdit = { itemId: item.id, fieldId: field.id };
   }
 
+  function listFlashKey(itemId: string, fieldId: string) {
+    return `${itemId}::${fieldId}`;
+  }
+
+  function flashListCell(itemId: string, fieldId: string) {
+    const key = listFlashKey(itemId, fieldId);
+    listFlash = { ...listFlash, [key]: Date.now() };
+    void tick().then(() => {
+      const el = document.querySelector(`[data-list-flash="${CSS.escape(key)}"]`);
+      if (el instanceof HTMLElement) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
+  }
+
+  function clearListFlash(itemId: string, fieldId: string) {
+    const key = listFlashKey(itemId, fieldId);
+    if (!(key in listFlash)) return;
+    const next = { ...listFlash };
+    delete next[key];
+    listFlash = next;
+  }
+
+  function commitListCell(itemId: string, fieldId: string, value: unknown) {
+    const prev = items.find((i) => i.id === itemId)?.fields[fieldId];
+    const blank = (v: unknown) => v == null || v === '';
+    const changed = blank(prev) || blank(value) ? !blank(prev) || !blank(value) : prev !== value && String(prev) !== String(value);
+    patchItemFields(itemId, fieldId, value);
+    if (changed) flashListCell(itemId, fieldId);
+  }
+
   function endListEdit() {
+    const editing = listEdit;
     listEdit = null;
     listEditAnchor = null;
+    if (editing && listFlash[listFlashKey(editing.itemId, editing.fieldId)] != null) {
+      void tick().then(() => {
+        const key = listFlashKey(editing.itemId, editing.fieldId);
+        const el = document.querySelector(`[data-list-flash="${CSS.escape(key)}"]`);
+        if (el instanceof HTMLElement) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      });
+    }
   }
 
   function positionNotesHover(el: HTMLElement) {
@@ -2313,7 +2364,8 @@
           aria-expanded={themeMenuOpen}
           title="Themes"
           onclick={() => {
-            if (!themeMenuOpen) openThemeMenu();
+            if (themeMenuOpen) void setTheme(highlightedThemeId);
+            else openThemeMenu();
           }}
         >
           {THEMES.find((t) => t.id === (themeMenuOpen ? themeId : committedThemeId))?.name ?? 'Theme'}
@@ -2336,17 +2388,25 @@
                 onclick={() => closeThemeMenu(true)}
               >✕</button>
             </div>
-            <label
-              class="theme-transparent"
-              title="See through panel fill — no wallpaper painted in the card"
-            >
-              <input
-                type="checkbox"
-                checked={transparentPanels}
-                onchange={(e) => void setTransparentPanels(e.currentTarget.checked)}
-              />
-              Transparent
-            </label>
+            <div class="theme-dialog-tools">
+              <label
+                class="theme-transparent"
+                title="See through panel fill — no wallpaper painted in the card"
+              >
+                <input
+                  type="checkbox"
+                  checked={transparentPanels}
+                  onchange={(e) => void setTransparentPanels(e.currentTarget.checked)}
+                />
+                Transparent
+              </label>
+              <button
+                type="button"
+                class="ghost theme-random"
+                title="Preview a random theme"
+                onclick={() => pickRandomTheme()}
+              >Random</button>
+            </div>
             {#if transparentPanels}
               <label
                 class="theme-transparency"
@@ -2396,7 +2456,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-08i</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-09f</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -3048,14 +3108,21 @@
                         <td
                           class:list-editable={canListEditCell(f, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
+                          class:list-flash={listFlash[listFlashKey(it.id, f.id)] != null}
+                          data-list-flash={listFlash[listFlashKey(it.id, f.id)] != null
+                            ? listFlashKey(it.id, f.id)
+                            : undefined}
                           oncontextmenu={(e) => beginListEdit(e, it, f)}
+                          onanimationend={(e) => {
+                            if (e.animationName === 'list-value-glow') clearListFlash(it.id, f.id);
+                          }}
                         >
                           <AllItemsCell
                             def={listCellDef(f, it)}
                             value={it.fields[f.id]}
                             display={listCellDisplay(f, it)}
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
-                            onCommit={(value) => patchItemFields(it.id, f.id, value)}
+                            onCommit={(value) => commitListCell(it.id, f.id, value)}
                             onEnd={endListEdit}
                           />
                         </td>
@@ -3065,7 +3132,16 @@
                         <td
                           class:list-editable={canListEditCell(sinceDef, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
+                          class:list-flash={listFlash[listFlashKey(it.id, 'waiting_since')] != null}
+                          data-list-flash={listFlash[listFlashKey(it.id, 'waiting_since')] != null
+                            ? listFlashKey(it.id, 'waiting_since')
+                            : undefined}
                           oncontextmenu={(e) => beginListEdit(e, it, sinceDef)}
+                          onanimationend={(e) => {
+                            if (e.animationName === 'list-value-glow') {
+                              clearListFlash(it.id, 'waiting_since');
+                            }
+                          }}
                         >
                           <AllItemsCell
                             def={sinceDef}
@@ -3077,7 +3153,7 @@
                                 )
                               : ''}
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
-                            onCommit={(value) => patchItemFields(it.id, 'waiting_since', value)}
+                            onCommit={(value) => commitListCell(it.id, 'waiting_since', value)}
                             onEnd={endListEdit}
                           />
                         </td>

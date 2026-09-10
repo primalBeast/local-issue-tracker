@@ -2214,6 +2214,19 @@ export const THEME_MENU: ThemeMenuEntry[] = (() => {
   return out;
 })();
 
+/** Pick a theme id at random, skipping `current` when another choice exists. */
+export function randomThemeId(
+  ids: readonly string[],
+  current: string,
+  rand: () => number = Math.random
+): string {
+  const others = ids.filter((id) => id !== current);
+  const pool = others.length ? others : ids;
+  if (!pool.length) return current;
+  const i = Math.floor(rand() * pool.length);
+  return pool[Math.min(Math.max(i, 0), pool.length - 1)] ?? current;
+}
+
 const ALIASES: Record<string, ThemeId> = {
   dark: 'midnight',
   default: 'midnight',

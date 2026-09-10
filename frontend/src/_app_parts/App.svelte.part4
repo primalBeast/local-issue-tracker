@@ -53,7 +53,8 @@
           aria-expanded={themeMenuOpen}
           title="Themes"
           onclick={() => {
-            if (!themeMenuOpen) openThemeMenu();
+            if (themeMenuOpen) void setTheme(highlightedThemeId);
+            else openThemeMenu();
           }}
         >
           {THEMES.find((t) => t.id === (themeMenuOpen ? themeId : committedThemeId))?.name ?? 'Theme'}
@@ -76,17 +77,25 @@
                 onclick={() => closeThemeMenu(true)}
               >✕</button>
             </div>
-            <label
-              class="theme-transparent"
-              title="See through panel fill — no wallpaper painted in the card"
-            >
-              <input
-                type="checkbox"
-                checked={transparentPanels}
-                onchange={(e) => void setTransparentPanels(e.currentTarget.checked)}
-              />
-              Transparent
-            </label>
+            <div class="theme-dialog-tools">
+              <label
+                class="theme-transparent"
+                title="See through panel fill — no wallpaper painted in the card"
+              >
+                <input
+                  type="checkbox"
+                  checked={transparentPanels}
+                  onchange={(e) => void setTransparentPanels(e.currentTarget.checked)}
+                />
+                Transparent
+              </label>
+              <button
+                type="button"
+                class="ghost theme-random"
+                title="Preview a random theme"
+                onclick={() => pickRandomTheme()}
+              >Random</button>
+            </div>
             {#if transparentPanels}
               <label
                 class="theme-transparency"
@@ -136,7 +145,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-08i</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-09f</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -788,14 +797,21 @@
                         <td
                           class:list-editable={canListEditCell(f, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
+                          class:list-flash={listFlash[listFlashKey(it.id, f.id)] != null}
+                          data-list-flash={listFlash[listFlashKey(it.id, f.id)] != null
+                            ? listFlashKey(it.id, f.id)
+                            : undefined}
                           oncontextmenu={(e) => beginListEdit(e, it, f)}
+                          onanimationend={(e) => {
+                            if (e.animationName === 'list-value-glow') clearListFlash(it.id, f.id);
+                          }}
                         >
                           <AllItemsCell
                             def={listCellDef(f, it)}
                             value={it.fields[f.id]}
                             display={listCellDisplay(f, it)}
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
-                            onCommit={(value) => patchItemFields(it.id, f.id, value)}
+                            onCommit={(value) => commitListCell(it.id, f.id, value)}
                             onEnd={endListEdit}
                           />
                         </td>
@@ -805,7 +821,16 @@
                         <td
                           class:list-editable={canListEditCell(sinceDef, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
+                          class:list-flash={listFlash[listFlashKey(it.id, 'waiting_since')] != null}
+                          data-list-flash={listFlash[listFlashKey(it.id, 'waiting_since')] != null
+                            ? listFlashKey(it.id, 'waiting_since')
+                            : undefined}
                           oncontextmenu={(e) => beginListEdit(e, it, sinceDef)}
+                          onanimationend={(e) => {
+                            if (e.animationName === 'list-value-glow') {
+                              clearListFlash(it.id, 'waiting_since');
+                            }
+                          }}
                         >
                           <AllItemsCell
                             def={sinceDef}
@@ -817,7 +842,7 @@
                                 )
                               : ''}
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
-                            onCommit={(value) => patchItemFields(it.id, 'waiting_since', value)}
+                            onCommit={(value) => commitListCell(it.id, 'waiting_since', value)}
                             onEnd={endListEdit}
                           />
                         </td>

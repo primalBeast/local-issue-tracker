@@ -11,6 +11,7 @@ import {
   THEME_GROUPS,
   THEME_MENU,
   THEMES,
+  randomThemeId,
   transparencyForTheme,
 } from './themes';
 
@@ -107,6 +108,17 @@ describe('themes', () => {
       const file = resolve(here, '../../public', video!.video!.replace(/^\//, ''));
       expect(existsSync(file), `missing ${file}`).toBe(true);
     }
+  });
+
+  it('picks a random theme other than the current one', () => {
+    expect(randomThemeId([], 'midnight', () => 0)).toBe('midnight');
+    expect(randomThemeId(['aurora'], 'aurora', () => 0)).toBe('aurora');
+    expect(randomThemeId(['aurora', 'ember', 'abyss'], 'ember', () => 0)).toBe('aurora');
+    expect(randomThemeId(['aurora', 'ember', 'abyss'], 'ember', () => 0.99)).toBe('abyss');
+    const menuIds = THEME_MENU.map((e) => e.theme.id);
+    const pick = randomThemeId(menuIds, 'midnight', () => 0.5);
+    expect(pick).not.toBe('midnight');
+    expect(menuIds).toContain(pick);
   });
 
   it('keeps midnight opaque with no wallpaper', () => {
