@@ -156,6 +156,7 @@ export type ThemeId =
   | 'reefvideo'
   | 'umbravideo'
   | 'uenovideo'
+  | 'fogbridgevideo'
   | 'saucer'
   | 'cropdisc'
   | 'mothership'
@@ -1944,6 +1945,15 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(8,4,8,0.42) 0%, rgba(8,4,8,0.12) 44%, rgba(8,6,8,0.4) 100%)',
   }),
+  videoThemed('fogbridgevideo', 'Fog Bridge', 'fogbridge.mp4', '#e2e8f0', '#fb923c', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.35)',
+    '--panel-glass': 'rgba(10, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,12,0.42) 0%, rgba(6,8,12,0.12) 44%, rgba(6,8,12,0.4) 100%)',
+  }),
 ];
 
 export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
@@ -2182,7 +2192,10 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'swarmdusk',
     ],
   },
-  { label: 'Video', ids: ['sakuravideo', 'oasisvideo', 'reefvideo', 'umbravideo', 'uenovideo'] },
+  {
+    label: 'Video',
+    ids: ['sakuravideo', 'oasisvideo', 'reefvideo', 'umbravideo', 'uenovideo', 'fogbridgevideo'],
+  },
 ];
 
 export type ThemeMenuEntry = { group: string; theme: Theme; num: number };

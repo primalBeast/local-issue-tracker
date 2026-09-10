@@ -20,9 +20,9 @@ describe('themes', () => {
   it('includes the midnight default plus one hundred and seventy-eight wallpapers', () => {
     expect(THEMES[0].id).toBe('midnight');
     expect(THEMES[0].name.toLowerCase()).toContain('default');
-    expect(THEMES).toHaveLength(184);
+    expect(THEMES).toHaveLength(185);
     expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(178);
-    expect(THEMES.filter((t) => t.video)).toHaveLength(5);
+    expect(THEMES.filter((t) => t.video)).toHaveLength(6);
   });
 
   it('groups every look into the theme menu without duplicates', () => {
@@ -92,7 +92,14 @@ describe('themes', () => {
 
   it('ships looping videos in the Video theme group', () => {
     const group = THEME_GROUPS.find((g) => g.label === 'Video');
-    expect(group?.ids).toEqual(['sakuravideo', 'oasisvideo', 'reefvideo', 'umbravideo', 'uenovideo']);
+    expect(group?.ids).toEqual([
+      'sakuravideo',
+      'oasisvideo',
+      'reefvideo',
+      'umbravideo',
+      'uenovideo',
+      'fogbridgevideo',
+    ]);
     for (const id of group!.ids) {
       const video = THEMES.find((t) => t.id === id);
       expect(video?.video, id).toMatch(/^\/themes\/.+\.mp4$/);
