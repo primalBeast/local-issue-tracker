@@ -1,0 +1,1607 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Local Issue Tracker — Release notes</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0d12;
+        --bg-elevated: #12151c;
+        --bg-panel: #161a22;
+        --bg-hover: #232937;
+        --border: #2a3140;
+        --border-strong: #3a4458;
+        --text: #e8eaed;
+        --text-muted: #9aa3b2;
+        --text-faint: #6b7385;
+        --accent: #6ea8fe;
+        --accent-2: #8b5cf6;
+        --danger: #f87171;
+        --success: #4ade80;
+        --warning: #fbbf24;
+        --feat: #4ade80;
+        --ui: #6ea8fe;
+        --fix: #fbbf24;
+        --docs: #c4b5fd;
+        --chore: #6b7385;
+        --ci: #67e8f9;
+        --style: #f0abfc;
+        --merge: #94a3b8;
+        --other: #9aa3b2;
+        --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+        --font: "Segoe UI", "Inter", "SF Pro Text", system-ui, sans-serif;
+        --mono: "Cascadia Code", "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+        --radius: 14px;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background:
+          radial-gradient(1200px 600px at 10% -10%, rgba(110, 168, 254, 0.1), transparent 50%),
+          radial-gradient(900px 500px at 100% 0%, rgba(139, 92, 246, 0.08), transparent 45%),
+          var(--bg);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 15px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 36px 22px 80px;
+      }
+      header.hero {
+        display: grid;
+        gap: 14px;
+        margin-bottom: 28px;
+      }
+      .kicker {
+        color: var(--accent);
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-weight: 650;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(28px, 4vw, 42px);
+        letter-spacing: -0.03em;
+        font-weight: 700;
+      }
+      .lede {
+        max-width: 62ch;
+        color: var(--text-muted);
+        margin: 0;
+        font-size: 16.5px;
+      }
+      .stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      .stat {
+        background: color-mix(in srgb, var(--bg-panel) 82%, transparent);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 12.5px;
+        color: var(--text-muted);
+      }
+      .stat b { color: var(--text); font-weight: 650; }
+      .toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        padding: 12px 0 14px;
+        background: linear-gradient(180deg, rgba(11, 13, 18, 0.96), rgba(11, 13, 18, 0.86) 70%, transparent);
+        backdrop-filter: blur(10px);
+      }
+      .search {
+        flex: 1 1 240px;
+        min-width: 180px;
+        background: var(--bg-input, #0e1219);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: var(--text);
+        padding: 9px 12px;
+        outline: none;
+        font: inherit;
+      }
+      .search:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.15);
+      }
+      .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+      .chip, .toggle {
+        border: 1px solid var(--border);
+        background: var(--bg-panel);
+        color: var(--text-muted);
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .chip:hover, .toggle:hover { border-color: var(--border-strong); color: var(--text); }
+      .chip.active {
+        color: #fff;
+        border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+        background: color-mix(in srgb, var(--accent) 22%, var(--bg-panel));
+      }
+      .toggle.active {
+        color: var(--text);
+        border-color: var(--border-strong);
+        background: var(--bg-hover);
+      }
+      h2 {
+        margin: 28px 0 12px;
+        font-size: 13px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 12px;
+      }
+      .card {
+        background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px 16px 14px;
+        box-shadow: var(--shadow);
+      }
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        letter-spacing: -0.02em;
+      }
+      .card p, .card ul {
+        margin: 0;
+        color: var(--text-muted);
+        font-size: 13.5px;
+      }
+      .card ul { padding-left: 1.15em; }
+      .card li { margin: 0.25em 0; }
+      .latest {
+        border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+        background:
+          linear-gradient(180deg, rgba(110, 168, 254, 0.08), transparent 42%),
+          color-mix(in srgb, var(--bg-panel) 90%, transparent);
+      }
+      .day {
+        margin: 22px 0 0;
+      }
+      .day-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      .day-head h3 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+      .day-head span { color: var(--text-faint); font-size: 12px; }
+      .entry {
+        display: grid;
+        grid-template-columns: 92px 1fr auto;
+        gap: 10px;
+        align-items: start;
+        padding: 9px 4px;
+        border-radius: 10px;
+      }
+      .entry:hover { background: rgba(255, 255, 255, 0.03); }
+      .entry.hidden { display: none; }
+      .kind {
+        display: inline-block;
+        margin-top: 2px;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 999px;
+        width: fit-content;
+      }
+      .kind.feat { color: var(--feat); background: color-mix(in srgb, var(--feat) 14%, transparent); }
+      .kind.ui { color: var(--ui); background: color-mix(in srgb, var(--ui) 14%, transparent); }
+      .kind.fix { color: var(--fix); background: color-mix(in srgb, var(--fix) 14%, transparent); }
+      .kind.docs { color: var(--docs); background: color-mix(in srgb, var(--docs) 14%, transparent); }
+      .kind.chore { color: var(--chore); background: color-mix(in srgb, var(--chore) 16%, transparent); }
+      .kind.ci { color: var(--ci); background: color-mix(in srgb, var(--ci) 14%, transparent); }
+      .kind.style { color: var(--style); background: color-mix(in srgb, var(--style) 14%, transparent); }
+      .kind.merge, .kind.other { color: var(--other); background: rgba(154, 163, 178, 0.12); }
+      .subject { margin: 0; }
+      .hash {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--text-faint);
+        margin-top: 3px;
+      }
+      .empty {
+        color: var(--text-muted);
+        padding: 18px 4px;
+      }
+      footer {
+        margin-top: 48px;
+        color: var(--text-faint);
+        font-size: 12.5px;
+      }
+      @media (max-width: 640px) {
+        .entry { grid-template-columns: 78px 1fr; }
+        .hash { grid-column: 2; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hero">
+        <div class="kicker">Local Issue Tracker</div>
+        <h1>Release notes</h1>
+        <p class="lede">
+          A fully local personal issue tracker: floating workspaces, configurable fields,
+          waiting metrics, and a dark-mode-first UI. History below is from the GitHub
+          <code>main</code> branch, 9 Aug 2026 through 10 Sep 2026.
+        </p>
+        <div class="stats">
+          <span class="stat"><b id="stat-commits">—</b> commits</span>
+          <span class="stat"><b id="stat-features">—</b> features</span>
+          <span class="stat"><b id="stat-range">9 Aug – 10 Sep 2026</b></span>
+          <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
+        </div>
+      </header>
+
+      <h2>Latest</h2>
+      <div class="cards" id="latest">
+        <article class="card latest">
+          <h3>10 Sep 2026 — Windows install on work PCs</h3>
+          <ul>
+            <li><code>install.cmd</code> now runs <code>uv sync --native-tls</code> so HTTPS interception on a work laptop no longer fails the install.</li>
+            <li>The Windows 11 run guide uses the same flag for manual <code>uv sync</code> and reinstall.</li>
+            <li>This HTML release-notes page is in the repo root and is updated on each commit and push.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>10 Sep 2026 — Random theme &amp; All Items flash</h3>
+          <ul>
+            <li>Theme menu gained a <b>Random</b> button that previews another wallpaper.</li>
+            <li>Closing the theme dialog (button or click outside) keeps the highlighted theme.</li>
+            <li>All Items in-place editors overlay the cell so the row does not jump.</li>
+            <li>Saving a changed list cell flashes the new value so it is easy to spot.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Video themes</h3>
+          <p>Looping full-bleed videos: Sakura, Oasis, Reef, Umbra, Ueno, and Fog Bridge. Still UFO wallpapers (Roswell, mothership, crop circles, and more) sit in their own theme group.</p>
+        </article>
+        <article class="card">
+          <h3>All Items as a working table</h3>
+          <p>Search, primary and secondary sort, Assigned name lists, notes hover, a waiting calendar, and right-click in-place edit (ticket number stays read-only). Double-click opens a ticket; an open-dot marks the focused item.</p>
+        </article>
+      </div>
+
+      <h2>What this app became</h2>
+      <div class="cards">
+        <article class="card">
+          <h3>Board &amp; canvas</h3>
+          <ul>
+            <li>Free-floating panels: drag, resize from any edge or corner, snap.</li>
+            <li>Unlimited pan; Ctrl+drag pans even over panels; pointer-centered zoom.</li>
+            <li>Compact tiles when zoomed out; Focus zoom; filter row on the board.</li>
+            <li>Drag panels from field labels; in-app board remove and tab reorder.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Tickets, waiting, notes</h3>
+          <ul>
+            <li>Title bar, integer urgency, waiting checkbox + since date + name select.</li>
+            <li>Per-project URL prefix and External Fixing ticket links.</li>
+            <li>Notes: larger text, Ctrl+Q strikethrough, Ctrl+; date stamp under the caret.</li>
+            <li>Hourly readable txt/md snapshots; daily folder backups.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Templates</h3>
+          <ul>
+            <li>Project template editor and Save as Template.</li>
+            <li>Line/slot placement, live preview, width percentages, collapsible groups.</li>
+            <li>Hidden-until conditions noted on line headers.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Windows &amp; local-first</h3>
+          <ul>
+            <li>Binds to 127.0.0.1; data under OneDrive (AppData fallback).</li>
+            <li><code>install.cmd</code> / <code>start.cmd</code>; <code>uv sync --native-tls</code> for work PCs; committed UI bundle.</li>
+            <li>macOS and Windows 11 run guides.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Theme library</h3>
+          <p>Grouped in the picker: Night skies, Solar system, Night cities, Earth, Japan, Alien worlds, Sakura, Samurai, Switzerland, Ocean, Underwater, Alien ocean, Alien depths, UFOs, and Video.</p>
+        </article>
+      </div>
+
+      <h2>Changelog</h2>
+      <div class="toolbar">
+        <input class="search" id="q" type="search" placeholder="Filter commits…" />
+        <div class="filters" id="filters">
+          <button type="button" class="chip active" data-kind="all">All</button>
+          <button type="button" class="chip" data-kind="feat">Feature</button>
+          <button type="button" class="chip" data-kind="ui">UI</button>
+          <button type="button" class="chip" data-kind="fix">Fix</button>
+          <button type="button" class="chip" data-kind="docs">Docs</button>
+          <button type="button" class="chip" data-kind="chore">Chore</button>
+          <button type="button" class="chip" data-kind="ci">CI</button>
+        </div>
+        <button type="button" class="toggle" id="rebuilds">Show bundle rebuilds</button>
+      </div>
+      <div id="log"></div>
+
+      <footer>
+        Updated whenever this repo is committed and pushed to GitHub.
+        Bundle-rebuild chores are hidden by default — they ship the production UI so Windows clones can run without Node.
+      </footer>
+    </div>
+
+<!-- COMMITS_JSON_START -->
+<script type="application/json" id="commits-json">
+[
+  {
+    "hash": "f9d2bcd",
+    "date": "2026-09-10",
+    "subject": "fix: native TLS on Windows install; add HTML release notes",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "1507c66",
+    "date": "2026-09-10",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "b3cb490",
+    "date": "2026-09-10",
+    "subject": "ui: random theme pick and All Items cell edit flash",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "97755a4",
+    "date": "2026-09-10",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "f32fa15",
+    "date": "2026-09-09",
+    "subject": "feat: add Fog Bridge looping video",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "972548c",
+    "date": "2026-09-09",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "39558c7",
+    "date": "2026-09-08",
+    "subject": "feat: add UFOs theme pack",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "626df11",
+    "date": "2026-09-08",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "81ffdae",
+    "date": "2026-09-08",
+    "subject": "feat: add Ueno looping video theme",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "6054cf1",
+    "date": "2026-09-08",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "2491534",
+    "date": "2026-09-08",
+    "subject": "feat: add looping Video themes",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "0f2f7e4",
+    "date": "2026-09-04",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "fd54cf2",
+    "date": "2026-09-04",
+    "subject": "ui: All Items search and header Alternate ticket",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "c005907",
+    "date": "2026-09-04",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "de183af",
+    "date": "2026-09-03",
+    "subject": "ui: secondary All Items sort and Assigned name lists",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "80eca39",
+    "date": "2026-09-04",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "56987ff",
+    "date": "2026-09-03",
+    "subject": "ui: All Items notes hover, waiting calendar, quieter number edits",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "22a2044",
+    "date": "2026-09-01",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "994b266",
+    "date": "2026-09-01",
+    "subject": "ui: group the theme menu by topic",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "dc20155",
+    "date": "2026-09-01",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "aceb48f",
+    "date": "2026-09-01",
+    "subject": "feat: add 40 ocean wallpapers, Earth and alien-planet",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "9e3e972",
+    "date": "2026-09-01",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "2c4e6fc",
+    "date": "2026-08-31",
+    "subject": "fix: polish All Items in-place editing",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "15101cb",
+    "date": "2026-08-31",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "f67387e",
+    "date": "2026-08-30",
+    "subject": "fix: do not in-place edit Ticket number from All Items",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "69d8b0d",
+    "date": "2026-08-31",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "b47ab51",
+    "date": "2026-08-30",
+    "subject": "feat: right-click All Items cells to edit fields in place",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "e9186f9",
+    "date": "2026-08-31",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "9278192",
+    "date": "2026-08-30",
+    "subject": "feat: Ctrl+; updates an existing notes date under the caret",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "46cb10d",
+    "date": "2026-08-31",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "e76d341",
+    "date": "2026-08-30",
+    "subject": "feat: per-project URL prefix and External Fixing ticket URLs",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "29f08c3",
+    "date": "2026-08-29",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "deea317",
+    "date": "2026-08-28",
+    "subject": "chore: remove wallpaper themes 31, 35-37, 39, 41, 62, 64, 65, 67, 111, 112, 114, and 115",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "8cbb723",
+    "date": "2026-08-28",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "ba35d84",
+    "date": "2026-08-28",
+    "subject": "feat: intercept Ctrl-S and add 20 Switzerland wallpaper themes",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "409ba34",
+    "date": "2026-08-28",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "8529a87",
+    "date": "2026-08-28",
+    "subject": "chore: remove wallpaper theme 97",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "9eab26d",
+    "date": "2026-08-28",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "f05b73b",
+    "date": "2026-08-27",
+    "subject": "feat: add 10 sakura wallpaper themes",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "b947f6b",
+    "date": "2026-08-28",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "990fa5b",
+    "date": "2026-08-27",
+    "subject": "chore: remove wallpaper theme 96",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "e2fca5c",
+    "date": "2026-08-27",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "ee79aae",
+    "date": "2026-08-27",
+    "subject": "feat: add 10 ancient samurai wallpaper themes",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "2a46ea3",
+    "date": "2026-08-27",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "6d2d1ed",
+    "date": "2026-08-27",
+    "subject": "chore: remove wallpaper themes 77, 80, 87, and 88",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "d441898",
+    "date": "2026-08-27",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "04f2509",
+    "date": "2026-08-27",
+    "subject": "feat: add 20 Japanese sakura wallpaper themes",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "0bd846f",
+    "date": "2026-08-27",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "933cfab",
+    "date": "2026-08-27",
+    "subject": "chore: remove wallpaper themes 51, 56, 63, and 64",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "5e02fa5",
+    "date": "2026-08-27",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "a1e8359",
+    "date": "2026-08-27",
+    "subject": "feat: add 20 sci-fi alien-planet wallpaper themes",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "8ff7462",
+    "date": "2026-08-27",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "9fbdaa7",
+    "date": "2026-08-27",
+    "subject": "feat: default new tickets to 88 and raise focus zoom to 100%",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "47ac955",
+    "date": "2026-08-26",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "d631389",
+    "date": "2026-08-26",
+    "subject": "fix: keep zoom unchanged when focusing a panel",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "1056963",
+    "date": "2026-08-26",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "f5ceb89",
+    "date": "2026-08-26",
+    "subject": "feat: add 15 Japan-inspired wallpaper themes",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "384eea4",
+    "date": "2026-08-26",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "048b1a1",
+    "date": "2026-08-26",
+    "subject": "feat: add 15 cinematic wallpaper themes",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "20ff2fe",
+    "date": "2026-08-25",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "c1befbf",
+    "date": "2026-08-25",
+    "subject": "feat: All Items open-dot and cleaner assigned filters",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "505a970",
+    "date": "2026-08-25",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "f408db1",
+    "date": "2026-08-25",
+    "subject": "feat: waiting name select, zoom controls, and All Items double-click",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "6710518",
+    "date": "2026-08-24",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "68e4c34",
+    "date": "2026-08-24",
+    "subject": "feat: Ctrl+drag pans the canvas even over panels",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "8f7f8fe",
+    "date": "2026-08-24",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "62b38ed",
+    "date": "2026-08-24",
+    "subject": "feat: filter row, panel drag from labels, and 125% focus zoom",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "bfd5301",
+    "date": "2026-08-24",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "5f4e779",
+    "date": "2026-08-24",
+    "subject": "merge origin/main, keep template editor UI bundle",
+    "kind": "merge",
+    "rebuild": false
+  },
+  {
+    "hash": "3615fb0",
+    "date": "2026-08-23",
+    "subject": "fix: title-editor fields match ticket panel names and visibility",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "f635fd7",
+    "date": "2026-08-23",
+    "subject": "feat: note hidden-until conditions on template line headers",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "c40397c",
+    "date": "2026-08-23",
+    "subject": "feat: lighter line headers and collapsible template fields",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "54d143f",
+    "date": "2026-08-23",
+    "subject": "feat: group template fields by line in the editor",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "02704bf",
+    "date": "2026-08-23",
+    "subject": "feat: lock field width so siblings do not overwrite it",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "f88e379",
+    "date": "2026-08-23",
+    "subject": "feat: template field width percentages that rebalance on a line",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "050affe",
+    "date": "2026-08-23",
+    "subject": "feat: template line/slot placement and live panel preview",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "18cc962",
+    "date": "2026-08-23",
+    "subject": "fix: allow unchanged template Save with letter field orders",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "1bfb47a",
+    "date": "2026-08-23",
+    "subject": "feat: project template editor and Save as Template",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "ad1590b",
+    "date": "2026-08-23",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "b73d012",
+    "date": "2026-08-23",
+    "subject": "feat: waiting as a checkbox, Focus, and All Items hiding",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "6051913",
+    "date": "2026-08-20",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "2fdd2e9",
+    "date": "2026-08-20",
+    "subject": "feat: space and Japan themes, ticket delete, open project folder",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "f201a0f",
+    "date": "2026-08-19",
+    "subject": "fix: hourly files are full snapshots; skip only identical dumps",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "7c6e4d3",
+    "date": "2026-08-19",
+    "subject": "feat: hourly readable txt/md snapshots per project",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "9636d6f",
+    "date": "2026-08-18",
+    "subject": "feat: in-app board remove, drag-reorder tabs, persist ticket prefix",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "3dc8ecb",
+    "date": "2026-08-18",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "ad5caf5",
+    "date": "2026-08-17",
+    "subject": "fix: theme arrows, 66% default transparency, clearer project popup",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "a67d3f4",
+    "date": "2026-08-17",
+    "subject": "feat: themes dialog under toolbar button",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "fb6b758",
+    "date": "2026-08-18",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "233b3e3",
+    "date": "2026-08-17",
+    "subject": "feat: project popup, OneDrive data dir, notes date stamp",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "a4eb22a",
+    "date": "2026-08-16",
+    "subject": "feat: ten more Imagine themes and theme picker polish",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "0981248",
+    "date": "2026-08-17",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "fa67a88",
+    "date": "2026-08-16",
+    "subject": "feat: UI themes with Imagine wallpapers",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "6494453",
+    "date": "2026-08-17",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "6bf3017",
+    "date": "2026-08-16",
+    "subject": "style: larger compact-mode panel text",
+    "kind": "style",
+    "rebuild": false
+  },
+  {
+    "hash": "d8ab9da",
+    "date": "2026-08-17",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "a27ca13",
+    "date": "2026-08-16",
+    "subject": "fix: keep ticket title editor open while typing a description",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "926d863",
+    "date": "2026-08-16",
+    "subject": "feat: panel sort, integer urgency, waiting since, list sort",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "0577c18",
+    "date": "2026-08-17",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "0250268",
+    "date": "2026-08-16",
+    "subject": "feat: larger Notes text and Ctrl+Q strikethrough",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "89ae787",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "f220399",
+    "date": "2026-08-16",
+    "subject": "feat: ticket title bar plus 20px panel titles and 33% compact",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "5c7ce59",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "7717137",
+    "date": "2026-08-16",
+    "subject": "style: 20px panel titles and ticket header typography",
+    "kind": "style",
+    "rebuild": false
+  },
+  {
+    "hash": "945ee88",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "b982e0f",
+    "date": "2026-08-16",
+    "subject": "feat: panel titleSlot so ticket header can replace body fields",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "74fdfbe",
+    "date": "2026-08-16",
+    "subject": "feat: ticket title bar plus 20px panel titles and 33% compact",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "687da14",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "ffd4ed6",
+    "date": "2026-08-16",
+    "subject": "feat: resize panels from any edge or corner",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "28616c9",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "9b4fdcf",
+    "date": "2026-08-16",
+    "subject": "feat: default compact-mode fallback is 50% zoom",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "de6a337",
+    "date": "2026-08-16",
+    "subject": "feat: compact mode at 50% zoom instead of 55%",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "771a721",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "7b1cf89",
+    "date": "2026-08-16",
+    "subject": "feat: compact zoom-out tiles for All Items, Notes, and Deliverables",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "3647aeb",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "37c72c9",
+    "date": "2026-08-16",
+    "subject": "feat: fill notes, See All, deep zoom-out, compact drag",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "f67f524",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "8c5fde4",
+    "date": "2026-08-16",
+    "subject": "feat: unlimited workspace pan and pointer-centered zoom",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "9e8bc4c",
+    "date": "2026-08-16",
+    "subject": "feat: add Windows install.cmd and start.cmd launchers",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "87bc23b",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "3bd7ac1",
+    "date": "2026-08-15",
+    "subject": "ci: also commit assembled App.svelte after the UI build",
+    "kind": "ci",
+    "rebuild": false
+  },
+  {
+    "hash": "1234a6f",
+    "date": "2026-08-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "8373693",
+    "date": "2026-08-15",
+    "subject": "fix: add App.svelte script start so GitHub Actions can assemble the UI",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "9263b49",
+    "date": "2026-08-15",
+    "subject": "fix: add App.svelte script middle so GitHub Actions can assemble the UI",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "614f953",
+    "date": "2026-08-15",
+    "subject": "fix: add App.svelte markup part so GitHub Actions can assemble the UI",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "0a92a1f",
+    "date": "2026-08-15",
+    "subject": "ci: assemble App.svelte from parts before building the Windows UI bundle",
+    "kind": "ci",
+    "rebuild": false
+  },
+  {
+    "hash": "ec2e524",
+    "date": "2026-08-15",
+    "subject": "ci: build frontend/dist on GitHub so Windows clones get the UI bundle",
+    "kind": "ci",
+    "rebuild": false
+  },
+  {
+    "hash": "481562b",
+    "date": "2026-08-15",
+    "subject": "fix: lazy-load TipTap so a missing editor bundle cannot blank the UI",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "7605c25",
+    "date": "2026-08-15",
+    "subject": "fix: load UI without TipTap so Windows clones are not blank",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "dad76e6",
+    "date": "2026-08-15",
+    "subject": "fix: point production UI at smaller JS chunks Windows can download",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "93287a5",
+    "date": "2026-08-15",
+    "subject": "fix: point Windows UI at split JS chunks (index.html + vite + vendor)",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "c789c13",
+    "date": "2026-08-15",
+    "subject": "fix: add frontend app.css",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "beb1b87",
+    "date": "2026-08-15",
+    "subject": "fix: add RichText editor and app.css",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "1490ad2",
+    "date": "2026-08-15",
+    "subject": "fix: add frontend Svelte components and styles for Windows UI",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "07a5f51",
+    "date": "2026-08-15",
+    "subject": "docs: add macOS run guide",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "a467129",
+    "date": "2026-08-15",
+    "subject": "fix: install the complete lit package so Windows uv run lit serve works",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "cc5cb9e",
+    "date": "2026-08-13",
+    "subject": "fix: add frontend dist CSS for clone-and-run UI",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "bf9996a",
+    "date": "2026-08-13",
+    "subject": "fix: add missing validation and items_db modules for Windows serve",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "26ab1bb",
+    "date": "2026-08-13",
+    "subject": "docs: Windows 11 run guide with lit.cli troubleshooting",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "83d98cd",
+    "date": "2026-08-13",
+    "subject": "fix: add lit/cli.py so Windows uv run lit serve works",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "2d627f3",
+    "date": "2026-08-10",
+    "subject": "chore: sync lit core and storage",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "0144f29",
+    "date": "2026-08-10",
+    "subject": "chore: sync frontend source (1/2)",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "15b8928",
+    "date": "2026-08-10",
+    "subject": "chore: sync lit core and storage",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "bdfe9ea",
+    "date": "2026-08-10",
+    "subject": "chore: sync lit core and storage",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "a48ffb8",
+    "date": "2026-08-10",
+    "subject": "chore: sync templates, packaging, tests, lockfile",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "8d4104f",
+    "date": "2026-08-10",
+    "subject": "chore: sync templates, packaging, tests, lockfile",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "df35c8a",
+    "date": "2026-08-10",
+    "subject": "chore: sync lit core and storage",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "30015f0",
+    "date": "2026-08-10",
+    "subject": "chore: sync frontend config and lit API",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "e23d83b",
+    "date": "2026-08-10",
+    "subject": "chore: sync frontend source (1/2)",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "963a7b3",
+    "date": "2026-08-10",
+    "subject": "chore: sync frontend config and lit API",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "a6f0233",
+    "date": "2026-08-10",
+    "subject": "chore: sync frontend source (1/2)",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "29e9ce8",
+    "date": "2026-08-10",
+    "subject": "chore: sync frontend source (1/2)",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "f1ea059",
+    "date": "2026-08-10",
+    "subject": "chore: sync frontend production dist",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "15c13c2",
+    "date": "2026-08-10",
+    "subject": "chore: sync docs, README, config, package-lock",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "434152e",
+    "date": "2026-08-10",
+    "subject": "chore: sync docs, README, config, package-lock",
+    "kind": "chore",
+    "rebuild": false
+  },
+  {
+    "hash": "3a4c072",
+    "date": "2026-08-10",
+    "subject": "docs: add macOS and Windows 11 run guides",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "c5def8b",
+    "date": "2026-08-09",
+    "subject": "feat: add default workspace template and API tests",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "f4d8207",
+    "date": "2026-08-09",
+    "subject": "feat: add lit package core API modules (1/5)",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "cdadc3d",
+    "date": "2026-08-09",
+    "subject": "feat: add frontend index and package.json",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "5d36fdc",
+    "date": "2026-08-09",
+    "subject": "Initial commit: Local Issue Tracker (scaffold + README)",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "73b6bc3",
+    "date": "2026-08-09",
+    "subject": "Initial commit",
+    "kind": "other",
+    "rebuild": false
+  }
+]
+</script>
+<!-- COMMITS_JSON_END -->
+
+    <script>
+      const KIND_LABEL = {
+        feat: "Feature",
+        ui: "UI",
+        fix: "Fix",
+        docs: "Docs",
+        chore: "Chore",
+        ci: "CI",
+        style: "Style",
+        merge: "Merge",
+        other: "Other",
+      };
+      const GITHUB = "https://github.com/primalBeast/local-issue-tracker/commit/";
+      const commits = JSON.parse(document.getElementById("commits-json").textContent);
+      const log = document.getElementById("log");
+      const q = document.getElementById("q");
+      const rebuildsBtn = document.getElementById("rebuilds");
+      let kind = "all";
+      let showRebuilds = false;
+
+      document.getElementById("stat-commits").textContent = String(commits.length);
+      document.getElementById("stat-features").textContent = String(
+        commits.filter((c) => c.kind === "feat" || c.kind === "ui").length
+      );
+
+      document.getElementById("filters").addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-kind]");
+        if (!btn) return;
+        kind = btn.dataset.kind;
+        for (const el of document.getElementById("filters").querySelectorAll(".chip")) {
+          el.classList.toggle("active", el === btn);
+        }
+        render();
+      });
+      rebuildsBtn.addEventListener("click", () => {
+        showRebuilds = !showRebuilds;
+        rebuildsBtn.classList.toggle("active", showRebuilds);
+        render();
+      });
+      q.addEventListener("input", render);
+
+      function visible(c) {
+        if (c.rebuild && !showRebuilds) return false;
+        if (kind !== "all" && c.kind !== kind) return false;
+        const needle = q.value.trim().toLowerCase();
+        if (!needle) return true;
+        return (
+          c.subject.toLowerCase().includes(needle) ||
+          c.hash.toLowerCase().includes(needle) ||
+          c.date.includes(needle)
+        );
+      }
+
+      function formatDay(iso) {
+        const [y, m, d] = iso.split("-").map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+          weekday: "short",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      }
+
+      function render() {
+        const shown = commits.filter(visible);
+        if (!shown.length) {
+          log.innerHTML = '<p class="empty">No commits match this filter.</p>';
+          return;
+        }
+        const days = [];
+        for (const c of shown) {
+          if (!days.length || days[days.length - 1].date !== c.date) {
+            days.push({ date: c.date, items: [c] });
+          } else {
+            days[days.length - 1].items.push(c);
+          }
+        }
+        log.innerHTML = days
+          .map((day) => {
+            const rows = day.items
+              .map((c) => {
+                const label = KIND_LABEL[c.kind] || c.kind;
+                const text = c.subject.replace(/^[a-z]+:\s*/i, "");
+                return `<article class="entry">
+                  <span class="kind ${c.kind}">${label}</span>
+                  <p class="subject">${escapeHtml(text)}</p>
+                  <a class="hash" href="${GITHUB}${c.hash}">${c.hash}</a>
+                </article>`;
+              })
+              .join("");
+            return `<section class="day">
+              <div class="day-head"><h3>${formatDay(day.date)}</h3><span>${day.items.length}</span></div>
+              ${rows}
+            </section>`;
+          })
+          .join("");
+      }
+
+      function escapeHtml(s) {
+        return s
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      render();
+    </script>
+  </body>
+</html>

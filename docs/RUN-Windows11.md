@@ -25,7 +25,7 @@ The app package lives at the repo root (`lit\\cli.py`). Reinstall from a fresh p
 
 ```powershell
 git pull
-uv sync --reinstall
+uv sync --native-tls --reinstall
 uv run lit serve --open
 ```
 
@@ -109,12 +109,14 @@ git pull
 
 ## 4. Install the app (Python deps)
 
-Easiest: double-click **`install.cmd`** in the repo folder. It installs **uv** if needed, runs `uv sync`, and checks that the app and UI bundle are present.
+Easiest: double-click **`install.cmd`** in the repo folder. It installs **uv** if needed, runs `uv sync --native-tls`, and checks that the app and UI bundle are present.
+
+`--native-tls` uses Windows certificate stores so install works on work PCs that intercept HTTPS.
 
 Or from the project root in PowerShell:
 
 ```powershell
-uv sync
+uv sync --native-tls
 ```
 
 This creates a `.venv` folder and installs FastAPI, uvicorn, and the rest of the backend.
@@ -209,7 +211,7 @@ Only needed if you change files under `frontend\src\`.
 
 | Problem | What to try |
 |---------|-------------|
-| `No module named 'lit.cli'` | `git pull` then `uv sync --reinstall` |
+| `No module named 'lit.cli'` | `git pull` then `uv sync --native-tls --reinstall` |
 | `uv` not recognized | Double-click `install.cmd`, or close and reopen Terminal; confirm with `uv --version` |
 | Port already in use | `netstat -ano \| findstr :8765` then `taskkill /PID <pid> /F` |
 | Blank or old UI | Hard refresh in Edge: **Ctrl+Shift+R** |

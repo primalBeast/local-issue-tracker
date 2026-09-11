@@ -48,14 +48,14 @@ if not exist "lit\cli.py" (
 echo [OK]   repo files present
 echo.
 
-echo [..] Installing Python 3.12+ and app dependencies (uv sync^)
-uv sync
+echo [..] Installing Python 3.12+ and app dependencies (uv sync --native-tls^)
+uv sync --native-tls
 if errorlevel 1 (
-  echo [FAIL] uv sync failed.
+  echo [FAIL] uv sync --native-tls failed.
   set "FAILED=1"
   goto :summary
 )
-echo [OK]   uv sync finished
+echo [OK]   uv sync --native-tls finished
 echo.
 
 echo [..] Checking Python version
@@ -71,7 +71,7 @@ echo.
 echo [..] Checking lit import
 uv run python -c "from lit.cli import main; print('import lit.cli: OK')"
 if errorlevel 1 (
-  echo [FAIL] Could not import lit.cli. Try: uv sync --reinstall
+  echo [FAIL] Could not import lit.cli. Try: uv sync --native-tls --reinstall
   set "FAILED=1"
   goto :summary
 )
