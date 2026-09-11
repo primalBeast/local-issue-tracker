@@ -53,6 +53,17 @@
     };
   }
 
+  function removeExternalTicket(itemId: string, fieldId: string) {
+    const current = detailCache[itemId] || items.find((i) => i.id === itemId);
+    const fields = current?.fields ?? {};
+    const patch = removeExternalTicketSlot(fields, fieldId);
+    extraTicketSlots = {
+      ...extraTicketSlots,
+      [itemId]: Math.max(1, filledTicketSlots({ ...fields, ...patch })),
+    };
+    scheduleItemPatch(itemId, patch);
+  }
+
   function patchItemFields(itemId: string, id: string, value: unknown) {
     const patch: Record<string, unknown> = { [id]: value };
     const current = detailCache[itemId] || items.find((i) => i.id === itemId);

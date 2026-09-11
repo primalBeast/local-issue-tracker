@@ -30,3 +30,18 @@ export function slotsToShow(
 ): number {
   return Math.min(EXTERNAL_TICKET_IDS.length, Math.max(revealed ?? 1, filledTicketSlots(fields)));
 }
+
+/** Drop one URL slot and slide the later ones left so there are no holes. */
+export function removeExternalTicketSlot(
+  fields: Record<string, unknown>,
+  id: string
+): Record<string, string> {
+  const kept = EXTERNAL_TICKET_IDS.filter((k) => k !== id)
+    .map((k) => String(fields[k] ?? '').trim())
+    .filter(Boolean);
+  const patch: Record<string, string> = {};
+  for (let i = 0; i < EXTERNAL_TICKET_IDS.length; i++) {
+    patch[EXTERNAL_TICKET_IDS[i]] = kept[i] ?? '';
+  }
+  return patch;
+}

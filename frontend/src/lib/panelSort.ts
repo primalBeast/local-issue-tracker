@@ -9,6 +9,7 @@ export const PANEL_SORT_OPTIONS = [
   { id: 'priority', label: 'Priority' },
   { id: 'urgency', label: 'Urgency' },
   { id: 'state', label: 'State' },
+  { id: '_updated', label: 'Updated date' },
 ] as const;
 
 export type PanelSortField = (typeof PANEL_SORT_OPTIONS)[number]['id'];
@@ -25,12 +26,26 @@ function fieldValue(item: Item, field: string, defs: FieldDef[]): unknown {
   return def?.default ?? raw;
 }
 
+/** Newest `updated_at` first; missing timestamps sort last. */
+export function compareUpdatedNewestFirst(a: Item | null, b: Item | null): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  const av = String(a.updated_at ?? '');
+  const bv = String(b.updated_at ?? '');
+  if (!av && !bv) return 0;
+  if (!av) return 1;
+  if (!bv) return -1;
+  return bv.localeCompare(av);
+}
+
 export function compareItemFields(
   a: Item | null,
   b: Item | null,
   field: string,
   defs: FieldDef[]
 ): number {
+  if (field === '_updated') return compareUpdatedNewestFirst(a, b);
   if (!a && !b) return 0;
   if (!a) return 1;
   if (!b) return -1;

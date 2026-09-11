@@ -45,7 +45,7 @@
   } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import { ticketHref } from './lib/ticketUrl';
-  import { isExternalTicketId, slotsToShow } from './lib/urlTicket';
+  import { filledTicketSlots, isExternalTicketId, removeExternalTicketSlot, slotsToShow } from './lib/urlTicket';
   import { isAssignedField, nameAlreadyListed } from './lib/assigned';
   import { lastNoteLines, notesFieldText } from './lib/notePreview';
   import {
@@ -1578,6 +1578,17 @@
     };
   }
 
+  function removeExternalTicket(itemId: string, fieldId: string) {
+    const current = detailCache[itemId] || items.find((i) => i.id === itemId);
+    const fields = current?.fields ?? {};
+    const patch = removeExternalTicketSlot(fields, fieldId);
+    extraTicketSlots = {
+      ...extraTicketSlots,
+      [itemId]: Math.max(1, filledTicketSlots({ ...fields, ...patch })),
+    };
+    scheduleItemPatch(itemId, patch);
+  }
+
   function patchItemFields(itemId: string, id: string, value: unknown) {
     const patch: Record<string, unknown> = { [id]: value };
     const current = detailCache[itemId] || items.find((i) => i.id === itemId);
@@ -2340,7 +2351,7 @@
             const v = e.currentTarget.value;
             if (isPanelSortField(v)) sortBy = v;
           }}
-          title="Sort open item panels by"
+          title="Sort open item panels by. Updated date puts the most recently edited tickets first."
         >
           {#each PANEL_SORT_OPTIONS as opt}
             <option value={opt.id}>{opt.label}</option>
@@ -2456,7 +2467,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-09f</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-11d</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2963,6 +2974,15 @@
                                 isExternalTicketId(def.id)}
                               onAddSlot={() =>
                                 revealExternalTicketSlot(item.id, detailCache[item.id].fields)}
+                              onRemoveSlot={isExternalTicketId(def.id)
+                                ? () => removeExternalTicket(item.id, def.id)
+                                : undefined}
+                              masterHref={isExternalTicketId(def.id)
+                                ? ticketHref(
+                                    project.url_prefix,
+                                    String(detailCache[item.id].fields[keyField()] ?? '')
+                                  )
+                                : null}
                               onAddOption={isAssignedField(def.id)
                                 ? (el) => void openAssignedNameAdd(item.id, def.id, el)
                                 : undefined}

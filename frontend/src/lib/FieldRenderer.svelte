@@ -11,10 +11,12 @@
     fill?: boolean;
     addSlot?: boolean;
     onAddSlot?: () => void;
+    onRemoveSlot?: () => void;
     onAddOption?: (anchor: HTMLElement) => void;
+    masterHref?: string | null;
   }
 
-  let { def, fields, onchange, fill = false, addSlot = false, onAddSlot, onAddOption }: Props = $props();
+  let { def, fields, onchange, fill = false, addSlot = false, onAddSlot, onRemoveSlot, onAddOption, masterHref = null }: Props = $props();
 
   let visible = $derived(isVisible(def, fields));
   let value = $derived(fields[def.id]);
@@ -67,6 +69,8 @@
       showAdd={addSlot}
       onchange={(v) => onchange(def.id, v)}
       onAdd={onAddSlot}
+      onRemove={onRemoveSlot}
+      masterHref={masterHref}
     />
   {:else}
   <div class="field-group" class:field-group-fill={fill}>

@@ -45,7 +45,7 @@
   } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
   import { ticketHref } from './lib/ticketUrl';
-  import { isExternalTicketId, slotsToShow } from './lib/urlTicket';
+  import { filledTicketSlots, isExternalTicketId, removeExternalTicketSlot, slotsToShow } from './lib/urlTicket';
   import { isAssignedField, nameAlreadyListed } from './lib/assigned';
   import { lastNoteLines, notesFieldText } from './lib/notePreview';
   import {

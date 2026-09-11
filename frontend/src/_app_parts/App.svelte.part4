@@ -29,7 +29,7 @@
             const v = e.currentTarget.value;
             if (isPanelSortField(v)) sortBy = v;
           }}
-          title="Sort open item panels by"
+          title="Sort open item panels by. Updated date puts the most recently edited tickets first."
         >
           {#each PANEL_SORT_OPTIONS as opt}
             <option value={opt.id}>{opt.label}</option>
@@ -145,7 +145,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-09f</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-11d</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -652,6 +652,15 @@
                                 isExternalTicketId(def.id)}
                               onAddSlot={() =>
                                 revealExternalTicketSlot(item.id, detailCache[item.id].fields)}
+                              onRemoveSlot={isExternalTicketId(def.id)
+                                ? () => removeExternalTicket(item.id, def.id)
+                                : undefined}
+                              masterHref={isExternalTicketId(def.id)
+                                ? ticketHref(
+                                    project.url_prefix,
+                                    String(detailCache[item.id].fields[keyField()] ?? '')
+                                  )
+                                : null}
                               onAddOption={isAssignedField(def.id)
                                 ? (el) => void openAssignedNameAdd(item.id, def.id, el)
                                 : undefined}

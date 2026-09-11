@@ -3,13 +3,13 @@ import type { FieldDef, Item, Panel } from './api';
 import { sortItems } from './filters';
 import { compareItemFields, layoutColumnMajor, sortItemPanels } from './panelSort';
 
-function item(id: string, fields: Record<string, unknown>): Item {
+function item(id: string, fields: Record<string, unknown>, updated_at = ''): Item {
   return {
     id,
     sort_key: 0,
     fields,
     created_at: '',
-    updated_at: '',
+    updated_at,
     version: 1,
     waiting: {
       is_waiting: false,
@@ -59,6 +59,22 @@ describe('compareItemFields', () => {
 });
 
 describe('sortItemPanels', () => {
+  it('sorts by updated date, most recent first', () => {
+    const items = {
+      old: item('old', { ticket_key: '1' }, '2026-01-01T00:00:00Z'),
+      mid: item('mid', { ticket_key: '2' }, '2026-06-15T12:00:00Z'),
+      new: item('new', { ticket_key: '3' }, '2026-09-10T18:00:00Z'),
+      none: item('none', { ticket_key: '4' }, ''),
+    };
+    const ordered = sortItemPanels(
+      [panel('old'), panel('none'), panel('new'), panel('notes', 'notes'), panel('mid')],
+      (p) => (p.item_id ? items[p.item_id] : null),
+      '_updated',
+      defs
+    );
+    expect(ordered.map((p) => p.id)).toEqual(['notes', 'new', 'mid', 'old', 'none']);
+  });
+
   it('keeps special panels first, then sorted items', () => {
     const items = {
       i2: item('i2', { priority: 8 }),

@@ -258,12 +258,12 @@
         <p class="lede">
           A fully local personal issue tracker: floating workspaces, configurable fields,
           waiting metrics, and a dark-mode-first UI. History below is from the GitHub
-          <code>main</code> branch, 9 Aug 2026 through 10 Sep 2026.
+          <code>main</code> branch, 9 Aug 2026 through 11 Sep 2026.
         </p>
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 10 Sep 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 11 Sep 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,14 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>11 Sep 2026 — External tickets and panel sort</h3>
+          <ul>
+            <li>Toolbar <b>Sort</b> can line up open ticket panels by <b>Updated date</b>, newest first.</li>
+            <li>An External ticket URL collapses back to a label on click-outside or <b>Esc</b>.</li>
+            <li>Hover a saved external ticket number for: open in a new tab, split view (master left, external right), and a red × to remove it.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>10 Sep 2026 — Windows install on work PCs</h3>
           <ul>
             <li><code>install.cmd</code> now runs <code>uv sync --native-tls</code> so HTTPS interception on a work laptop no longer fails the install.</li>
@@ -365,7 +373,14 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "f9d2bcd",
+    "hash": "19f9100",
+    "date": "2026-09-11",
+    "subject": "ui: updated-date panel sort and external ticket hover actions",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "c9d530a",
     "date": "2026-09-10",
     "subject": "fix: native TLS on Windows install; add HTML release notes",
     "kind": "fix",

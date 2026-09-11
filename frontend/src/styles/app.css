@@ -200,11 +200,17 @@ label.field-label {
   height: 32px;
   display: flex;
   align-items: center;
+  position: relative;
   padding: 0 8px;
   border: 1px solid transparent;
   border-radius: 6px;
   color: var(--text);
   font-size: 13px;
+  cursor: pointer;
+}
+.url-ticket-tail-text {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -213,6 +219,62 @@ label.field-label {
 .url-ticket-tail:hover {
   border-color: var(--border);
   background: var(--bg-hover);
+}
+.url-ticket-actions {
+  display: none;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+.url-ticket-tail:hover .url-ticket-actions,
+.url-ticket-actions:focus-within {
+  display: inline-flex;
+}
+.url-ticket-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: none;
+}
+.url-ticket-tail .url-ticket-icon:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-hover);
+  filter: none;
+}
+.url-ticket-remove {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1.5px solid #7a1414;
+  border-radius: 50%;
+  background: #7a1414;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: none;
+}
+.url-ticket-tail .url-ticket-remove:hover {
+  background: #9b1c1c;
+  border-color: #9b1c1c;
+  color: #fff;
+  filter: none;
 }
 .url-ticket-add {
   flex: 0 0 auto;

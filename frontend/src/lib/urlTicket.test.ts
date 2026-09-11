@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filledTicketSlots, slotsToShow, urlTail } from './urlTicket';
+import { filledTicketSlots, removeExternalTicketSlot, slotsToShow, urlTail } from './urlTicket';
 
 describe('urlTail', () => {
   it('takes the segment after the last slash or backslash', () => {
@@ -17,5 +17,32 @@ describe('slotsToShow', () => {
     expect(slotsToShow(undefined, { external_ticket_3: 'https://x/a' })).toBe(3);
     expect(slotsToShow(2, {})).toBe(2);
     expect(slotsToShow(1, { external_ticket_2: 'https://x/b' })).toBe(2);
+  });
+});
+
+describe('removeExternalTicketSlot', () => {
+  it('compacts later URLs after removing a middle slot', () => {
+    expect(
+      removeExternalTicketSlot(
+        {
+          external_ticket: 'https://x/a',
+          external_ticket_2: 'https://x/b',
+          external_ticket_3: 'https://x/c',
+        },
+        'external_ticket_2'
+      )
+    ).toEqual({
+      external_ticket: 'https://x/a',
+      external_ticket_2: 'https://x/c',
+      external_ticket_3: '',
+    });
+  });
+
+  it('clears the only remaining URL', () => {
+    expect(removeExternalTicketSlot({ external_ticket: 'https://x/a' }, 'external_ticket')).toEqual({
+      external_ticket: '',
+      external_ticket_2: '',
+      external_ticket_3: '',
+    });
   });
 });
