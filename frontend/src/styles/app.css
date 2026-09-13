@@ -195,7 +195,9 @@ label.field-label {
   opacity: 1;
 }
 .url-ticket-tail {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: min(100%, max(33.333%, min-content));
   min-width: 0;
   height: 32px;
   display: flex;
@@ -209,7 +211,7 @@ label.field-label {
   cursor: pointer;
 }
 .url-ticket-tail-text {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -221,7 +223,8 @@ label.field-label {
   background: var(--bg-hover);
 }
 .url-ticket-actions {
-  display: none;
+  display: inline-flex;
+  visibility: hidden;
   flex: 0 0 auto;
   align-items: center;
   gap: 4px;
@@ -229,7 +232,7 @@ label.field-label {
 }
 .url-ticket-tail:hover .url-ticket-actions,
 .url-ticket-actions:focus-within {
-  display: inline-flex;
+  visibility: visible;
 }
 .url-ticket-icon {
   flex: 0 0 auto;
@@ -710,6 +713,10 @@ body.lit-tab-dragging .ws-tab { cursor: grabbing !important; }
   background: color-mix(in srgb, var(--bg-input) 70%, transparent);
 }
 
+.project-release-notes {
+  width: 100%;
+}
+
 .template-editor {
   position: fixed;
   z-index: 2010;
@@ -1073,6 +1080,63 @@ body.lit-canvas-panning * {
   inset: 0;
   transform-origin: 0 0;
   will-change: transform;
+}
+
+.canvas-wrap.canvas-cam-ease .canvas {
+  transition: transform 180ms ease-out;
+}
+.canvas-wrap.canvas-cam-ease .panel.panel-dimmed,
+.canvas-wrap.canvas-cam-ease .panel.panel-focus-target {
+  transition: transform 180ms ease-out, filter 180ms ease-out;
+}
+.canvas-wrap.is-focus-stage .panel.panel-dimmed {
+  transform: scale(var(--focus-dim-scale, 0.727));
+  transform-origin: center center;
+  filter: blur(var(--focus-dim-blur, 4px));
+}
+.canvas-wrap.is-focus-stage .panel.panel-focus-target {
+  z-index: 9999;
+  overflow: visible;
+}
+.canvas-wrap.is-focus-stage .panel.panel-focus-target .resize-n {
+  top: calc(-20px / var(--zoom, 1));
+  height: calc(var(--grip) + 20px / var(--zoom, 1));
+}
+.canvas-wrap.is-focus-stage .panel.panel-focus-target .resize-s {
+  bottom: calc(-20px / var(--zoom, 1));
+  height: calc(var(--grip) + 20px / var(--zoom, 1));
+}
+.canvas-wrap.is-focus-stage .panel.panel-focus-target .resize-e {
+  right: calc(-20px / var(--zoom, 1));
+  width: calc(var(--grip) + 20px / var(--zoom, 1));
+}
+.canvas-wrap.is-focus-stage .panel.panel-focus-target .resize-w {
+  left: calc(-20px / var(--zoom, 1));
+  width: calc(var(--grip) + 20px / var(--zoom, 1));
+}
+.canvas-wrap.is-focus-stage .panel.panel-focus-target .resize-nw {
+  top: calc(-20px / var(--zoom, 1));
+  left: calc(-20px / var(--zoom, 1));
+  width: calc(var(--corner) + 20px / var(--zoom, 1));
+  height: calc(var(--corner) + 20px / var(--zoom, 1));
+}
+.canvas-wrap.is-focus-stage .panel.panel-focus-target .resize-ne {
+  top: calc(-20px / var(--zoom, 1));
+  right: calc(-20px / var(--zoom, 1));
+  width: calc(var(--corner) + 20px / var(--zoom, 1));
+  height: calc(var(--corner) + 20px / var(--zoom, 1));
+}
+.canvas-wrap.is-focus-stage .panel.panel-focus-target .resize-sw {
+  bottom: calc(-20px / var(--zoom, 1));
+  left: calc(-20px / var(--zoom, 1));
+  width: calc(var(--corner) + 20px / var(--zoom, 1));
+  height: calc(var(--corner) + 20px / var(--zoom, 1));
+}
+.canvas-wrap.is-focus-stage .panel.panel-focus-target .resize-se {
+  bottom: calc(-20px / var(--zoom, 1));
+  right: calc(-20px / var(--zoom, 1));
+  width: calc(var(--corner) + 20px / var(--zoom, 1));
+  height: calc(var(--corner) + 20px / var(--zoom, 1));
 }
 
 .panel {

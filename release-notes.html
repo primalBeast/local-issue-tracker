@@ -258,12 +258,12 @@
         <p class="lede">
           A fully local personal issue tracker: floating workspaces, configurable fields,
           waiting metrics, and a dark-mode-first UI. History below is from the GitHub
-          <code>main</code> branch, 9 Aug 2026 through 11 Sep 2026.
+          <code>main</code> branch, 9 Aug 2026 through 13 Sep 2026.
         </p>
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 11 Sep 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 13 Sep 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,16 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>13 Sep 2026 — Staged Focus, URL tickets, Edge split</h3>
+          <ul>
+            <li><b>Focus</b> stages the board: chosen panel 110% (or 100% if you were zoomed out), others 80% and blurred; top stays 10% down unless a tall panel needs up to 1%.</li>
+            <li>Click outside the focused panel (including the toolbar) restores the previous camera. Drag and resize stay in Focus, with a 20px grab ring.</li>
+            <li><b>Sort</b>, <b>See All</b>, and <b>100%</b> skip the Focus-undo animation and jump to their result. 100% keeps the focused panel’s top-left on screen.</li>
+            <li>A ticket number may be a full URL: the header shows the last path segment; launch uses that URL and ignores the project prefix. Slashes are allowed in the field.</li>
+            <li>External-ticket split opens two Edge windows (master left, external right). Project menu has <b>Release notes</b>.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>11 Sep 2026 — External tickets and panel sort</h3>
           <ul>
             <li>Toolbar <b>Sort</b> can line up open ticket panels by <b>Updated date</b>, newest first.</li>
@@ -373,7 +383,21 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "19f9100",
+    "hash": "5355252",
+    "date": "2026-09-13",
+    "subject": "feat: staged Focus, URL ticket numbers, and Edge split view",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "e3b0233",
+    "date": "2026-09-11",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "969428e",
     "date": "2026-09-11",
     "subject": "ui: updated-date panel sort and external ticket hover actions",
     "kind": "ui",

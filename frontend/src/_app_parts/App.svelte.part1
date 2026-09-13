@@ -31,11 +31,23 @@
     fitView,
     focusView,
     panAfterZoom,
+    panToPinWorld,
     panelsWorldBounds,
     screenToWorld,
+    worldToScreen,
     zoomFromPointerScrub,
     zoomFromWheelDelta,
   } from './lib/viewport';
+  import {
+    FOCUS_HIT_PAD_PX,
+    FOCUS_STAGE_ENABLED,
+    FOCUS_TRANSITION_MS,
+    OTHER_PANEL_BLUR,
+    dimScale,
+    focusStageCamera,
+    inPaddedRect,
+    type FocusStage,
+  } from './lib/focusStage';
   import {
     formatWaitingDays,
     isItemWaiting,
@@ -44,7 +56,7 @@
     waitingNameChoices,
   } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
-  import { ticketHref } from './lib/ticketUrl';
+  import { launchableHref, splitTicketUrls, ticketHref, ticketNumberLabel } from './lib/ticketUrl';
   import { filledTicketSlots, isExternalTicketId, removeExternalTicketSlot, slotsToShow } from './lib/urlTicket';
   import { isAssignedField, nameAlreadyListed } from './lib/assigned';
   import { lastNoteLines, notesFieldText } from './lib/notePreview';
@@ -183,8 +195,11 @@
   let otherFilterFields = $derived(
     filterableFields.filter((f) => !ALL_ITEMS_FILTER_ROW_IDS.includes(f.id))
   );
-  let zoom = $derived(workspace?.ui.zoom ?? 1);
-  let pan = $derived(workspace?.ui.viewport_scroll ?? defaultPan());
+  let focusStage = $state<FocusStage | null>(null);
+  let camEase = $state(false);
+  let camEaseTimer: ReturnType<typeof setTimeout> | null = null;
+  let zoom = $derived(focusStage ? focusStage.zoom : (workspace?.ui.zoom ?? 1));
+  let pan = $derived(focusStage ? focusStage.pan : (workspace?.ui.viewport_scroll ?? defaultPan()));
   let compact = $derived(
     !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.33)
   );

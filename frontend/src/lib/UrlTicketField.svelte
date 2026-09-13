@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { launchableHref, openSplitTicketView } from './ticketUrl';
+  import { launchableHref } from './ticketUrl';
   import { urlTail } from './urlTicket';
 
   interface Props {
@@ -13,6 +13,7 @@
     onAdd?: () => void;
     onRemove?: () => void;
     masterHref?: string | null;
+    onSplit?: (externalHref: string) => void;
   }
 
   let {
@@ -25,6 +26,7 @@
     onAdd,
     onRemove,
     masterHref = null,
+    onSplit,
   }: Props = $props();
 
   let editing = $state(!String(value ?? '').trim());
@@ -122,7 +124,7 @@
 
   function onSplitClick(e: MouseEvent) {
     stopTailClick(e);
-    openSplitTicketView(masterHref, value);
+    onSplit?.(value);
   }
 
   function onRemoveClick(e: MouseEvent) {
@@ -170,8 +172,8 @@
           <button
             type="button"
             class="url-ticket-icon"
-            title="Open split view: master ticket left, this ticket right"
-            aria-label="Open split view"
+            title="Open both tickets in Edge: master left, this ticket right"
+            aria-label="Open tickets in two Edge windows"
             onpointerdown={(e) => e.stopPropagation()}
             onclick={onSplitClick}
           >

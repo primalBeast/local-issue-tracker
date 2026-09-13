@@ -13,7 +13,9 @@
     compact?: boolean;
     /** Stretch children so a trailing Notes field can fill leftover height. */
     fillBody?: boolean;
-    onfocus: () => void;
+    /** Staged Focus: this panel is the target or a dimmed neighbour. */
+    stage?: 'focus' | 'dim' | null;
+    onfocus: () => boolean | void;
     /** Double-click title bar: zoom/centre this panel (Focus). */
     onfocusview?: () => void;
     onmove: (patch: Partial<Panel>) => void;
@@ -34,6 +36,7 @@
     accentBg,
     compact = false,
     fillBody = false,
+    stage = null,
     onfocus,
     onfocusview,
     onmove,
@@ -168,13 +171,14 @@
     gesture.moved = false;
     gesture.captureClick = captureClick;
 
+    if (onfocus() === false) return;
+
     if (mode === 'drag') {
       document.body.classList.add('lit-panel-dragging');
     } else {
       document.body.classList.add('lit-panel-resizing');
       document.body.style.cursor = resizeCursor(edge);
     }
-    onfocus();
 
     window.addEventListener('pointermove', onWindowPointerMove, true);
     window.addEventListener('pointerup', onWindowPointerUp, true);
@@ -202,7 +206,7 @@
   function onPanelPointerDown(e: PointerEvent) {
     if (e.ctrlKey) return;
     e.stopPropagation();
-    onfocus();
+    if (onfocus() === false) return;
     if (e.button !== undefined && e.button !== 0) return;
     const t = eventElement(e.target);
     if (!t) return;
@@ -236,6 +240,8 @@
   class="panel"
   class:active
   class:panel-compact={compact}
+  class:panel-focus-target={stage === 'focus'}
+  class:panel-dimmed={stage === 'dim'}
   role="dialog"
   tabindex="-1"
   aria-label={title}

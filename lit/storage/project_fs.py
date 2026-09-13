@@ -333,6 +333,15 @@ def ensure_waiting_as_field(data: dict[str, Any], slug: str | None = None) -> bo
             if f.get("label") == "Ticket Key":
                 f["label"] = "Ticket number"
                 changed = True
+            val = f.get("validation")
+            if isinstance(val, dict):
+                if val.get("pattern") == "^[A-Za-z0-9][A-Za-z0-9._-]*$":
+                    val.pop("pattern", None)
+                    changed = True
+                if int(val.get("max_length") or 0) < 2048:
+                    val["max_length"] = 2048
+                    changed = True
+                f["validation"] = val
         elif fid == "title":
             if f.get("label") == "Title":
                 f["label"] = "Description"

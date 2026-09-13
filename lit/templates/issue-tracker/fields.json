@@ -8,10 +8,9 @@
       "required": true,
       "order": 10,
       "default": "",
-      "placeholder": "PROJ-123",
+      "placeholder": "PROJ-123 or full URL",
       "validation": {
-        "max_length": 64,
-        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        "max_length": 2048
       },
       "show_in_list": true,
       "show_in_compact": true,

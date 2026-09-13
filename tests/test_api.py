@@ -34,6 +34,39 @@ def test_health(client: TestClient):
     assert r.json()["status"] == "ok"
 
 
+def test_open_split_rejects_bad_urls(client: TestClient):
+    r = client.post(
+        "/api/desktop/open-split",
+        json={"left": "javascript:alert(1)", "right": "https://example.com/a"},
+    )
+    assert r.status_code == 400
+
+
+def test_open_split_launches_when_edge_exists(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    called: list[tuple[str, str]] = []
+    monkeypatch.setattr("lit.api.desktop.platform.system", lambda: "Windows")
+    monkeypatch.setattr("lit.api.desktop.find_msedge", lambda: r"C:\msedge.exe")
+    monkeypatch.setattr(
+        "lit.api.desktop.open_edge_split",
+        lambda left, right: called.append((left, right)) or {"positioned": True},
+    )
+    r = client.post(
+        "/api/desktop/open-split",
+        json={"left": "https://jira.example/browse/A-1", "right": "https://jira.example/browse/B-2"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "ok"
+    assert called == [("https://jira.example/browse/A-1", "https://jira.example/browse/B-2")]
+
+
+def test_release_notes_page(client: TestClient):
+    r = client.get("/release-notes.html")
+    assert r.status_code == 200
+    assert "text/html" in r.headers.get("content-type", "")
+    assert b"Release notes" in r.content
+    assert b"Local Issue Tracker" in r.content
+
+
 def test_seeded_project_and_fields(client: TestClient):
     r = client.get("/api/projects")
     assert r.status_code == 200
@@ -88,6 +121,23 @@ def test_external_ticket_url_field(client: TestClient):
     assert patched.status_code == 200, patched.text
     assert patched.json()["fields"]["external_ticket"] == "https://jira.example/browse/SHOP-9"
     assert patched.json()["fields"]["state"].startswith("External Fixing")
+
+
+def test_ticket_key_accepts_full_url(client: TestClient):
+    slug = client.get("/api/projects").json()[0]["slug"]
+    created = client.post(
+        f"/api/projects/{slug}/items",
+        json={
+            "fields": {
+                "ticket_key": "https://jira.example/browse/SHOP-12",
+                "title": "Url key",
+                "priority": 1,
+                "state": "Submitted",
+            }
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["fields"]["ticket_key"] == "https://jira.example/browse/SHOP-12"
 
 
 def test_item_crud_and_lean_list(client: TestClient):

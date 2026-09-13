@@ -152,7 +152,7 @@
   }
 
   function primaryId(item: Item): string {
-    const v = String(item.fields[keyField()] ?? '').trim();
+    const v = ticketNumberLabel(String(item.fields[keyField()] ?? ''));
     if (v) return v;
     return 'Untitled';
   }
@@ -270,6 +270,9 @@
   function listCellDisplay(f: FieldDef, item: Item): string {
     if (f.id === 'waiting_for' && !isItemWaiting(item)) return '';
     if (f.type === 'checkbox') return item.fields[f.id] ? 'Yes' : '';
+    if (f.id === 'ticket_key' || f.id === keyField()) {
+      return ticketNumberLabel(String(item.fields[f.id] ?? '')) || String(item.fields[f.id] ?? '');
+    }
     return String(item.fields[f.id] ?? '');
   }
 
@@ -487,6 +490,7 @@
   }
 
   function sortOpenPanels() {
+    exitFocusStage(true);
     if (!workspace) return;
     const wrap = canvasWrapEl;
     if (!wrap) return;
@@ -505,6 +509,7 @@
   }
 
   function seeAll() {
+    exitFocusStage(true);
     if (!workspace) return;
     const wrap = canvasWrapEl;
     if (!wrap) return;
@@ -662,6 +667,28 @@
       await api.openProjectFolder(project.slug);
     } catch (err) {
       showToast('Could not open folder');
+      console.error(err);
+    }
+  }
+
+  function openReleaseNotes() {
+    window.open('/release-notes.html', '_blank', 'noopener,noreferrer');
+  }
+
+  async function openSplitTickets(masterHref: string | null | undefined, externalHref: string) {
+    const pair = splitTicketUrls(masterHref, externalHref);
+    if (!pair) {
+      if (!launchableHref(externalHref)) {
+        showToast('External ticket needs a full http(s) URL');
+        return;
+      }
+      showToast('Set a project URL prefix to open the master ticket');
+      return;
+    }
+    try {
+      await api.openSplit(pair.left, pair.right);
+    } catch (err) {
+      showToast('Could not open Edge split view');
       console.error(err);
     }
   }

@@ -30,9 +30,15 @@ export function worldToScreen(pan: Point, zoom: number, world: Point): Point {
 /** Keep the world point under `pointer` (viewport-local) fixed while zoom changes. */
 export function panAfterZoom(pan: Point, oldZoom: number, newZoom: number, pointer: Point): Point {
   const world = screenToWorld(pan, oldZoom, pointer);
+  return panToPinWorld(world, pointer, newZoom);
+}
+
+/** Pan so `world` stays at `screen` after zooming to `newZoom`. */
+export function panToPinWorld(world: Point, screen: Point, newZoom: number): Point {
+  const z = newZoom <= 0 ? 1 : newZoom;
   return {
-    x: pointer.x - world.x * newZoom,
-    y: pointer.y - world.y * newZoom,
+    x: screen.x - world.x * z,
+    y: screen.y - world.y * z,
   };
 }
 

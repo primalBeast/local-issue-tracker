@@ -31,11 +31,23 @@
     fitView,
     focusView,
     panAfterZoom,
+    panToPinWorld,
     panelsWorldBounds,
     screenToWorld,
+    worldToScreen,
     zoomFromPointerScrub,
     zoomFromWheelDelta,
   } from './lib/viewport';
+  import {
+    FOCUS_HIT_PAD_PX,
+    FOCUS_STAGE_ENABLED,
+    FOCUS_TRANSITION_MS,
+    OTHER_PANEL_BLUR,
+    dimScale,
+    focusStageCamera,
+    inPaddedRect,
+    type FocusStage,
+  } from './lib/focusStage';
   import {
     formatWaitingDays,
     isItemWaiting,
@@ -44,7 +56,7 @@
     waitingNameChoices,
   } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
-  import { ticketHref } from './lib/ticketUrl';
+  import { launchableHref, splitTicketUrls, ticketHref, ticketNumberLabel } from './lib/ticketUrl';
   import { filledTicketSlots, isExternalTicketId, removeExternalTicketSlot, slotsToShow } from './lib/urlTicket';
   import { isAssignedField, nameAlreadyListed } from './lib/assigned';
   import { lastNoteLines, notesFieldText } from './lib/notePreview';
@@ -183,8 +195,11 @@
   let otherFilterFields = $derived(
     filterableFields.filter((f) => !ALL_ITEMS_FILTER_ROW_IDS.includes(f.id))
   );
-  let zoom = $derived(workspace?.ui.zoom ?? 1);
-  let pan = $derived(workspace?.ui.viewport_scroll ?? defaultPan());
+  let focusStage = $state<FocusStage | null>(null);
+  let camEase = $state(false);
+  let camEaseTimer: ReturnType<typeof setTimeout> | null = null;
+  let zoom = $derived(focusStage ? focusStage.zoom : (workspace?.ui.zoom ?? 1));
+  let pan = $derived(focusStage ? focusStage.pan : (workspace?.ui.viewport_scroll ?? defaultPan()));
   let compact = $derived(
     !!project && zoom < (project.compact_mode_zoom_threshold ?? 0.33)
   );
@@ -1019,6 +1034,7 @@
   }
 
   function applyZoomAtClient(clientX: number, clientY: number, newZoom: number) {
+    if (focusStage) exitFocusStage();
     if (!workspace) return;
     const wrap = canvasWrapEl;
     if (!wrap) return;
@@ -1041,6 +1057,22 @@
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
     if (factor === 0) {
+      if (focusStage) {
+        const panel = workspace.panels.find((p) => p.id === focusStage.panelId);
+        const oldZ = zoom || 1;
+        const oldPan = { x: pan.x, y: pan.y };
+        if (panel) {
+          const screen = worldToScreen(oldPan, oldZ, { x: panel.x, y: panel.y });
+          const nextPan = panToPinWorld({ x: panel.x, y: panel.y }, screen, 1);
+          exitFocusStage(true);
+          updateWorkspace((ws) => {
+            ws.ui.zoom = 1;
+            ws.ui.viewport_scroll = nextPan;
+          });
+          return;
+        }
+        exitFocusStage(true);
+      }
       applyZoomAtClient(cx, cy, 1);
       return;
     }
@@ -1124,6 +1156,36 @@
     // Chrome/Edge treat Ctrl+wheel as page zoom unless the listener is non-passive.
     el.addEventListener('wheel', onCanvasWheel, { passive: false, capture: true });
     return () => el.removeEventListener('wheel', onCanvasWheel, { capture: true });
+  });
+
+  $effect(() => {
+    if (!focusStage) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      exitFocusStage();
+    }
+    function onPointerDown(e: PointerEvent) {
+      if (
+        document.body.classList.contains('lit-panel-dragging') ||
+        document.body.classList.contains('lit-panel-resizing')
+      ) {
+        return;
+      }
+      const t = e.target;
+      if (t instanceof Element && t.closest('.panel-focus-target')) return;
+      if (t instanceof Element && t.closest('[data-sort-panels]')) return;
+      if (t instanceof Element && t.closest('[data-see-all]')) return;
+      if (t instanceof Element && t.closest('[data-zoom-100]')) return;
+      if (pointerInFocusBuffer(e)) return;
+      exitFocusStage();
+    }
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onPointerDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+    };
   });
 
   function clearCanvasPanListeners() {
@@ -1220,10 +1282,22 @@
     return () => el.removeEventListener('pointerdown', onCtrlCanvasPanDown, true);
   });
 
+  function pointerInFocusBuffer(e: PointerEvent): boolean {
+    if (!focusStage) return false;
+    const el = canvasWrapEl?.querySelector('.panel-focus-target');
+    if (!(el instanceof HTMLElement)) return false;
+    return inPaddedRect(e.clientX, e.clientY, el.getBoundingClientRect(), FOCUS_HIT_PAD_PX);
+  }
+
   function onCanvasPointerDown(e: PointerEvent) {
     if (e.button !== 0 || !workspace) return;
     if (e.ctrlKey) return;
     const t = e.target as HTMLElement | null;
+    if (focusStage && pointerInFocusBuffer(e)) {
+      if (!t?.closest?.('.panel')) return;
+    } else if (focusStage && !t?.closest?.('.panel-focus-target')) {
+      exitFocusStage();
+    }
     if (t?.closest?.('.panel')) return;
     if (t?.closest?.('.board-editor')) return;
     beginCanvasPan(e);
@@ -1314,7 +1388,7 @@
   }
 
   function itemLabel(item: Item): string {
-    const key = String(item.fields[keyField()] ?? '').trim();
+    const key = ticketNumberLabel(String(item.fields[keyField()] ?? ''));
     const title = String(item.fields.title ?? '').trim();
     if (key && title) return `${key}  ${title}`;
     return key || title || 'this ticket';
@@ -1358,22 +1432,73 @@
     };
   }
 
+  function easeCamera(fn: () => void) {
+    camEase = true;
+    if (camEaseTimer) clearTimeout(camEaseTimer);
+    fn();
+    camEaseTimer = setTimeout(() => {
+      camEase = false;
+      camEaseTimer = null;
+    }, FOCUS_TRANSITION_MS + 30);
+  }
+
+  function exitFocusStage(instant = false) {
+    if (!focusStage) return;
+    if (instant) {
+      if (camEaseTimer) {
+        clearTimeout(camEaseTimer);
+        camEaseTimer = null;
+      }
+      camEase = false;
+      focusStage = null;
+      return;
+    }
+    easeCamera(() => {
+      focusStage = null;
+    });
+  }
+
   function zoomToPanel(panel: Panel) {
     const wrap = canvasWrapEl;
-    if (!wrap) return;
-    const view = focusView(
-      {
-        x: panel.x,
-        y: panel.y,
-        width: Math.max(1, panel.width),
-        height: Math.max(1, panel.height),
-      },
+    if (!wrap || !workspace) return;
+    if (!FOCUS_STAGE_ENABLED) {
+      const view = focusView(
+        {
+          x: panel.x,
+          y: panel.y,
+          width: Math.max(1, panel.width),
+          height: Math.max(1, panel.height),
+        },
+        { width: wrap.clientWidth, height: wrap.clientHeight },
+        workspace.ui.zoom || 1
+      );
+      updateWorkspace((ws) => {
+        ws.ui.zoom = view.zoom;
+        ws.ui.viewport_scroll = view.pan;
+        const p = ws.panels.find((x) => x.id === panel.id);
+        if (!p) return;
+        p.z_index = Math.max(0, ...ws.panels.map((x) => x.z_index || 0)) + 1;
+        p.collapsed = false;
+      });
+      return;
+    }
+    const prevZoom = focusStage?.prevZoom ?? (workspace.ui.zoom || 1);
+    const prevPan = focusStage?.prevPan ?? { ...(workspace.ui.viewport_scroll ?? defaultPan()) };
+    const cam = focusStageCamera(
+      panel,
       { width: wrap.clientWidth, height: wrap.clientHeight },
-      workspace?.ui.zoom || 1
+      prevZoom
     );
+    easeCamera(() => {
+      focusStage = {
+        panelId: panel.id,
+        prevZoom,
+        prevPan,
+        zoom: cam.zoom,
+        pan: cam.pan,
+      };
+    });
     updateWorkspace((ws) => {
-      ws.ui.zoom = view.zoom;
-      ws.ui.viewport_scroll = view.pan;
       const p = ws.panels.find((x) => x.id === panel.id);
       if (!p) return;
       p.z_index = Math.max(0, ...ws.panels.map((x) => x.z_index || 0)) + 1;
@@ -1677,7 +1802,7 @@
   }
 
   function primaryId(item: Item): string {
-    const v = String(item.fields[keyField()] ?? '').trim();
+    const v = ticketNumberLabel(String(item.fields[keyField()] ?? ''));
     if (v) return v;
     return 'Untitled';
   }
@@ -1795,6 +1920,9 @@
   function listCellDisplay(f: FieldDef, item: Item): string {
     if (f.id === 'waiting_for' && !isItemWaiting(item)) return '';
     if (f.type === 'checkbox') return item.fields[f.id] ? 'Yes' : '';
+    if (f.id === 'ticket_key' || f.id === keyField()) {
+      return ticketNumberLabel(String(item.fields[f.id] ?? '')) || String(item.fields[f.id] ?? '');
+    }
     return String(item.fields[f.id] ?? '');
   }
 
@@ -2012,6 +2140,7 @@
   }
 
   function sortOpenPanels() {
+    exitFocusStage(true);
     if (!workspace) return;
     const wrap = canvasWrapEl;
     if (!wrap) return;
@@ -2030,6 +2159,7 @@
   }
 
   function seeAll() {
+    exitFocusStage(true);
     if (!workspace) return;
     const wrap = canvasWrapEl;
     if (!wrap) return;
@@ -2187,6 +2317,28 @@
       await api.openProjectFolder(project.slug);
     } catch (err) {
       showToast('Could not open folder');
+      console.error(err);
+    }
+  }
+
+  function openReleaseNotes() {
+    window.open('/release-notes.html', '_blank', 'noopener,noreferrer');
+  }
+
+  async function openSplitTickets(masterHref: string | null | undefined, externalHref: string) {
+    const pair = splitTicketUrls(masterHref, externalHref);
+    if (!pair) {
+      if (!launchableHref(externalHref)) {
+        showToast('External ticket needs a full http(s) URL');
+        return;
+      }
+      showToast('Set a project URL prefix to open the master ticket');
+      return;
+    }
+    try {
+      await api.openSplit(pair.left, pair.right);
+    } catch (err) {
+      showToast('Could not open Edge split view');
       console.error(err);
     }
   }
@@ -2357,14 +2509,14 @@
             <option value={opt.id}>{opt.label}</option>
           {/each}
         </select>
-        <button type="button" onclick={sortOpenPanels} title="Line up panels top-to-bottom, then left-to-right">
+        <button type="button" data-sort-panels onclick={sortOpenPanels} title="Line up panels top-to-bottom, then left-to-right">
           Sort
         </button>
       </div>
-      <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
+      <button type="button" data-see-all onclick={seeAll} title="Zoom to fit every panel on this board">
         See All
       </button>
-      <button type="button" onclick={() => zoomByKeyboard(0)} title="Reset zoom to 100%">
+      <button type="button" data-zoom-100 onclick={() => zoomByKeyboard(0)} title="Reset zoom to 100%">
         100%
       </button>
       <div class="theme-controls">
@@ -2467,7 +2619,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-11d</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-13a</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2604,6 +2756,15 @@
               onclick={() => void openProjectFolder()}
             >Open</button>
           </div>
+        </section>
+
+        <section class="project-section">
+          <button
+            type="button"
+            class="project-release-notes"
+            title="Open the release notes in a new tab"
+            onclick={openReleaseNotes}
+          >Release notes</button>
         </section>
       </div>
     {/if}
@@ -2805,7 +2966,11 @@
       aria-label="Unlimited workspace. Drag empty space to pan. Ctrl+drag pans even over panels. Scroll or Ctrl+scroll zooms toward the pointer."
       bind:this={canvasWrapEl}
       class:is-panning={panning}
+      class:is-focus-stage={!!focusStage}
+      class:canvas-cam-ease={camEase}
       style:--zoom={zoom}
+      style:--focus-dim-scale={dimScale(focusStage?.prevZoom ?? 1, zoom)}
+      style:--focus-dim-blur={OTHER_PANEL_BLUR}
       onpointerdown={onCanvasPointerDown}
     >
       <div class="canvas" style:transform={`translate(${pan.x}px, ${pan.y}px) scale(${zoom})`}>
@@ -2835,7 +3000,14 @@
             accentBorder={colors.border || undefined}
             compact={compact}
             fillBody={panel.kind === 'item' || panel.kind === 'notes'}
-            onfocus={() => focusPanel(panel.id)}
+            stage={focusStage ? (focusStage.panelId === panel.id ? 'focus' : 'dim') : null}
+            onfocus={() => {
+              if (focusStage && focusStage.panelId !== panel.id) {
+                exitFocusStage();
+                return false;
+              }
+              focusPanel(panel.id);
+            }}
             onfocusview={() => zoomToPanel(panel)}
             onmove={(patch) => movePanel(panel.id, patch)}
             onclose={() => closePanel(panel.id)}
@@ -2983,6 +3155,16 @@
                                     String(detailCache[item.id].fields[keyField()] ?? '')
                                   )
                                 : null}
+                              onSplit={isExternalTicketId(def.id)
+                                ? (href) =>
+                                    void openSplitTickets(
+                                      ticketHref(
+                                        project.url_prefix,
+                                        String(detailCache[item.id].fields[keyField()] ?? '')
+                                      ),
+                                      href
+                                    )
+                                : undefined}
                               onAddOption={isAssignedField(def.id)
                                 ? (el) => void openAssignedNameAdd(item.id, def.id, el)
                                 : undefined}

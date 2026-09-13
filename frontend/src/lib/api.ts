@@ -209,6 +209,11 @@ export const api = {
     req<Project>(`/api/projects/${slug}`, { method: 'PATCH', body: JSON.stringify(body) }),
   openProjectFolder: (slug: string) =>
     req<{ status: string; path: string }>(`/api/projects/${slug}/open-folder`, { method: 'POST' }),
+  openSplit: (left: string, right: string) =>
+    req<{ status: string; positioned?: boolean }>('/api/desktop/open-split', {
+      method: 'POST',
+      body: JSON.stringify({ left, right }),
+    }),
   fields: (slug: string) => req<FieldsDoc>(`/api/projects/${slug}/fields`),
   putFields: (slug: string, body: FieldsDoc) =>
     req<FieldsDoc>(`/api/projects/${slug}/fields`, {

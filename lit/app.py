@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from lit import __version__
-from lit.api import backups, deliverables, fields, items, notes, projects, settings, templates, workspaces
+from lit.api import backups, deliverables, desktop, fields, items, notes, projects, settings, templates, workspaces
 from lit.config import get_config
 from lit.middleware import SecurityHeadersMiddleware, install_cors
 
@@ -47,7 +47,15 @@ def create_app() -> FastAPI:
     def health() -> dict:
         return {"status": "ok", "version": __version__}
 
+    @app.get("/release-notes.html")
+    def release_notes_page():
+        notes = Path(__file__).resolve().parents[1] / "release-notes.html"
+        if not notes.is_file():
+            return JSONResponse({"detail": "not found"}, status_code=404)
+        return FileResponse(notes, media_type="text/html")
+
     app.include_router(settings.router)
+    app.include_router(desktop.router)
     app.include_router(projects.router)
     app.include_router(fields.router)
     app.include_router(items.router)

@@ -354,6 +354,7 @@
   }
 
   function applyZoomAtClient(clientX: number, clientY: number, newZoom: number) {
+    if (focusStage) exitFocusStage();
     if (!workspace) return;
     const wrap = canvasWrapEl;
     if (!wrap) return;
@@ -376,6 +377,22 @@
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
     if (factor === 0) {
+      if (focusStage) {
+        const panel = workspace.panels.find((p) => p.id === focusStage.panelId);
+        const oldZ = zoom || 1;
+        const oldPan = { x: pan.x, y: pan.y };
+        if (panel) {
+          const screen = worldToScreen(oldPan, oldZ, { x: panel.x, y: panel.y });
+          const nextPan = panToPinWorld({ x: panel.x, y: panel.y }, screen, 1);
+          exitFocusStage(true);
+          updateWorkspace((ws) => {
+            ws.ui.zoom = 1;
+            ws.ui.viewport_scroll = nextPan;
+          });
+          return;
+        }
+        exitFocusStage(true);
+      }
       applyZoomAtClient(cx, cy, 1);
       return;
     }
@@ -459,6 +476,36 @@
     // Chrome/Edge treat Ctrl+wheel as page zoom unless the listener is non-passive.
     el.addEventListener('wheel', onCanvasWheel, { passive: false, capture: true });
     return () => el.removeEventListener('wheel', onCanvasWheel, { capture: true });
+  });
+
+  $effect(() => {
+    if (!focusStage) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      exitFocusStage();
+    }
+    function onPointerDown(e: PointerEvent) {
+      if (
+        document.body.classList.contains('lit-panel-dragging') ||
+        document.body.classList.contains('lit-panel-resizing')
+      ) {
+        return;
+      }
+      const t = e.target;
+      if (t instanceof Element && t.closest('.panel-focus-target')) return;
+      if (t instanceof Element && t.closest('[data-sort-panels]')) return;
+      if (t instanceof Element && t.closest('[data-see-all]')) return;
+      if (t instanceof Element && t.closest('[data-zoom-100]')) return;
+      if (pointerInFocusBuffer(e)) return;
+      exitFocusStage();
+    }
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onPointerDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+    };
   });
 
   function clearCanvasPanListeners() {
@@ -555,10 +602,22 @@
     return () => el.removeEventListener('pointerdown', onCtrlCanvasPanDown, true);
   });
 
+  function pointerInFocusBuffer(e: PointerEvent): boolean {
+    if (!focusStage) return false;
+    const el = canvasWrapEl?.querySelector('.panel-focus-target');
+    if (!(el instanceof HTMLElement)) return false;
+    return inPaddedRect(e.clientX, e.clientY, el.getBoundingClientRect(), FOCUS_HIT_PAD_PX);
+  }
+
   function onCanvasPointerDown(e: PointerEvent) {
     if (e.button !== 0 || !workspace) return;
     if (e.ctrlKey) return;
     const t = e.target as HTMLElement | null;
+    if (focusStage && pointerInFocusBuffer(e)) {
+      if (!t?.closest?.('.panel')) return;
+    } else if (focusStage && !t?.closest?.('.panel-focus-target')) {
+      exitFocusStage();
+    }
     if (t?.closest?.('.panel')) return;
     if (t?.closest?.('.board-editor')) return;
     beginCanvasPan(e);
@@ -649,7 +708,7 @@
   }
 
   function itemLabel(item: Item): string {
-    const key = String(item.fields[keyField()] ?? '').trim();
+    const key = ticketNumberLabel(String(item.fields[keyField()] ?? ''));
     const title = String(item.fields.title ?? '').trim();
     if (key && title) return `${key}  ${title}`;
     return key || title || 'this ticket';
@@ -693,22 +752,73 @@
     };
   }
 
+  function easeCamera(fn: () => void) {
+    camEase = true;
+    if (camEaseTimer) clearTimeout(camEaseTimer);
+    fn();
+    camEaseTimer = setTimeout(() => {
+      camEase = false;
+      camEaseTimer = null;
+    }, FOCUS_TRANSITION_MS + 30);
+  }
+
+  function exitFocusStage(instant = false) {
+    if (!focusStage) return;
+    if (instant) {
+      if (camEaseTimer) {
+        clearTimeout(camEaseTimer);
+        camEaseTimer = null;
+      }
+      camEase = false;
+      focusStage = null;
+      return;
+    }
+    easeCamera(() => {
+      focusStage = null;
+    });
+  }
+
   function zoomToPanel(panel: Panel) {
     const wrap = canvasWrapEl;
-    if (!wrap) return;
-    const view = focusView(
-      {
-        x: panel.x,
-        y: panel.y,
-        width: Math.max(1, panel.width),
-        height: Math.max(1, panel.height),
-      },
+    if (!wrap || !workspace) return;
+    if (!FOCUS_STAGE_ENABLED) {
+      const view = focusView(
+        {
+          x: panel.x,
+          y: panel.y,
+          width: Math.max(1, panel.width),
+          height: Math.max(1, panel.height),
+        },
+        { width: wrap.clientWidth, height: wrap.clientHeight },
+        workspace.ui.zoom || 1
+      );
+      updateWorkspace((ws) => {
+        ws.ui.zoom = view.zoom;
+        ws.ui.viewport_scroll = view.pan;
+        const p = ws.panels.find((x) => x.id === panel.id);
+        if (!p) return;
+        p.z_index = Math.max(0, ...ws.panels.map((x) => x.z_index || 0)) + 1;
+        p.collapsed = false;
+      });
+      return;
+    }
+    const prevZoom = focusStage?.prevZoom ?? (workspace.ui.zoom || 1);
+    const prevPan = focusStage?.prevPan ?? { ...(workspace.ui.viewport_scroll ?? defaultPan()) };
+    const cam = focusStageCamera(
+      panel,
       { width: wrap.clientWidth, height: wrap.clientHeight },
-      workspace?.ui.zoom || 1
+      prevZoom
     );
+    easeCamera(() => {
+      focusStage = {
+        panelId: panel.id,
+        prevZoom,
+        prevPan,
+        zoom: cam.zoom,
+        pan: cam.pan,
+      };
+    });
     updateWorkspace((ws) => {
-      ws.ui.zoom = view.zoom;
-      ws.ui.viewport_scroll = view.pan;
       const p = ws.panels.find((x) => x.id === panel.id);
       if (!p) return;
       p.z_index = Math.max(0, ...ws.panels.map((x) => x.z_index || 0)) + 1;

@@ -3,6 +3,7 @@ import {
   fitView,
   focusView,
   panAfterZoom,
+  panToPinWorld,
   panelsWorldBounds,
   screenToWorld,
   worldToScreen,
@@ -17,6 +18,13 @@ describe('viewport', () => {
     const screen = worldToScreen(pan, 2, world);
     expect(screen).toEqual({ x: 240, y: 80 });
     expect(screenToWorld(pan, 2, screen)).toEqual(world);
+  });
+
+  it('pins a world point to the same screen position at a new zoom', () => {
+    const world = { x: 100, y: 40 };
+    const screen = { x: 220, y: 80 };
+    const pan = panToPinWorld(world, screen, 1);
+    expect(worldToScreen(pan, 1, world)).toEqual(screen);
   });
 
   it('zooms out on a positive mouse-wheel delta', () => {

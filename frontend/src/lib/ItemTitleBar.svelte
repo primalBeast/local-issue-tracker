@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { ticketNumberLabel } from './ticketUrl';
+
   interface Props {
     ticketKey: string;
     description: string;
@@ -32,7 +34,7 @@
   let editing = $state(!String(description ?? '').trim() || !String(ticketKey ?? '').trim());
 
   function keyLabel(): string {
-    return String(ticketKey ?? '').trim() || 'Untitled';
+    return ticketNumberLabel(ticketKey) || 'Untitled';
   }
 
   function onKeyDblClick(e: MouseEvent) {
@@ -67,7 +69,7 @@
     <div
       class="item-title-key"
       class:launchable={!!ticketLaunchHref}
-      title={ticketLaunchHref ? 'Open ticket URL' : undefined}
+      title={ticketLaunchHref ? String(ticketKey ?? '').trim() || 'Open ticket URL' : undefined}
       ondblclick={onKeyDblClick}
     >
       {keyLabel()}
@@ -93,7 +95,7 @@
         <input
           type="text"
           value={ticketKey}
-          placeholder="PROJ-123"
+          placeholder="PROJ-123 or full URL"
           autocomplete="off"
           oninput={(e) => onTicketKey(e.currentTarget.value)}
         />

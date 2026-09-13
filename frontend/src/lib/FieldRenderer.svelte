@@ -14,9 +14,10 @@
     onRemoveSlot?: () => void;
     onAddOption?: (anchor: HTMLElement) => void;
     masterHref?: string | null;
+    onSplit?: (externalHref: string) => void;
   }
 
-  let { def, fields, onchange, fill = false, addSlot = false, onAddSlot, onRemoveSlot, onAddOption, masterHref = null }: Props = $props();
+  let { def, fields, onchange, fill = false, addSlot = false, onAddSlot, onRemoveSlot, onAddOption, masterHref = null, onSplit }: Props = $props();
 
   let visible = $derived(isVisible(def, fields));
   let value = $derived(fields[def.id]);
@@ -71,6 +72,7 @@
       onAdd={onAddSlot}
       onRemove={onRemoveSlot}
       masterHref={masterHref}
+      onSplit={onSplit}
     />
   {:else}
   <div class="field-group" class:field-group-fill={fill}>

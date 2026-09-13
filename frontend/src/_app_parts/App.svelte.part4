@@ -35,14 +35,14 @@
             <option value={opt.id}>{opt.label}</option>
           {/each}
         </select>
-        <button type="button" onclick={sortOpenPanels} title="Line up panels top-to-bottom, then left-to-right">
+        <button type="button" data-sort-panels onclick={sortOpenPanels} title="Line up panels top-to-bottom, then left-to-right">
           Sort
         </button>
       </div>
-      <button type="button" onclick={seeAll} title="Zoom to fit every panel on this board">
+      <button type="button" data-see-all onclick={seeAll} title="Zoom to fit every panel on this board">
         See All
       </button>
-      <button type="button" onclick={() => zoomByKeyboard(0)} title="Reset zoom to 100%">
+      <button type="button" data-zoom-100 onclick={() => zoomByKeyboard(0)} title="Reset zoom to 100%">
         100%
       </button>
       <div class="theme-controls">
@@ -145,7 +145,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-11d</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-13a</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -282,6 +282,15 @@
               onclick={() => void openProjectFolder()}
             >Open</button>
           </div>
+        </section>
+
+        <section class="project-section">
+          <button
+            type="button"
+            class="project-release-notes"
+            title="Open the release notes in a new tab"
+            onclick={openReleaseNotes}
+          >Release notes</button>
         </section>
       </div>
     {/if}
@@ -483,7 +492,11 @@
       aria-label="Unlimited workspace. Drag empty space to pan. Ctrl+drag pans even over panels. Scroll or Ctrl+scroll zooms toward the pointer."
       bind:this={canvasWrapEl}
       class:is-panning={panning}
+      class:is-focus-stage={!!focusStage}
+      class:canvas-cam-ease={camEase}
       style:--zoom={zoom}
+      style:--focus-dim-scale={dimScale(focusStage?.prevZoom ?? 1, zoom)}
+      style:--focus-dim-blur={OTHER_PANEL_BLUR}
       onpointerdown={onCanvasPointerDown}
     >
       <div class="canvas" style:transform={`translate(${pan.x}px, ${pan.y}px) scale(${zoom})`}>
@@ -513,7 +526,14 @@
             accentBorder={colors.border || undefined}
             compact={compact}
             fillBody={panel.kind === 'item' || panel.kind === 'notes'}
-            onfocus={() => focusPanel(panel.id)}
+            stage={focusStage ? (focusStage.panelId === panel.id ? 'focus' : 'dim') : null}
+            onfocus={() => {
+              if (focusStage && focusStage.panelId !== panel.id) {
+                exitFocusStage();
+                return false;
+              }
+              focusPanel(panel.id);
+            }}
             onfocusview={() => zoomToPanel(panel)}
             onmove={(patch) => movePanel(panel.id, patch)}
             onclose={() => closePanel(panel.id)}
@@ -661,6 +681,16 @@
                                     String(detailCache[item.id].fields[keyField()] ?? '')
                                   )
                                 : null}
+                              onSplit={isExternalTicketId(def.id)
+                                ? (href) =>
+                                    void openSplitTickets(
+                                      ticketHref(
+                                        project.url_prefix,
+                                        String(detailCache[item.id].fields[keyField()] ?? '')
+                                      ),
+                                      href
+                                    )
+                                : undefined}
                               onAddOption={isAssignedField(def.id)
                                 ? (el) => void openAssignedNameAdd(item.id, def.id, el)
                                 : undefined}

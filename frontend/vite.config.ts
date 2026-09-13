@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/api': 'http://127.0.0.1:8765',
       '/health': 'http://127.0.0.1:8765',
+      '/release-notes.html': 'http://127.0.0.1:8765',
     },
   },
   build: {
