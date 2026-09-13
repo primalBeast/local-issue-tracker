@@ -675,6 +675,10 @@
     window.open('/release-notes.html', '_blank', 'noopener,noreferrer');
   }
 
+  function reloadApp() {
+    location.reload();
+  }
+
   async function openSplitTickets(masterHref: string | null | undefined, externalHref: string) {
     const pair = splitTicketUrls(masterHref, externalHref);
     if (!pair) {

@@ -306,6 +306,12 @@
         e.preventDefault();
         toggleSidebar();
       }
+      if (e.key === 'F5' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        reloadApp();
+        return;
+      }
       if (e.key === 'Escape') {
         if (tabDrag.dragging || tabDrag.id) {
           e.preventDefault();
@@ -441,7 +447,20 @@
       error = e instanceof Error ? e.message : String(e);
     } finally {
       loading = false;
+      await tick();
+      revealApp();
     }
+  }
+
+  function revealApp() {
+    const veil = document.getElementById('boot-veil');
+    if (!veil || veil.classList.contains('is-gone')) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        veil.classList.add('is-gone');
+        window.setTimeout(() => veil.remove(), 280);
+      });
+    });
   }
 
   function readStoredTheme(): string | null {
@@ -2325,6 +2344,10 @@
     window.open('/release-notes.html', '_blank', 'noopener,noreferrer');
   }
 
+  function reloadApp() {
+    location.reload();
+  }
+
   async function openSplitTickets(masterHref: string | null | undefined, externalHref: string) {
     const pair = splitTicketUrls(masterHref, externalHref);
     if (!pair) {
@@ -2619,7 +2642,7 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-13a</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-13c</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2762,8 +2785,15 @@
           <button
             type="button"
             class="project-release-notes"
+            title="Reload the UI (F5)"
+            onclick={reloadApp}
+          >Reload (F5)</button>
+          <button
+            type="button"
+            class="project-release-notes"
             title="Open the release notes in a new tab"
             onclick={openReleaseNotes}
+            style="margin-top:8px"
           >Release notes</button>
         </section>
       </div>

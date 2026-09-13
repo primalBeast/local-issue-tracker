@@ -271,6 +271,14 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>13 Sep 2026 — WebView2 window</h3>
+          <ul>
+            <li><code>start-webview.cmd</code> / <code>uv run lit serve --webview</code> opens the same local app in a WebView2 window. <code>start.cmd</code> / <code>--open</code> still uses the browser.</li>
+            <li>Reload: project menu <b>Reload (F5)</b> or <b>F5</b>. <b>F11</b> toggles fullscreen. Closing the window exits without “Press any key”.</li>
+            <li>Startup stays black until the board is ready, then fades in.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>13 Sep 2026 — Staged Focus, URL tickets, Edge split</h3>
           <ul>
             <li><b>Focus</b> stages the board: chosen panel 110% (or 100% if you were zoomed out), others 80% and blurred; top stays 10% down unless a tall panel needs up to 1%.</li>
@@ -383,7 +391,14 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "5355252",
+    "hash": "9a0dcab",
+    "date": "2026-09-13",
+    "subject": "feat: WebView2 window launch with F5 reload and fade-in",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "ff58056",
     "date": "2026-09-13",
     "subject": "feat: staged Focus, URL ticket numbers, and Edge split view",
     "kind": "feat",

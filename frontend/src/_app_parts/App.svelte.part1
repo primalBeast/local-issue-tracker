@@ -306,6 +306,12 @@
         e.preventDefault();
         toggleSidebar();
       }
+      if (e.key === 'F5' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        reloadApp();
+        return;
+      }
       if (e.key === 'Escape') {
         if (tabDrag.dragging || tabDrag.id) {
           e.preventDefault();
@@ -441,7 +447,20 @@
       error = e instanceof Error ? e.message : String(e);
     } finally {
       loading = false;
+      await tick();
+      revealApp();
     }
+  }
+
+  function revealApp() {
+    const veil = document.getElementById('boot-veil');
+    if (!veil || veil.classList.contains('is-gone')) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        veil.classList.add('is-gone');
+        window.setTimeout(() => veil.remove(), 280);
+      });
+    });
   }
 
   function readStoredTheme(): string | null {

@@ -51,6 +51,9 @@ uv sync
 
 # Start the local server and open the browser
 uv run lit serve --open
+
+# Windows: same server, WebView2 window instead of a browser tab
+uv run lit serve --webview
 ```
 
 Then open [http://127.0.0.1:8765](http://127.0.0.1:8765) if it did not open automatically.
@@ -59,6 +62,7 @@ Then open [http://127.0.0.1:8765](http://127.0.0.1:8765) if it did not open auto
 
 1. `install.cmd` — installs uv + app deps, then checks the install  
 2. `start.cmd` — starts the server and opens the browser  
+3. `start-webview.cmd` — same server in a WebView2 window (no browser tab)  
 
 Windows (PowerShell) is the same `uv` / `git` commands after installing [Git for Windows](https://git-scm.com/download/win) and [uv](https://docs.astral.sh/uv/getting-started/installation/). See **[docs/RUN-Windows11.md](docs/RUN-Windows11.md)**.
 
@@ -94,7 +98,9 @@ uv run lit serve --data-dir /path/to/data
 ### CLI
 
 ```bash
-uv run lit serve --open          # start server
+uv run lit serve --open          # start server + browser
+uv run lit serve --webview       # start server + WebView2 window (Windows)
+                                 # Reload: View → Reload, or F5
 uv run lit init-project my-proj --name "My Project"
 uv run lit backup-now            # snapshot all projects for today
 uv run lit backup-now --project issue-tracker --force

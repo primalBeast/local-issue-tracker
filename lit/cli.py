@@ -47,6 +47,20 @@ def cmd_serve(args: argparse.Namespace) -> int:
             cfg.host,
         )
 
+    use_webview = bool(getattr(args, "webview", False))
+    url = f"http://{cfg.host}:{cfg.port}"
+    if use_webview:
+        from lit.webview_host import open_webview, port_listening
+
+        if port_listening(cfg.host, cfg.port):
+            logging.getLogger("lit").info("Server already running — opening WebView2 at %s", url)
+            try:
+                open_webview(url)
+            except RuntimeError as exc:
+                print(exc, file=sys.stderr)
+                return 1
+            return 0
+
     ensure_data_layout()
     acquire_data_lock()
     maybe_seed_sample()
@@ -84,9 +98,42 @@ def cmd_serve(args: argparse.Namespace) -> int:
     from lit.app import create_app
 
     app = create_app()
-    url = f"http://{cfg.host}:{cfg.port}"
     logging.getLogger("lit").info("Local Issue Tracker v%s — %s", __version__, url)
     logging.getLogger("lit").info("Data directory: %s", cfg.data_dir)
+
+    if use_webview and cfg.open_browser:
+        logging.getLogger("lit").info("Ignoring --open because --webview was set")
+
+    if use_webview:
+        from lit.webview_host import open_webview, wait_for_port
+
+        config = uvicorn.Config(
+            app,
+            host=cfg.host,
+            port=cfg.port,
+            log_level="info",
+        )
+        server = uvicorn.Server(config)
+        thread = threading.Thread(target=server.run, name="lit-uvicorn", daemon=True)
+        thread.start()
+        if not wait_for_port(cfg.host, cfg.port):
+            logging.getLogger("lit").error("Server did not start on %s", url)
+            server.should_exit = True
+            release_data_lock()
+            return 1
+        try:
+            open_webview(url)
+        except RuntimeError as exc:
+            print(exc, file=sys.stderr)
+            server.should_exit = True
+            thread.join(timeout=5)
+            release_data_lock()
+            return 1
+        finally:
+            server.should_exit = True
+            thread.join(timeout=8)
+            release_data_lock()
+        return 0
 
     if cfg.open_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
@@ -211,6 +258,11 @@ def main(argv: list[str] | None = None) -> int:
     p_serve.add_argument("--host", default="127.0.0.1")
     p_serve.add_argument("--port", type=int, default=8765)
     p_serve.add_argument("--open", action="store_true", help="Open browser")
+    p_serve.add_argument(
+        "--webview",
+        action="store_true",
+        help="Open a WebView2 window instead of a browser (Windows Edge engine)",
+    )
     p_serve.add_argument("--reload", action="store_true", help="Enable dev CORS (Vite)")
     p_serve.add_argument("--dev-cors", action="store_true")
     p_serve.set_defaults(func=cmd_serve)

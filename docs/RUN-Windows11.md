@@ -133,6 +133,16 @@ uv run lit doctor
 
 Easiest: double-click **`start.cmd`**. It starts the server and opens the browser. Leave that window open. If the app is already running, it just opens http://127.0.0.1:8765.
 
+**WebView2 window (no browser tab):** double-click **`start-webview.cmd`**, or:
+
+```powershell
+uv run lit serve --webview
+```
+
+That is the same local server. Close the WebView2 window to stop (if this process started the server). `--open` still opens Edge/Chrome as before. Do not pass both; `--webview` wins.
+
+To reload the UI after a frontend rebuild: click the project name (top-left) and **Reload (F5)**, or press **F5**. **F11** toggles fullscreen.
+
 Or:
 
 ```powershell
@@ -141,17 +151,20 @@ uv run lit serve --open
 
 - Server binds to **http://127.0.0.1:8765** (local only)
 - `--open` tries to open your default browser (Edge is fine)
+- `--webview` opens a WebView2 app window instead
 - If the browser does not open, go to: [http://127.0.0.1:8765](http://127.0.0.1:8765)
 
-Leave the PowerShell window open while you use the app. Stop the server with **Ctrl+C**.
+Leave the PowerShell window open while you use the app (browser mode). Stop the server with **Ctrl+C**, or close the WebView2 window.
 
 ### Daily start (after the first setup)
 
-Double-click **`start.cmd`**, or:
+Double-click **`start.cmd`** (browser) or **`start-webview.cmd`** (WebView2 window), or:
 
 ```powershell
 cd D:\dev\local-issue-tracker   # your clone path
 uv run lit serve --open
+# or
+uv run lit serve --webview
 ```
 
 ---
