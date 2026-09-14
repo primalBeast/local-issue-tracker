@@ -105,21 +105,47 @@ class WebviewBridge:
             window.destroy()
 
     def toggle_maximize(self) -> None:
+        """Fill the monitor work area (taskbar stays). Not F11 fullscreen."""
         window = _active.get("window")
         if window is None:
             return
         try:
             form = window.native
-            if int(form.WindowState) == 2:
-                window.restore()
-            else:
-                window.maximize()
         except Exception:
-            logger.exception("toggle_maximize failed")
+            return
+
+        def _go() -> None:
             try:
-                window.maximize()
+                from System.Windows.Forms import Screen
+
+                if _active.get("is_max"):
+                    bounds = _active.get("restore_bounds")
+                    if bounds:
+                        x, y, w, h = bounds
+                        form.SetBounds(int(x), int(y), int(w), int(h))
+                    _active["is_max"] = False
+                    return
+                _active["restore_bounds"] = (
+                    int(form.Left),
+                    int(form.Top),
+                    int(form.Width),
+                    int(form.Height),
+                )
+                wa = Screen.FromControl(form).WorkingArea
+                form.SetBounds(int(wa.X), int(wa.Y), int(wa.Width), int(wa.Height))
+                _active["is_max"] = True
             except Exception:
-                pass
+                logger.exception("toggle_maximize failed")
+
+        try:
+            from System import Action
+
+            if form.InvokeRequired:
+                form.BeginInvoke(Action(_go))
+                return
+        except Exception:
+            pass
+        _go()
 
     def start_resize(self, edge: str) -> None:
         """Begin a native Windows resize; must run on the UI thread while the button is down."""
@@ -269,7 +295,7 @@ def _enable_edge_resize(window: Any, border_px: int = 10) -> None:
 
         def layout(_s: Any = None, _e: Any = None) -> None:
             try:
-                maximized = int(form.WindowState) == 2
+                maximized = bool(_active.get("is_max")) or int(form.WindowState) == 2
                 w, h = int(form.ClientSize.Width), int(form.ClientSize.Height)
                 if maximized:
                     wv.SetBounds(0, 0, w, h)
@@ -286,7 +312,7 @@ def _enable_edge_resize(window: Any, border_px: int = 10) -> None:
 
     def on_mouse_down(_s: Any, e: Any) -> None:
         try:
-            if int(form.WindowState) == 2:
+            if bool(_active.get("is_max")) or int(form.WindowState) == 2:
                 return
             if e.Button != MouseButtons.Left:
                 return

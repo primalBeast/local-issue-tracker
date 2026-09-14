@@ -258,12 +258,12 @@
         <p class="lede">
           A fully local personal issue tracker: floating workspaces, configurable fields,
           waiting metrics, and a dark-mode-first UI. History below is from the GitHub
-          <code>main</code> branch, 9 Aug 2026 through 13 Sep 2026.
+          <code>main</code> branch, 9 Aug 2026 through 14 Sep 2026.
         </p>
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 13 Sep 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 14 Sep 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,12 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>14 Sep 2026 — Maximize stays a normal window</h3>
+          <ul>
+            <li>The WebView2 toolbar maximize button fills the monitor <b>work area</b> (taskbar stays). <b>F11</b> is still true fullscreen.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>13 Sep 2026 — WebView2 window</h3>
           <ul>
             <li><code>start-webview.cmd</code> / <code>start-webview.vbs</code> / <code>uv run lit serve --webview</code> opens the same local app in a WebView2 window. <code>start.cmd</code> / <code>--open</code> still uses the browser.</li>
@@ -391,11 +397,25 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "389aabb",
+    "hash": "c88309d",
+    "date": "2026-09-14",
+    "subject": "fix: WebView2 maximize uses work area, not F11 fullscreen",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "cd78ed0",
     "date": "2026-09-13",
     "subject": "feat: frameless WebView2 chrome, resize, and 3/4 monitor start",
     "kind": "feat",
     "rebuild": false
+  },
+  {
+    "hash": "c1b259d",
+    "date": "2026-09-13",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
   },
   {
     "hash": "a478170",
