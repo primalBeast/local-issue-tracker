@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import logging
 import socket
 import sys
@@ -17,6 +18,7 @@ _active: dict[str, Any] = {"window": None, "url": ""}
 
 F5_RELOAD_JS = """
 (function () {
+  document.documentElement.setAttribute('data-webview', '1');
   if (window.__litReloadBound) return;
   window.__litReloadBound = true;
   window.addEventListener('keydown', function (e) {
@@ -92,6 +94,237 @@ class WebviewBridge:
         if window is not None:
             window.toggle_fullscreen()
 
+    def minimize(self) -> None:
+        window = _active.get("window")
+        if window is not None:
+            window.minimize()
+
+    def close_app(self) -> None:
+        window = _active.get("window")
+        if window is not None:
+            window.destroy()
+
+    def toggle_maximize(self) -> None:
+        window = _active.get("window")
+        if window is None:
+            return
+        try:
+            form = window.native
+            if int(form.WindowState) == 2:
+                window.restore()
+            else:
+                window.maximize()
+        except Exception:
+            logger.exception("toggle_maximize failed")
+            try:
+                window.maximize()
+            except Exception:
+                pass
+
+    def start_resize(self, edge: str) -> None:
+        """Begin a native Windows resize; must run on the UI thread while the button is down."""
+        hit = _resize_hit(str(edge or ""))
+        if hit is None:
+            return
+        _begin_ncl_resize(hit)
+
+    def start_drag(self) -> None:
+        """Drag the frameless window (HTCAPTION)."""
+        _begin_ncl_resize(2)
+
+
+def _resize_hit(edge: str) -> int | None:
+    return {
+        "left": 10,
+        "right": 11,
+        "top": 12,
+        "top-left": 13,
+        "top-right": 14,
+        "bottom": 15,
+        "bottom-left": 16,
+        "bottom-right": 17,
+    }.get(edge)
+
+
+def _begin_ncl_resize(hit: int) -> None:
+    window = _active.get("window")
+    if window is None:
+        return
+    try:
+        form = window.native
+        hwnd = int(form.Handle.ToInt64())
+    except Exception:
+        return
+
+    def _go() -> None:
+        user32 = ctypes.windll.user32
+        user32.ReleaseCapture()
+        user32.SendMessageW(hwnd, 0x00A1, hit, 0)  # WM_NCLBUTTONDOWN
+
+    try:
+        from System import Action
+
+        if form.InvokeRequired:
+            form.BeginInvoke(Action(_go))
+            return
+    except Exception:
+        pass
+    _go()
+
+
+def _hit_from_client_point(x: int, y: int, width: int, height: int, border: int) -> int | None:
+    left = x <= border
+    right = x >= width - border
+    top = y <= border
+    bottom = y >= height - border
+    if top and left:
+        return 13
+    if top and right:
+        return 14
+    if bottom and left:
+        return 16
+    if bottom and right:
+        return 17
+    if left:
+        return 10
+    if right:
+        return 11
+    if top:
+        return 12
+    if bottom:
+        return 15
+    return None
+
+
+def _apply_dark_frame(form: Any, hwnd: int) -> None:
+    """Paint resize inset + Win11 DWM caption/border the same dark chrome as the toolbar."""
+    try:
+        from System.Drawing import Color
+
+        dark = Color.FromArgb(255, 18, 21, 28)  # #12151c
+        form.BackColor = dark
+    except Exception:
+        logger.exception("Could not set form BackColor")
+    try:
+        dwm = ctypes.windll.dwmapi
+        # COLORREF is 0x00BBGGRR for #12151c
+        color = ctypes.c_int(0x001C1512)
+        dwm.DwmSetWindowAttribute.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_uint,
+            ctypes.c_void_p,
+            ctypes.c_uint,
+        ]
+        dwm.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(ctypes.c_int(1)), 4)  # immersive dark
+        dwm.DwmSetWindowAttribute(hwnd, 34, ctypes.byref(color), 4)  # border
+        dwm.DwmSetWindowAttribute(hwnd, 35, ctypes.byref(color), 4)  # caption (top strip)
+        dwm.DwmSetWindowAttribute(hwnd, 38, ctypes.byref(ctypes.c_int(2)), 4)  # backdrop
+        class _MARGINS(ctypes.Structure):
+            _fields_ = [
+                ("cxLeftWidth", ctypes.c_int),
+                ("cxRightWidth", ctypes.c_int),
+                ("cyTopHeight", ctypes.c_int),
+                ("cyBottomHeight", ctypes.c_int),
+            ]
+
+        # Don't extend a 1px DWM glass caption over the top inset.
+        dwm.DwmExtendFrameIntoClientArea(hwnd, ctypes.byref(_MARGINS(0, 0, 0, 0)))
+    except Exception:
+        logger.exception("Could not set dark DWM frame colors")
+
+
+def _enable_edge_resize(window: Any, border_px: int = 10) -> None:
+    """Inset WebView2 and handle Form.MouseDown so edge grabs run on the UI thread."""
+    form = getattr(window, "native", None)
+    if form is None:
+        return
+    hwnd = int(form.Handle.ToInt64())
+    user32 = ctypes.windll.user32
+    user32.GetWindowLongPtrW.restype = ctypes.c_void_p
+    user32.SetWindowLongPtrW.restype = ctypes.c_void_p
+    style = int(user32.GetWindowLongPtrW(hwnd, -16) or 0)
+    user32.SetWindowLongPtrW(hwnd, -16, style | 0x00040000 | 0x00010000)
+    user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, 0x0027)
+    _apply_dark_frame(form, hwnd)
+
+    wv = getattr(form, "webview", None)
+    if wv is None:
+        browser = getattr(form, "browser", None)
+        wv = getattr(browser, "webview", None) if browser is not None else None
+    try:
+        from System.Drawing import Color as _Color
+
+        if wv is not None and hasattr(wv, "DefaultBackgroundColor"):
+            wv.DefaultBackgroundColor = _Color.FromArgb(255, 18, 21, 28)
+    except Exception:
+        pass
+
+    from System.Windows.Forms import DockStyle, MouseButtons
+
+    if wv is not None:
+        try:
+            wv.Dock = getattr(DockStyle, "None")
+        except Exception:
+            pass
+
+        def layout(_s: Any = None, _e: Any = None) -> None:
+            try:
+                maximized = int(form.WindowState) == 2
+                w, h = int(form.ClientSize.Width), int(form.ClientSize.Height)
+                if maximized:
+                    wv.SetBounds(0, 0, w, h)
+                else:
+                    b = border_px
+                    wv.SetBounds(b, b, max(0, w - 2 * b), max(0, h - 2 * b))
+                _apply_dark_frame(form, hwnd)
+            except Exception:
+                logger.exception("WebView layout for resize border failed")
+
+        form.Resize += layout
+        layout()
+        _active["resize_layout"] = layout
+
+    def on_mouse_down(_s: Any, e: Any) -> None:
+        try:
+            if int(form.WindowState) == 2:
+                return
+            if e.Button != MouseButtons.Left:
+                return
+            hit = _hit_from_client_point(
+                int(e.X), int(e.Y), int(form.ClientSize.Width), int(form.ClientSize.Height), border_px + 2
+            )
+            if hit is None:
+                return
+            _begin_ncl_resize(hit)
+        except Exception:
+            logger.exception("Edge resize mouse-down failed")
+
+    form.MouseDown += on_mouse_down
+    _active["resize_mouse"] = on_mouse_down
+
+
+def scale_window_to_monitor(
+    monitor_w: int, monitor_h: int, fraction: float = 0.75, min_size: tuple[int, int] = (900, 600)
+) -> tuple[int, int]:
+    return max(min_size[0], int(monitor_w * fraction)), max(min_size[1], int(monitor_h * fraction))
+
+
+def _startup_window_size() -> tuple[int, int]:
+    """Logical pixels: 3/4 of the primary monitor. pywebview applies DPI after this."""
+    user32 = ctypes.windll.user32
+    try:
+        user32.SetProcessDPIAware()
+    except Exception:
+        pass
+    try:
+        dpi = int(user32.GetDpiForSystem() or 96)
+    except Exception:
+        dpi = 96
+    scale = (dpi / 96.0) if dpi > 0 else 1.0
+    cx = int(user32.GetSystemMetrics(0) / scale)
+    cy = int(user32.GetSystemMetrics(1) / scale)
+    return scale_window_to_monitor(cx, cy)
+
 
 def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
     try:
@@ -102,14 +335,19 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
         ) from exc
 
     bridge = WebviewBridge()
+    width, height = _startup_window_size()
     window = webview.create_window(
         title,
         url,
-        width=1400,
-        height=900,
+        width=width,
+        height=height,
         min_size=(900, 600),
         js_api=bridge,
         background_color="#000000",
+        frameless=True,
+        easy_drag=False,
+        shadow=True,
+        resizable=True,
     )
     if window is None:
         raise RuntimeError("Could not create the WebView2 window")
@@ -122,7 +360,14 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
         except Exception:
             logger.exception("Could not bind F5/F11 in WebView")
 
+    def on_shown() -> None:
+        try:
+            _enable_edge_resize(window)
+        except Exception:
+            logger.exception("Could not enable resize frame on the frameless window")
+
     window.events.loaded += bind_keys
+    window.events.shown += on_shown
     start_kwargs: dict[str, Any] = {}
     if sys.platform == "win32":
         start_kwargs["gui"] = "edgechromium"

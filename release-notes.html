@@ -273,9 +273,9 @@
         <article class="card latest">
           <h3>13 Sep 2026 — WebView2 window</h3>
           <ul>
-            <li><code>start-webview.cmd</code> / <code>uv run lit serve --webview</code> opens the same local app in a WebView2 window. <code>start.cmd</code> / <code>--open</code> still uses the browser.</li>
-            <li>Reload: project menu <b>Reload (F5)</b> or <b>F5</b>. <b>F11</b> toggles fullscreen. Closing the window exits without “Press any key”.</li>
-            <li>Startup stays black until the board is ready, then fades in.</li>
+            <li><code>start-webview.cmd</code> / <code>start-webview.vbs</code> / <code>uv run lit serve --webview</code> opens the same local app in a WebView2 window. <code>start.cmd</code> / <code>--open</code> still uses the browser.</li>
+            <li>Frameless window: dark resize border, drag empty toolbar to move, min/max/close on the right of the toolbar. Opens at 3/4 of the monitor. Helper console starts minimized.</li>
+            <li>Reload: project menu <b>Reload (F5)</b> or <b>F5</b>. <b>F11</b> toggles fullscreen. Startup stays black until the board is ready, then fades in.</li>
           </ul>
         </article>
         <article class="card">
@@ -391,11 +391,25 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "9a0dcab",
+    "hash": "389aabb",
+    "date": "2026-09-13",
+    "subject": "feat: frameless WebView2 chrome, resize, and 3/4 monitor start",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "a478170",
     "date": "2026-09-13",
     "subject": "feat: WebView2 window launch with F5 reload and fade-in",
     "kind": "feat",
     "rebuild": false
+  },
+  {
+    "hash": "5f5ac8e",
+    "date": "2026-09-13",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
   },
   {
     "hash": "ff58056",

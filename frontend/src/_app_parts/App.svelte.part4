@@ -4,7 +4,8 @@
   <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
 {:else if project && workspace}
   <div class="app-shell" bind:this={appShellEl}>
-    <header class="topbar">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <header class="topbar" onpointerdown={onTopbarPointerDown} ondblclick={onTopbarDblClick}>
       <button
         type="button"
         class="brand"
@@ -135,7 +136,6 @@
       </div>
       <div class="topbar-spacer"></div>
       <div class="topbar-meta">
-        {workspace.name} ·
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span
           class="zoom-readout"
@@ -143,9 +143,8 @@
           onpointerdown={onZoomReadoutPointerDown}
           ondblclick={() => zoomByKeyboard(0)}
         >zoom {(zoom * 100).toFixed(0)}%</span>
-        · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-13c</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-13g</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -154,7 +153,40 @@
           aria-label={serverOk ? 'Connected to server' : 'Server disconnected'}
         ></span>
       </div>
+      {#if inWebview}
+        <div class="window-chrome" role="group" aria-label="Window">
+          <button
+            type="button"
+            class="window-chrome-btn"
+            title="Minimize"
+            onclick={() => void webviewApi()?.minimize?.()}
+          >─</button>
+          <button
+            type="button"
+            class="window-chrome-btn"
+            title="Maximize"
+            onclick={() => void webviewApi()?.toggle_maximize?.()}
+          >□</button>
+          <button
+            type="button"
+            class="window-chrome-btn window-chrome-close"
+            title="Close"
+            onclick={() => void webviewApi()?.close_app?.()}
+          >✕</button>
+        </div>
+      {/if}
     </header>
+    {#if inWebview}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="win-resize n" onpointerdown={(e) => startWinResize('top', e)}></div>
+      <div class="win-resize s" onpointerdown={(e) => startWinResize('bottom', e)}></div>
+      <div class="win-resize e" onpointerdown={(e) => startWinResize('right', e)}></div>
+      <div class="win-resize w" onpointerdown={(e) => startWinResize('left', e)}></div>
+      <div class="win-resize nw" onpointerdown={(e) => startWinResize('top-left', e)}></div>
+      <div class="win-resize ne" onpointerdown={(e) => startWinResize('top-right', e)}></div>
+      <div class="win-resize sw" onpointerdown={(e) => startWinResize('bottom-left', e)}></div>
+      <div class="win-resize se" onpointerdown={(e) => startWinResize('bottom-right', e)}></div>
+    {/if}
 
     <aside class="sidebar" class:hidden={!sidebarVisible}>
       {#each workspaces as w (w.id)}

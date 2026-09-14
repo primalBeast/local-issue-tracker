@@ -1,6 +1,10 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0"
+title Local Issue Tracker
+
+REM Minimize THIS console (do not hide it). Logs stay in the window; restore from the taskbar.
+powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0scripts\minimize-console.ps1"
 
 echo.
 echo ============================================
@@ -33,6 +37,7 @@ if not exist "frontend\dist\index.html" (
 
 echo Starting the local server in a WebView2 window (not a browser tab).
 echo Close the app window to stop. You can still use start.cmd for the browser.
+echo This console is minimized — restore "Local Issue Tracker" from the taskbar for logs.
 echo.
 echo http://127.0.0.1:8765
 echo.

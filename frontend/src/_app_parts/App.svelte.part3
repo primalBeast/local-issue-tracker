@@ -679,6 +679,32 @@
     location.reload();
   }
 
+  function webviewApi():
+    | {
+        toggle_fullscreen?: () => Promise<unknown>;
+        toggle_maximize?: () => Promise<unknown>;
+        minimize?: () => Promise<unknown>;
+        close_app?: () => Promise<unknown>;
+        start_resize?: (edge: string) => Promise<unknown>;
+        start_drag?: () => Promise<unknown>;
+      }
+    | undefined {
+    return (
+      window as unknown as {
+        pywebview?: {
+          api?: {
+            toggle_fullscreen?: () => Promise<unknown>;
+            toggle_maximize?: () => Promise<unknown>;
+            minimize?: () => Promise<unknown>;
+            close_app?: () => Promise<unknown>;
+            start_resize?: (edge: string) => Promise<unknown>;
+            start_drag?: () => Promise<unknown>;
+          };
+        };
+      }
+    ).pywebview?.api;
+  }
+
   async function openSplitTickets(masterHref: string | null | undefined, externalHref: string) {
     const pair = splitTicketUrls(masterHref, externalHref);
     if (!pair) {

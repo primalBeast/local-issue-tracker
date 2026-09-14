@@ -87,6 +87,7 @@
   let deliverables = $state<Array<Record<string, unknown>>>([]);
   let detailCache = $state<Record<string, Item>>({});
   let loading = $state(true);
+  let inWebview = $state(false);
   let error = $state<string | null>(null);
   let toast = $state<string | null>(null);
   let nowTick = $state(Date.now());
@@ -272,9 +273,19 @@
   );
 
   onMount(() => {
+    const syncWebview = () => {
+      inWebview =
+        document.documentElement.getAttribute('data-webview') === '1' || Boolean(webviewApi());
+    };
+    syncWebview();
+    const webviewTick = setInterval(() => {
+      syncWebview();
+      if (inWebview) clearInterval(webviewTick);
+    }, 200);
     const tick = setInterval(() => (nowTick = Date.now()), 1000);
     const healthTick = setInterval(() => void pingServer(), 4000);
     void pingServer();
+    window.setTimeout(() => revealApp(), 5000);
     void bootstrap();
     const onKey = (e: KeyboardEvent) => {
       if (themeMenuOpen) {
@@ -402,6 +413,7 @@
     return () => {
       clearInterval(tick);
       clearInterval(healthTick);
+      clearInterval(webviewTick);
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       endCanvasPan();
@@ -450,6 +462,34 @@
       await tick();
       revealApp();
     }
+  }
+
+  function startWinResize(edge: string, e?: PointerEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
+    void webviewApi()?.start_resize?.(edge);
+  }
+
+  function isTopbarInteractive(t: EventTarget | null): boolean {
+    if (!(t instanceof Element)) return false;
+    return Boolean(
+      t.closest(
+        'button, a, input, select, textarea, .zoom-readout, .theme-dialog, .window-chrome, .win-resize'
+      )
+    );
+  }
+
+  function onTopbarPointerDown(e: PointerEvent) {
+    if (!inWebview || e.button !== 0) return;
+    if (isTopbarInteractive(e.target)) return;
+    e.preventDefault();
+    void webviewApi()?.start_drag?.();
+  }
+
+  function onTopbarDblClick(e: MouseEvent) {
+    if (!inWebview) return;
+    if (isTopbarInteractive(e.target)) return;
+    void webviewApi()?.toggle_maximize?.();
   }
 
   function revealApp() {

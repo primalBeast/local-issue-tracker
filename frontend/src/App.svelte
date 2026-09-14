@@ -87,6 +87,7 @@
   let deliverables = $state<Array<Record<string, unknown>>>([]);
   let detailCache = $state<Record<string, Item>>({});
   let loading = $state(true);
+  let inWebview = $state(false);
   let error = $state<string | null>(null);
   let toast = $state<string | null>(null);
   let nowTick = $state(Date.now());
@@ -272,9 +273,19 @@
   );
 
   onMount(() => {
+    const syncWebview = () => {
+      inWebview =
+        document.documentElement.getAttribute('data-webview') === '1' || Boolean(webviewApi());
+    };
+    syncWebview();
+    const webviewTick = setInterval(() => {
+      syncWebview();
+      if (inWebview) clearInterval(webviewTick);
+    }, 200);
     const tick = setInterval(() => (nowTick = Date.now()), 1000);
     const healthTick = setInterval(() => void pingServer(), 4000);
     void pingServer();
+    window.setTimeout(() => revealApp(), 5000);
     void bootstrap();
     const onKey = (e: KeyboardEvent) => {
       if (themeMenuOpen) {
@@ -402,6 +413,7 @@
     return () => {
       clearInterval(tick);
       clearInterval(healthTick);
+      clearInterval(webviewTick);
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       endCanvasPan();
@@ -450,6 +462,34 @@
       await tick();
       revealApp();
     }
+  }
+
+  function startWinResize(edge: string, e?: PointerEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
+    void webviewApi()?.start_resize?.(edge);
+  }
+
+  function isTopbarInteractive(t: EventTarget | null): boolean {
+    if (!(t instanceof Element)) return false;
+    return Boolean(
+      t.closest(
+        'button, a, input, select, textarea, .zoom-readout, .theme-dialog, .window-chrome, .win-resize'
+      )
+    );
+  }
+
+  function onTopbarPointerDown(e: PointerEvent) {
+    if (!inWebview || e.button !== 0) return;
+    if (isTopbarInteractive(e.target)) return;
+    e.preventDefault();
+    void webviewApi()?.start_drag?.();
+  }
+
+  function onTopbarDblClick(e: MouseEvent) {
+    if (!inWebview) return;
+    if (isTopbarInteractive(e.target)) return;
+    void webviewApi()?.toggle_maximize?.();
   }
 
   function revealApp() {
@@ -2348,6 +2388,32 @@
     location.reload();
   }
 
+  function webviewApi():
+    | {
+        toggle_fullscreen?: () => Promise<unknown>;
+        toggle_maximize?: () => Promise<unknown>;
+        minimize?: () => Promise<unknown>;
+        close_app?: () => Promise<unknown>;
+        start_resize?: (edge: string) => Promise<unknown>;
+        start_drag?: () => Promise<unknown>;
+      }
+    | undefined {
+    return (
+      window as unknown as {
+        pywebview?: {
+          api?: {
+            toggle_fullscreen?: () => Promise<unknown>;
+            toggle_maximize?: () => Promise<unknown>;
+            minimize?: () => Promise<unknown>;
+            close_app?: () => Promise<unknown>;
+            start_resize?: (edge: string) => Promise<unknown>;
+            start_drag?: () => Promise<unknown>;
+          };
+        };
+      }
+    ).pywebview?.api;
+  }
+
   async function openSplitTickets(masterHref: string | null | undefined, externalHref: string) {
     const pair = splitTicketUrls(masterHref, externalHref);
     if (!pair) {
@@ -2501,7 +2567,8 @@
   <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
 {:else if project && workspace}
   <div class="app-shell" bind:this={appShellEl}>
-    <header class="topbar">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <header class="topbar" onpointerdown={onTopbarPointerDown} ondblclick={onTopbarDblClick}>
       <button
         type="button"
         class="brand"
@@ -2632,7 +2699,6 @@
       </div>
       <div class="topbar-spacer"></div>
       <div class="topbar-meta">
-        {workspace.name} ·
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <span
           class="zoom-readout"
@@ -2640,9 +2706,8 @@
           onpointerdown={onZoomReadoutPointerDown}
           ondblclick={() => zoomByKeyboard(0)}
         >zoom {(zoom * 100).toFixed(0)}%</span>
-        · scroll to zoom
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-13c</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-13g</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2651,7 +2716,40 @@
           aria-label={serverOk ? 'Connected to server' : 'Server disconnected'}
         ></span>
       </div>
+      {#if inWebview}
+        <div class="window-chrome" role="group" aria-label="Window">
+          <button
+            type="button"
+            class="window-chrome-btn"
+            title="Minimize"
+            onclick={() => void webviewApi()?.minimize?.()}
+          >─</button>
+          <button
+            type="button"
+            class="window-chrome-btn"
+            title="Maximize"
+            onclick={() => void webviewApi()?.toggle_maximize?.()}
+          >□</button>
+          <button
+            type="button"
+            class="window-chrome-btn window-chrome-close"
+            title="Close"
+            onclick={() => void webviewApi()?.close_app?.()}
+          >✕</button>
+        </div>
+      {/if}
     </header>
+    {#if inWebview}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="win-resize n" onpointerdown={(e) => startWinResize('top', e)}></div>
+      <div class="win-resize s" onpointerdown={(e) => startWinResize('bottom', e)}></div>
+      <div class="win-resize e" onpointerdown={(e) => startWinResize('right', e)}></div>
+      <div class="win-resize w" onpointerdown={(e) => startWinResize('left', e)}></div>
+      <div class="win-resize nw" onpointerdown={(e) => startWinResize('top-left', e)}></div>
+      <div class="win-resize ne" onpointerdown={(e) => startWinResize('top-right', e)}></div>
+      <div class="win-resize sw" onpointerdown={(e) => startWinResize('bottom-left', e)}></div>
+      <div class="win-resize se" onpointerdown={(e) => startWinResize('bottom-right', e)}></div>
+    {/if}
 
     <aside class="sidebar" class:hidden={!sidebarVisible}>
       {#each workspaces as w (w.id)}

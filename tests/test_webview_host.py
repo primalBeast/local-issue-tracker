@@ -5,7 +5,15 @@ import socket
 import pytest
 
 from lit.cli import main
-from lit.webview_host import F5_RELOAD_JS, WebviewBridge, make_view_menu, port_listening, wait_for_port
+from lit.webview_host import (
+    F5_RELOAD_JS,
+    WebviewBridge,
+    _hit_from_client_point,
+    make_view_menu,
+    port_listening,
+    scale_window_to_monitor,
+    wait_for_port,
+)
 
 
 def test_port_listening_false_on_unused_port():
@@ -25,7 +33,28 @@ def test_wait_for_port_times_out_quickly():
 
 
 def test_js_api_does_not_hold_a_window_attribute():
-    assert not hasattr(WebviewBridge(), "window")
+    bridge = WebviewBridge()
+    assert not hasattr(bridge, "window")
+    assert callable(bridge.minimize)
+    assert callable(bridge.close_app)
+    assert callable(bridge.toggle_fullscreen)
+    assert callable(bridge.toggle_maximize)
+    assert callable(bridge.start_resize)
+    assert callable(bridge.start_drag)
+
+
+def test_scale_window_to_monitor_is_three_quarters():
+    assert scale_window_to_monitor(1920, 1080) == (1440, 810)
+    assert scale_window_to_monitor(1280, 720) == (960, 600)
+
+
+def test_hit_from_client_point_edges():
+    assert _hit_from_client_point(0, 50, 400, 300, 10) == 10
+    assert _hit_from_client_point(399, 50, 400, 300, 10) == 11
+    assert _hit_from_client_point(50, 0, 400, 300, 10) == 12
+    assert _hit_from_client_point(50, 299, 400, 300, 10) == 15
+    assert _hit_from_client_point(0, 0, 400, 300, 10) == 13
+    assert _hit_from_client_point(200, 150, 400, 300, 10) is None
 
 
 def test_view_menu_has_reload():

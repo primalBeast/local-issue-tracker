@@ -62,7 +62,7 @@ Then open [http://127.0.0.1:8765](http://127.0.0.1:8765) if it did not open auto
 
 1. `install.cmd` — installs uv + app deps, then checks the install  
 2. `start.cmd` — starts the server and opens the browser  
-3. `start-webview.cmd` — same server in a WebView2 window (no browser tab)  
+3. `start-webview.cmd` (or `start-webview.vbs`) — same server in a WebView2 window; the helper console starts minimized (open it from the taskbar to read logs)  
 
 Windows (PowerShell) is the same `uv` / `git` commands after installing [Git for Windows](https://git-scm.com/download/win) and [uv](https://docs.astral.sh/uv/getting-started/installation/). See **[docs/RUN-Windows11.md](docs/RUN-Windows11.md)**.
 

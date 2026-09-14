@@ -133,7 +133,7 @@ uv run lit doctor
 
 Easiest: double-click **`start.cmd`**. It starts the server and opens the browser. Leave that window open. If the app is already running, it just opens http://127.0.0.1:8765.
 
-**WebView2 window (no browser tab):** double-click **`start-webview.cmd`**, or:
+**WebView2 window (no browser tab):** double-click **`start-webview.vbs`** (no console flash) or **`start-webview.cmd`**. The helper console is **minimized** to the taskbar; restore **Local Issue Tracker** there to read logs. Or:
 
 ```powershell
 uv run lit serve --webview
@@ -141,7 +141,9 @@ uv run lit serve --webview
 
 That is the same local server. Close the WebView2 window to stop (if this process started the server). `--open` still opens Edge/Chrome as before. Do not pass both; `--webview` wins.
 
-To reload the UI after a frontend rebuild: click the project name (top-left) and **Reload (F5)**, or press **F5**. **F11** toggles fullscreen.
+The WebView2 window has no Windows title bar. Resize from the outer edges. Minimize / maximize / close are on the right of the app toolbar. **F11** toggles fullscreen. **Alt+F4** also quits.
+
+To reload the UI after a frontend rebuild: click the project name (top-left) and **Reload (F5)**, or press **F5**.
 
 Or:
 
@@ -158,7 +160,7 @@ Leave the PowerShell window open while you use the app (browser mode). Stop the 
 
 ### Daily start (after the first setup)
 
-Double-click **`start.cmd`** (browser) or **`start-webview.cmd`** (WebView2 window), or:
+Double-click **`start.cmd`** (browser) or **`start-webview.cmd`** / **`start-webview.vbs`** (WebView2, console minimized), or:
 
 ```powershell
 cd D:\dev\local-issue-tracker   # your clone path

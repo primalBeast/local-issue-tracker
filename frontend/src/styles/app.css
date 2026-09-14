@@ -351,12 +351,17 @@ label.field-label {
   background: transparent;
 }
 
+html[data-webview='1'] .topbar { cursor: grab; }
+html[data-webview='1'] .topbar button,
+html[data-webview='1'] .topbar select { cursor: pointer; }
+html[data-webview='1'] .topbar .zoom-readout { cursor: ns-resize; }
+
 .topbar {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 14px;
+  padding: 0 8px 0 14px;
   border-bottom: 1px solid var(--border);
   background-color: transparent;
   background-image:
@@ -966,6 +971,55 @@ body.lit-tab-dragging .ws-tab { cursor: grabbing !important; }
   background: #f87171;
   box-shadow: 0 0 8px rgba(248, 113, 113, 0.9);
 }
+
+.window-chrome {
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+  align-self: stretch;
+  gap: 0;
+  margin-left: 4px;
+  margin-right: -8px;
+}
+.window-chrome-btn {
+  width: 32px;
+  min-height: var(--topbar-h);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1;
+  box-shadow: none;
+}
+.window-chrome-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: transparent;
+  filter: none;
+}
+.window-chrome-btn:active { transform: none; }
+.window-chrome-close:hover {
+  background: #c42b1c;
+  color: #fff;
+  border-color: transparent;
+}
+
+.win-resize {
+  position: fixed;
+  z-index: 200;
+  background: transparent;
+}
+.win-resize.n { top: 0; left: 14px; right: 148px; height: 12px; cursor: ns-resize; }
+.win-resize.s { bottom: 0; left: 14px; right: 14px; height: 12px; cursor: ns-resize; }
+.win-resize.e { top: 14px; right: 0; bottom: 14px; width: 12px; cursor: ew-resize; }
+.win-resize.w { top: 14px; left: 0; bottom: 14px; width: 12px; cursor: ew-resize; }
+.win-resize.nw { top: 0; left: 0; width: 16px; height: 16px; cursor: nwse-resize; }
+.win-resize.ne { top: 0; right: 0; width: 16px; height: 16px; cursor: nesw-resize; }
+.win-resize.sw { bottom: 0; left: 0; width: 16px; height: 16px; cursor: nesw-resize; }
+.win-resize.se { bottom: 0; right: 0; width: 16px; height: 16px; cursor: nwse-resize; }
+.window-chrome { position: relative; z-index: 210; }
 
 .project-list {
   display: flex;
