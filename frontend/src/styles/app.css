@@ -351,10 +351,7 @@ label.field-label {
   background: transparent;
 }
 
-html[data-webview='1'] .topbar { cursor: grab; }
-html[data-webview='1'] .topbar button,
-html[data-webview='1'] .topbar select { cursor: pointer; }
-html[data-webview='1'] .topbar .zoom-readout { cursor: ns-resize; }
+html[data-webview='1'] .topbar-spacer { cursor: grab; }
 
 .topbar {
   grid-column: 1 / -1;
@@ -1011,12 +1008,9 @@ body.lit-tab-dragging .ws-tab { cursor: grabbing !important; }
   z-index: 200;
   background: transparent;
 }
-.win-resize.n { top: 0; left: 14px; right: 148px; height: 12px; cursor: ns-resize; }
 .win-resize.s { bottom: 0; left: 14px; right: 14px; height: 12px; cursor: ns-resize; }
 .win-resize.e { top: 14px; right: 0; bottom: 14px; width: 12px; cursor: ew-resize; }
 .win-resize.w { top: 14px; left: 0; bottom: 14px; width: 12px; cursor: ew-resize; }
-.win-resize.nw { top: 0; left: 0; width: 16px; height: 16px; cursor: nwse-resize; }
-.win-resize.ne { top: 0; right: 0; width: 16px; height: 16px; cursor: nesw-resize; }
 .win-resize.sw { bottom: 0; left: 0; width: 16px; height: 16px; cursor: nesw-resize; }
 .win-resize.se { bottom: 0; right: 0; width: 16px; height: 16px; cursor: nwse-resize; }
 .window-chrome { position: relative; z-index: 210; }

@@ -141,7 +141,7 @@ class WebviewBridge:
             from System import Action
 
             if form.InvokeRequired:
-                form.BeginInvoke(Action(_go))
+                form.Invoke(Action(_go))
                 return
         except Exception:
             pass
@@ -198,11 +198,22 @@ def _begin_ncl_resize(hit: int) -> None:
     _go()
 
 
-def _hit_from_client_point(x: int, y: int, width: int, height: int, border: int) -> int | None:
-    left = x <= border
-    right = x >= width - border
-    top = y <= border
-    bottom = y >= height - border
+def _hit_from_client_point(
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    border: int,
+    top_border: int | None = None,
+    bottom_border: int | None = None,
+) -> int | None:
+    side = border
+    top_b = border if top_border is None else top_border
+    bot_b = border if bottom_border is None else bottom_border
+    left = x <= side
+    right = x >= width - side
+    top = y <= top_b
+    bottom = y >= height - bot_b
     if top and left:
         return 13
     if top and right:
@@ -259,7 +270,7 @@ def _apply_dark_frame(form: Any, hwnd: int) -> None:
         logger.exception("Could not set dark DWM frame colors")
 
 
-def _enable_edge_resize(window: Any, border_px: int = 10) -> None:
+def _enable_edge_resize(window: Any, border_px: int = 8, top_px: int = 4) -> None:
     """Inset WebView2 and handle Form.MouseDown so edge grabs run on the UI thread."""
     form = getattr(window, "native", None)
     if form is None:
@@ -285,7 +296,7 @@ def _enable_edge_resize(window: Any, border_px: int = 10) -> None:
     except Exception:
         pass
 
-    from System.Windows.Forms import DockStyle, MouseButtons
+    from System.Windows.Forms import Cursors, DockStyle, MouseButtons
 
     if wv is not None:
         try:
@@ -300,8 +311,12 @@ def _enable_edge_resize(window: Any, border_px: int = 10) -> None:
                 if maximized:
                     wv.SetBounds(0, 0, w, h)
                 else:
-                    b = border_px
-                    wv.SetBounds(b, b, max(0, w - 2 * b), max(0, h - 2 * b))
+                    wv.SetBounds(
+                        border_px,
+                        top_px,
+                        max(0, w - 2 * border_px),
+                        max(0, h - top_px - border_px),
+                    )
                 _apply_dark_frame(form, hwnd)
             except Exception:
                 logger.exception("WebView layout for resize border failed")
@@ -317,7 +332,13 @@ def _enable_edge_resize(window: Any, border_px: int = 10) -> None:
             if e.Button != MouseButtons.Left:
                 return
             hit = _hit_from_client_point(
-                int(e.X), int(e.Y), int(form.ClientSize.Width), int(form.ClientSize.Height), border_px + 2
+                int(e.X),
+                int(e.Y),
+                int(form.ClientSize.Width),
+                int(form.ClientSize.Height),
+                border_px + 2,
+                top_border=top_px + 1,
+                bottom_border=border_px + 2,
             )
             if hit is None:
                 return
@@ -325,8 +346,38 @@ def _enable_edge_resize(window: Any, border_px: int = 10) -> None:
         except Exception:
             logger.exception("Edge resize mouse-down failed")
 
+    def on_mouse_move(_s: Any, e: Any) -> None:
+        try:
+            if bool(_active.get("is_max")) or int(form.WindowState) == 2:
+                form.Cursor = Cursors.Default
+                return
+            hit = _hit_from_client_point(
+                int(e.X),
+                int(e.Y),
+                int(form.ClientSize.Width),
+                int(form.ClientSize.Height),
+                border_px + 2,
+                top_border=top_px + 1,
+                bottom_border=border_px + 2,
+            )
+            cursors = {
+                10: Cursors.SizeWE,
+                11: Cursors.SizeWE,
+                12: Cursors.SizeNS,
+                15: Cursors.SizeNS,
+                13: Cursors.SizeNWSE,
+                17: Cursors.SizeNWSE,
+                14: Cursors.SizeNESW,
+                16: Cursors.SizeNESW,
+            }
+            form.Cursor = cursors.get(hit, Cursors.Default)
+        except Exception:
+            pass
+
     form.MouseDown += on_mouse_down
+    form.MouseMove += on_mouse_move
     _active["resize_mouse"] = on_mouse_down
+    _active["resize_move"] = on_mouse_move
 
 
 def scale_window_to_monitor(

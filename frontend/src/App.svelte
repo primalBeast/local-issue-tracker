@@ -482,13 +482,27 @@
   function onTopbarPointerDown(e: PointerEvent) {
     if (!inWebview || e.button !== 0) return;
     if (isTopbarInteractive(e.target)) return;
-    e.preventDefault();
-    void webviewApi()?.start_drag?.();
+    const origin = { x: e.clientX, y: e.clientY };
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - origin.x;
+      const dy = ev.clientY - origin.y;
+      if (dx * dx + dy * dy < 36) return;
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+      void webviewApi()?.start_drag?.();
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+    };
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerup', onUp, true);
   }
 
   function onTopbarDblClick(e: MouseEvent) {
     if (!inWebview) return;
     if (isTopbarInteractive(e.target)) return;
+    e.preventDefault();
     void webviewApi()?.toggle_maximize?.();
   }
 
@@ -2707,7 +2721,7 @@
           ondblclick={() => zoomByKeyboard(0)}
         >zoom {(zoom * 100).toFixed(0)}%</span>
         {#if compact}<span class="chip">compact</span>{/if}
-        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-13g</span>
+        <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-14c</span>
         <span
           class="server-dot"
           class:ok={serverOk}
@@ -2741,12 +2755,9 @@
     </header>
     {#if inWebview}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="win-resize n" onpointerdown={(e) => startWinResize('top', e)}></div>
       <div class="win-resize s" onpointerdown={(e) => startWinResize('bottom', e)}></div>
       <div class="win-resize e" onpointerdown={(e) => startWinResize('right', e)}></div>
       <div class="win-resize w" onpointerdown={(e) => startWinResize('left', e)}></div>
-      <div class="win-resize nw" onpointerdown={(e) => startWinResize('top-left', e)}></div>
-      <div class="win-resize ne" onpointerdown={(e) => startWinResize('top-right', e)}></div>
       <div class="win-resize sw" onpointerdown={(e) => startWinResize('bottom-left', e)}></div>
       <div class="win-resize se" onpointerdown={(e) => startWinResize('bottom-right', e)}></div>
     {/if}

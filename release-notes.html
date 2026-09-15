@@ -274,6 +274,7 @@
           <h3>14 Sep 2026 — Maximize stays a normal window</h3>
           <ul>
             <li>The WebView2 toolbar maximize button fills the monitor <b>work area</b> (taskbar stays). <b>F11</b> is still true fullscreen.</li>
+            <li>Double-click empty toolbar to maximize/restore. Drag starts only after the pointer moves. Thinner top resize edge; cursor stays ns-resize across that strip.</li>
           </ul>
         </article>
         <article class="card">
@@ -397,11 +398,25 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "c88309d",
+    "hash": "d582c71",
+    "date": "2026-09-15",
+    "subject": "fix: WebView2 toolbar double-click maximize and thinner top resize",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "73d6db3",
     "date": "2026-09-14",
     "subject": "fix: WebView2 maximize uses work area, not F11 fullscreen",
     "kind": "fix",
     "rebuild": false
+  },
+  {
+    "hash": "e84c1cb",
+    "date": "2026-09-14",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
   },
   {
     "hash": "cd78ed0",

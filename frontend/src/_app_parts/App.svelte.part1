@@ -482,13 +482,27 @@
   function onTopbarPointerDown(e: PointerEvent) {
     if (!inWebview || e.button !== 0) return;
     if (isTopbarInteractive(e.target)) return;
-    e.preventDefault();
-    void webviewApi()?.start_drag?.();
+    const origin = { x: e.clientX, y: e.clientY };
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - origin.x;
+      const dy = ev.clientY - origin.y;
+      if (dx * dx + dy * dy < 36) return;
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+      void webviewApi()?.start_drag?.();
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove, true);
+      window.removeEventListener('pointerup', onUp, true);
+    };
+    window.addEventListener('pointermove', onMove, true);
+    window.addEventListener('pointerup', onUp, true);
   }
 
   function onTopbarDblClick(e: MouseEvent) {
     if (!inWebview) return;
     if (isTopbarInteractive(e.target)) return;
+    e.preventDefault();
     void webviewApi()?.toggle_maximize?.();
   }
 

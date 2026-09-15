@@ -55,6 +55,8 @@ def test_hit_from_client_point_edges():
     assert _hit_from_client_point(50, 299, 400, 300, 10) == 15
     assert _hit_from_client_point(0, 0, 400, 300, 10) == 13
     assert _hit_from_client_point(200, 150, 400, 300, 10) is None
+    assert _hit_from_client_point(50, 3, 400, 300, 8, top_border=4) == 12
+    assert _hit_from_client_point(50, 6, 400, 300, 8, top_border=4) is None
 
 
 def test_view_menu_has_reload():
