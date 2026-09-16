@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import inspect
 import socket
 
 import pytest
 
 from lit.cli import main
+from lit import webview_host
 from lit.webview_host import (
     F5_RELOAD_JS,
     WebviewBridge,
@@ -12,6 +14,7 @@ from lit.webview_host import (
     make_view_menu,
     port_listening,
     scale_window_to_monitor,
+    wait_for_http,
     wait_for_port,
 )
 
@@ -32,6 +35,14 @@ def test_wait_for_port_times_out_quickly():
     assert wait_for_port("127.0.0.1", port, timeout=0.2) is False
 
 
+def test_wait_for_http_times_out_quickly():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    assert wait_for_http("127.0.0.1", port, timeout=0.2) is False
+
+
 def test_js_api_does_not_hold_a_window_attribute():
     bridge = WebviewBridge()
     assert not hasattr(bridge, "window")
@@ -41,6 +52,7 @@ def test_js_api_does_not_hold_a_window_attribute():
     assert callable(bridge.toggle_maximize)
     assert callable(bridge.start_resize)
     assert callable(bridge.start_drag)
+    assert callable(bridge.main_ready)
 
 
 def test_scale_window_to_monitor_is_three_quarters():
@@ -75,6 +87,18 @@ def test_f5_script_listens_for_f5():
     assert "location.reload" in F5_RELOAD_JS
     assert "F11" in F5_RELOAD_JS
     assert "toggle_fullscreen" in F5_RELOAD_JS
+
+
+def test_open_webview_uses_app_icon_and_closes_splash():
+    src = inspect.getsource(webview_host.open_webview)
+    assert "icon_path" in src
+    assert 'start_kwargs["icon"]' in src
+    assert "close_splash" in src
+    assert "hidden=True" not in src
+    assert "form.Icon" not in src
+    assert src.index("events.loaded") < src.index("webview.start")
+    shown = src[src.index("def on_shown") : src.index("def on_loaded")]
+    assert "close_splash" not in shown
 
 
 def test_serve_help_lists_webview(capsys: pytest.CaptureFixture[str]):

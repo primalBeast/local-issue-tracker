@@ -687,6 +687,7 @@
         close_app?: () => Promise<unknown>;
         start_resize?: (edge: string) => Promise<unknown>;
         start_drag?: () => Promise<unknown>;
+        main_ready?: () => Promise<unknown>;
       }
     | undefined {
     return (
@@ -699,6 +700,7 @@
             close_app?: () => Promise<unknown>;
             start_resize?: (edge: string) => Promise<unknown>;
             start_drag?: () => Promise<unknown>;
+            main_ready?: () => Promise<unknown>;
           };
         };
       }

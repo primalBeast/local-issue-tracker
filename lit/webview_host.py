@@ -6,7 +6,10 @@ import ctypes
 import logging
 import socket
 import sys
+import threading
 import time
+import urllib.error
+import urllib.request
 from collections.abc import Callable
 from typing import Any
 
@@ -52,6 +55,21 @@ def wait_for_port(host: str, port: int, timeout: float = 20.0) -> bool:
     while time.monotonic() < deadline:
         if port_listening(host, port):
             return True
+        time.sleep(0.1)
+    return False
+
+
+def wait_for_http(host: str, port: int, timeout: float = 20.0) -> bool:
+    """Wait until GET /health returns 200 so WebView2 does not load a blank page."""
+    url = f"http://{host}:{port}/health"
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=0.6) as resp:
+                if int(getattr(resp, "status", 200) or 200) == 200:
+                    return True
+        except (OSError, urllib.error.URLError, ValueError):
+            pass
         time.sleep(0.1)
     return False
 
@@ -157,6 +175,12 @@ class WebviewBridge:
     def start_drag(self) -> None:
         """Drag the frameless window (HTCAPTION)."""
         _begin_ncl_resize(2)
+
+    def main_ready(self) -> None:
+        """Called from the UI after first paint so the splash can close."""
+        from lit.branding import close_splash
+
+        close_splash()
 
 
 def _resize_hit(edge: str) -> int | None:
@@ -308,6 +332,8 @@ def _enable_edge_resize(window: Any, border_px: int = 8, top_px: int = 4) -> Non
             try:
                 maximized = bool(_active.get("is_max")) or int(form.WindowState) == 2
                 w, h = int(form.ClientSize.Width), int(form.ClientSize.Height)
+                if w < 80 or h < 80:
+                    return
                 if maximized:
                     wv.SetBounds(0, 0, w, h)
                 else:
@@ -413,6 +439,9 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
 
     bridge = WebviewBridge()
     width, height = _startup_window_size()
+    from lit.branding import close_splash, icon_path
+
+    ico = icon_path()
     window = webview.create_window(
         title,
         url,
@@ -420,7 +449,7 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
         height=height,
         min_size=(900, 600),
         js_api=bridge,
-        background_color="#000000",
+        background_color="#0b0d12",
         frameless=True,
         easy_drag=False,
         shadow=True,
@@ -443,16 +472,38 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
         except Exception:
             logger.exception("Could not enable resize frame on the frameless window")
 
-    window.events.loaded += bind_keys
+    def on_loaded() -> None:
+        bind_keys()
+        # Keep the splash until JS main_ready (first paint). Closing on shown
+        # revealed an empty black window. Fallback if the UI never calls in.
+        def _fallback_close() -> None:
+            time.sleep(12)
+            try:
+                close_splash()
+            except Exception:
+                pass
+
+        threading.Thread(target=_fallback_close, name="lit-splash-fallback", daemon=True).start()
+
     window.events.shown += on_shown
+    window.events.loaded += on_loaded
     start_kwargs: dict[str, Any] = {}
     if sys.platform == "win32":
         start_kwargs["gui"] = "edgechromium"
+    if ico.is_file():
+        start_kwargs["icon"] = str(ico)
     try:
         webview.start(**start_kwargs)
     except Exception:
         logger.exception("WebView2 (edgechromium) failed; retrying with the default GUI")
-        webview.start()
+        retry_kwargs: dict[str, Any] = {}
+        if ico.is_file():
+            retry_kwargs["icon"] = str(ico)
+        webview.start(**retry_kwargs)
     finally:
+        try:
+            close_splash()
+        except Exception:
+            pass
         _active["window"] = None
         _active["url"] = ""

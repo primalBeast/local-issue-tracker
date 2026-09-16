@@ -508,10 +508,14 @@
 
   function revealApp() {
     const veil = document.getElementById('boot-veil');
-    if (!veil || veil.classList.contains('is-gone')) return;
+    if (!veil || veil.classList.contains('is-gone')) {
+      void webviewApi()?.main_ready?.();
+      return;
+    }
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         veil.classList.add('is-gone');
+        void webviewApi()?.main_ready?.();
         window.setTimeout(() => veil.remove(), 280);
       });
     });
@@ -2410,6 +2414,7 @@
         close_app?: () => Promise<unknown>;
         start_resize?: (edge: string) => Promise<unknown>;
         start_drag?: () => Promise<unknown>;
+        main_ready?: () => Promise<unknown>;
       }
     | undefined {
     return (
@@ -2422,6 +2427,7 @@
             close_app?: () => Promise<unknown>;
             start_resize?: (edge: string) => Promise<unknown>;
             start_drag?: () => Promise<unknown>;
+            main_ready?: () => Promise<unknown>;
           };
         };
       }

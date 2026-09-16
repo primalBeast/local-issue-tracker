@@ -258,12 +258,12 @@
         <p class="lede">
           A fully local personal issue tracker: floating workspaces, configurable fields,
           waiting metrics, and a dark-mode-first UI. History below is from the GitHub
-          <code>main</code> branch, 9 Aug 2026 through 14 Sep 2026.
+          <code>main</code> branch, 9 Aug 2026 through 16 Sep 2026.
         </p>
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 14 Sep 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 16 Sep 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,14 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>16 Sep 2026 — Splash screen while WebView2 starts</h3>
+          <ul>
+            <li>Double-click <code>start-webview.vbs</code> shows a Local Issue Tracker splash while the server starts, then the board. The helper console stays minimized (restore it from the taskbar for logs).</li>
+            <li>The splash stays up until the UI is ready, so you do not get an empty black window. The taskbar uses the app icon.</li>
+            <li>A crash or kill no longer pops the false “run install.cmd” dialog.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>14 Sep 2026 — Maximize stays a normal window</h3>
           <ul>
             <li>The WebView2 toolbar maximize button fills the monitor <b>work area</b> (taskbar stays). <b>F11</b> is still true fullscreen.</li>
@@ -398,7 +406,21 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "d582c71",
+    "hash": "8a8b3e8",
+    "date": "2026-09-16",
+    "subject": "feat: WebView2 splash screen and minimized helper console",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "c43b666",
+    "date": "2026-09-15",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "917e6dd",
     "date": "2026-09-15",
     "subject": "fix: WebView2 toolbar double-click maximize and thinner top resize",
     "kind": "fix",

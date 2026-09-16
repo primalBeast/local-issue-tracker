@@ -48,16 +48,30 @@ def cmd_serve(args: argparse.Namespace) -> int:
         )
 
     use_webview = bool(getattr(args, "webview", False))
+    if use_webview:
+        from lit.branding import apply_app_user_model_id, close_splash, minimize_console, start_splash
+
+        apply_app_user_model_id()
+        start_splash()
+        minimize_console()
     url = f"http://{cfg.host}:{cfg.port}"
     if use_webview:
-        from lit.webview_host import open_webview, port_listening
+        from lit.webview_host import open_webview, port_listening, wait_for_http
 
         if port_listening(cfg.host, cfg.port):
+            if not wait_for_http(cfg.host, cfg.port, timeout=3.0):
+                logging.getLogger("lit").error(
+                    "Port %s is in use but /health did not respond", url
+                )
+                close_splash()
+                return 1
             logging.getLogger("lit").info("Server already running — opening WebView2 at %s", url)
             try:
                 open_webview(url)
-            except RuntimeError as exc:
+            except Exception as exc:
+                logging.getLogger("lit").exception("WebView failed")
                 print(exc, file=sys.stderr)
+                close_splash()
                 return 1
             return 0
 
@@ -105,31 +119,37 @@ def cmd_serve(args: argparse.Namespace) -> int:
         logging.getLogger("lit").info("Ignoring --open because --webview was set")
 
     if use_webview:
-        from lit.webview_host import open_webview, wait_for_port
+        from lit.webview_host import open_webview, wait_for_http
 
         config = uvicorn.Config(
             app,
             host=cfg.host,
             port=cfg.port,
-            log_level="info",
+            log_level="warning",
+            access_log=False,
         )
         server = uvicorn.Server(config)
+        server.install_signal_handlers = False
         thread = threading.Thread(target=server.run, name="lit-uvicorn", daemon=True)
         thread.start()
-        if not wait_for_port(cfg.host, cfg.port):
+        if not wait_for_http(cfg.host, cfg.port):
             logging.getLogger("lit").error("Server did not start on %s", url)
             server.should_exit = True
+            close_splash()
             release_data_lock()
             return 1
         try:
             open_webview(url)
-        except RuntimeError as exc:
+        except Exception as exc:
+            logging.getLogger("lit").exception("WebView failed")
             print(exc, file=sys.stderr)
             server.should_exit = True
             thread.join(timeout=5)
+            close_splash()
             release_data_lock()
             return 1
         finally:
+            close_splash()
             server.should_exit = True
             thread.join(timeout=8)
             release_data_lock()

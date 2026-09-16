@@ -1,14 +1,19 @@
-' Start start-webview.cmd already minimized (no extra visible console).
-' 7 = SW_SHOWMINNOACTIVE
+' Start splash immediately, then start-webview.cmd already minimized (no extra visible console).
+' 0 = SW_HIDE (splash PowerShell), 7 = SW_SHOWMINNOACTIVE (helper console)
 Option Explicit
-Dim fso, sh, dir, cmd, rc
+Dim fso, sh, dir, cmd, rc, splash
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set sh = CreateObject("WScript.Shell")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
 sh.CurrentDirectory = dir
+splash = dir & "\lit\assets\show-splash.ps1"
+If fso.FileExists(splash) Then
+  sh.Run "powershell.exe -STA -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File """ & splash & """", 0, False
+End If
 cmd = "cmd.exe /c """ & dir & "\start-webview.cmd"""
 rc = sh.Run(cmd, 7, True)
-If rc <> 0 Then
+' Only our explicit start failures return 1. Crash/kill codes (e.g. -805306369) are not install problems.
+If rc = 1 Then
   MsgBox "Local Issue Tracker failed to start (code " & rc & ")." & vbCrLf & _
     "Double-click install.cmd, then try again.", 16, "Local Issue Tracker"
 End If
