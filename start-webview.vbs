@@ -1,18 +1,14 @@
-' Start splash immediately (pythonw Tk — PowerShell is often blocked on work PCs),
-' then start-webview.cmd already minimized.
-' 1 = SW_SHOWNORMAL (Tk splash), 7 = SW_SHOWMINNOACTIVE (helper console)
+' Start splash immediately with mshta, then start-webview.cmd already minimized.
+' 1 = SW_SHOWNORMAL (HTA splash), 7 = SW_SHOWMINNOACTIVE (helper console)
 Option Explicit
-Dim fso, sh, dir, cmd, rc, splash, pythonw
+Dim fso, sh, dir, cmd, rc, splash
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set sh = CreateObject("WScript.Shell")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
 sh.CurrentDirectory = dir
-pythonw = dir & "\.venv\Scripts\pythonw.exe"
-splash = dir & "\lit\assets\show-splash.ps1"
-If fso.FileExists(pythonw) Then
-  sh.Run """" & pythonw & """ -m lit.splash_app", 1, False
-ElseIf fso.FileExists(splash) Then
-  sh.Run "powershell.exe -STA -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File """ & splash & """", 0, False
+splash = dir & "\lit\assets\splash.hta"
+If fso.FileExists(splash) Then
+  sh.Run "mshta.exe """ & splash & """", 1, False
 End If
 cmd = "cmd.exe /c """ & dir & "\start-webview.cmd"""
 rc = sh.Run(cmd, 7, True)

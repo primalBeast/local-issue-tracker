@@ -439,8 +439,9 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
 
     bridge = WebviewBridge()
     width, height = _startup_window_size()
-    from lit.branding import close_splash
+    from lit.branding import close_splash, icon_path
 
+    ico = icon_path()
     window = webview.create_window(
         title,
         url,
@@ -489,11 +490,16 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
     start_kwargs: dict[str, Any] = {}
     if sys.platform == "win32":
         start_kwargs["gui"] = "edgechromium"
+    if ico.is_file():
+        start_kwargs["icon"] = str(ico)
     try:
         webview.start(**start_kwargs)
     except Exception:
         logger.exception("WebView2 (edgechromium) failed; retrying with the default GUI")
-        webview.start()
+        retry_kwargs: dict[str, Any] = {}
+        if ico.is_file():
+            retry_kwargs["icon"] = str(ico)
+        webview.start(**retry_kwargs)
     finally:
         try:
             close_splash()

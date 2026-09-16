@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -11,7 +12,8 @@ from pathlib import Path
 logger = logging.getLogger("lit.branding")
 
 APP_USER_MODEL_ID = "primalBeast.LocalIssueTracker"
-SPLASH_CLOSE_EVENT = "LocalIssueTracker.SplashClose"
+SPLASH_TITLE = "Local Issue Tracker Starting"
+WM_CLOSE = 0x0010
 
 
 def assets_dir() -> Path:
@@ -26,22 +28,12 @@ def splash_image_path() -> Path:
     return assets_dir() / "splash.png"
 
 
-def splash_script_path() -> Path:
-    return assets_dir() / "show-splash.ps1"
+def splash_hta_path() -> Path:
+    return assets_dir() / "splash.hta"
 
 
-def _pythonw_executable() -> Path:
-    exe = Path(sys.executable)
-    if exe.name.lower() == "python.exe":
-        pythonw = exe.with_name("pythonw.exe")
-        if pythonw.is_file():
-            return pythonw
-    return exe
-
-
-def splash_argv() -> list[str]:
-    """Launch a Tk splash in its own process (works when PowerShell is locked down)."""
-    return [str(_pythonw_executable()), "-m", "lit.splash_app"]
+def splash_close_path() -> Path:
+    return Path(os.environ.get("TEMP") or os.environ.get("TMP") or ".") / "lit-splash.close"
 
 
 def apply_app_user_model_id() -> None:
@@ -65,78 +57,43 @@ def minimize_console() -> None:
         logger.exception("Could not minimize console")
 
 
-def _event_handle(*, create: bool, signaled: bool = False) -> int:
-    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    kernel32.CreateEventW.restype = ctypes.c_void_p
-    kernel32.OpenEventW.restype = ctypes.c_void_p
-    if create:
-        handle = kernel32.CreateEventW(None, True, signaled, SPLASH_CLOSE_EVENT)
-    else:
-        handle = kernel32.OpenEventW(0x0002, False, SPLASH_CLOSE_EVENT)
-    return int(handle or 0)
+def _find_splash_hwnd() -> int:
+    user32 = ctypes.windll.user32
+    user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+    user32.FindWindowW.restype = ctypes.c_void_p
+    return int(user32.FindWindowW(None, SPLASH_TITLE) or 0)
 
 
 def start_splash() -> None:
     if sys.platform != "win32":
         return
+    hta = splash_hta_path()
+    if not hta.is_file():
+        return
     try:
-        handle = _event_handle(create=True, signaled=False)
-        if handle:
-            ctypes.windll.kernel32.ResetEvent(handle)
-            ctypes.windll.kernel32.CloseHandle(handle)
-        argv = splash_argv()
-        flags = 0
-        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
-            flags |= subprocess.CREATE_NEW_PROCESS_GROUP
-        # pythonw has no console. CREATE_NO_WINDOW on python.exe can hide the Tk window.
-        if argv[0].lower().endswith("python.exe") and hasattr(subprocess, "CREATE_NO_WINDOW"):
-            flags |= subprocess.CREATE_NO_WINDOW
+        splash_close_path().unlink(missing_ok=True)
+    except OSError:
+        pass
+    if _find_splash_hwnd():
+        return
+    try:
+        # GUI subsystem: do not use CREATE_NO_WINDOW / SW_HIDE (those hide the splash).
         subprocess.Popen(
-            argv,
-            cwd=str(Path(__file__).resolve().parent.parent),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=flags,
+            ["mshta.exe", str(hta)],
+            cwd=str(hta.parent),
+            close_fds=True,
         )
     except Exception:
         logger.exception("Could not start splash")
-        script = splash_script_path()
-        if not script.is_file():
-            return
-        try:
-            flags = 0
-            if hasattr(subprocess, "CREATE_NO_WINDOW"):
-                flags |= subprocess.CREATE_NO_WINDOW
-            if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
-                flags |= subprocess.CREATE_NEW_PROCESS_GROUP
-            subprocess.Popen(
-                [
-                    "powershell.exe",
-                    "-STA",
-                    "-NoProfile",
-                    "-WindowStyle",
-                    "Hidden",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                    str(script),
-                ],
-                cwd=str(script.parent),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=flags,
-            )
-        except Exception:
-            logger.exception("Could not start PowerShell splash")
 
 
 def close_splash() -> None:
     if sys.platform != "win32":
         return
     try:
-        handle = _event_handle(create=True, signaled=True)
-        if handle:
-            ctypes.windll.kernel32.SetEvent(handle)
-            ctypes.windll.kernel32.CloseHandle(handle)
-    except Exception:
-        logger.exception("Could not close splash")
+        splash_close_path().write_text("1", encoding="ascii")
+    except OSError:
+        logger.exception("Could not write splash close marker")
+    hwnd = _find_splash_hwnd()
+    if hwnd:
+        ctypes.windll.user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)

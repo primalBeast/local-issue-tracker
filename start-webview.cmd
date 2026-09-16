@@ -2,11 +2,7 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 title Local Issue Tracker
-if exist "%~dp0.venv\Scripts\pythonw.exe" (
-  start "" /b "%~dp0.venv\Scripts\pythonw.exe" -m lit.splash_app
-) else if exist "%~dp0lit\assets\show-splash.ps1" (
-  start "" /b powershell.exe -STA -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0lit\assets\show-splash.ps1"
-)
+if exist "%~dp0lit\assets\splash.hta" start "" mshta.exe "%~dp0lit\assets\splash.hta"
 
 REM Minimize THIS console (do not hide it). Logs stay in the window; restore from the taskbar.
 powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0scripts\minimize-console.ps1"
