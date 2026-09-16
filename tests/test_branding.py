@@ -4,9 +4,11 @@ from lit.branding import (
     APP_USER_MODEL_ID,
     assets_dir,
     icon_path,
+    splash_argv,
     splash_image_path,
     splash_script_path,
 )
+from lit import splash_app
 
 
 def test_branding_assets_exist():
@@ -17,6 +19,9 @@ def test_branding_assets_exist():
     assert splash_script_path().is_file()
     assert "LocalIssueTracker.SplashClose" in splash_script_path().read_text(encoding="utf-8")
     assert APP_USER_MODEL_ID == "primalBeast.LocalIssueTracker"
+    argv = splash_argv()
+    assert argv[-2:] == ["-m", "lit.splash_app"]
+    assert splash_app.SPLASH_CLOSE_EVENT == "LocalIssueTracker.SplashClose"
 
 
 def test_cmd_serve_starts_splash_before_server():
@@ -35,8 +40,10 @@ def test_webview_launchers_start_splash_and_minimize_console():
     root = Path(__file__).resolve().parents[1]
     vbs = (root / "start-webview.vbs").read_text(encoding="utf-8")
     cmd = (root / "start-webview.cmd").read_text(encoding="utf-8")
-    assert "lit\\assets\\show-splash.ps1" in vbs
+    assert "pythonw.exe" in vbs
+    assert "lit.splash_app" in vbs
     assert ", 7, True" in vbs
     assert "If rc = 1 Then" in vbs
-    assert "show-splash.ps1" in cmd
+    assert "pythonw.exe" in cmd
+    assert "lit.splash_app" in cmd
     assert "minimize-console.ps1" in cmd

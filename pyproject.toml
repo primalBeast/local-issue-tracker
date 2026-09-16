@@ -29,6 +29,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["lit"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"lit/assets" = "lit/assets"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]

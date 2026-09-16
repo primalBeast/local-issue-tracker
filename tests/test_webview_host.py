@@ -89,13 +89,14 @@ def test_f5_script_listens_for_f5():
     assert "toggle_fullscreen" in F5_RELOAD_JS
 
 
-def test_open_webview_uses_app_icon_and_closes_splash():
+def test_open_webview_does_not_pass_icon_to_pywebview():
     src = inspect.getsource(webview_host.open_webview)
-    assert "icon_path" in src
-    assert 'start_kwargs["icon"]' in src
+    # pywebview WinForms does Form.Icon = Icon(path) when icon= is passed; that
+    # pythonnet call stack-overflows (exit -805306369) on some Windows PCs.
+    assert 'start_kwargs["icon"]' not in src
+    assert "form.Icon" not in src
     assert "close_splash" in src
     assert "hidden=True" not in src
-    assert "form.Icon" not in src
     assert src.index("events.loaded") < src.index("webview.start")
     shown = src[src.index("def on_shown") : src.index("def on_loaded")]
     assert "close_splash" not in shown

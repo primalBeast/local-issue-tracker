@@ -271,6 +271,13 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>16 Sep 2026 — Splash on work PCs, startup crash gone</h3>
+          <ul>
+            <li>The splash no longer uses PowerShell (often blocked on work laptops). It starts with the app’s Python instead, so it still shows after <code>git pull</code> and <code>install.cmd</code>.</li>
+            <li>Fixed the WebView2 crash that exited with code <code>-805306369</code> and the false “run install.cmd” dialog. The window icon is no longer set through pywebview on startup.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>16 Sep 2026 — Splash screen while WebView2 starts</h3>
           <ul>
             <li>Double-click <code>start-webview.vbs</code> shows a Local Issue Tracker splash while the server starts, then the board. The helper console stays minimized (restore it from the taskbar for logs).</li>
@@ -406,7 +413,21 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "8a8b3e8",
+    "hash": "720db7b",
+    "date": "2026-09-16",
+    "subject": "fix: splash on locked-down PCs and WebView2 icon crash",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "c766f1b",
+    "date": "2026-09-16",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "b071a00",
     "date": "2026-09-16",
     "subject": "feat: WebView2 splash screen and minimized helper console",
     "kind": "feat",

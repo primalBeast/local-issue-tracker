@@ -30,6 +30,20 @@ def splash_script_path() -> Path:
     return assets_dir() / "show-splash.ps1"
 
 
+def _pythonw_executable() -> Path:
+    exe = Path(sys.executable)
+    if exe.name.lower() == "python.exe":
+        pythonw = exe.with_name("pythonw.exe")
+        if pythonw.is_file():
+            return pythonw
+    return exe
+
+
+def splash_argv() -> list[str]:
+    """Launch a Tk splash in its own process (works when PowerShell is locked down)."""
+    return [str(_pythonw_executable()), "-m", "lit.splash_app"]
+
+
 def apply_app_user_model_id() -> None:
     if sys.platform != "win32":
         return
@@ -65,38 +79,55 @@ def _event_handle(*, create: bool, signaled: bool = False) -> int:
 def start_splash() -> None:
     if sys.platform != "win32":
         return
-    script = splash_script_path()
-    if not script.is_file():
-        return
     try:
         handle = _event_handle(create=True, signaled=False)
         if handle:
             ctypes.windll.kernel32.ResetEvent(handle)
             ctypes.windll.kernel32.CloseHandle(handle)
+        argv = splash_argv()
         flags = 0
-        if hasattr(subprocess, "CREATE_NO_WINDOW"):
-            flags |= subprocess.CREATE_NO_WINDOW
         if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
             flags |= subprocess.CREATE_NEW_PROCESS_GROUP
+        # pythonw has no console. CREATE_NO_WINDOW on python.exe can hide the Tk window.
+        if argv[0].lower().endswith("python.exe") and hasattr(subprocess, "CREATE_NO_WINDOW"):
+            flags |= subprocess.CREATE_NO_WINDOW
         subprocess.Popen(
-            [
-                "powershell.exe",
-                "-STA",
-                "-NoProfile",
-                "-WindowStyle",
-                "Hidden",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                str(script),
-            ],
-            cwd=str(script.parent),
+            argv,
+            cwd=str(Path(__file__).resolve().parent.parent),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             creationflags=flags,
         )
     except Exception:
         logger.exception("Could not start splash")
+        script = splash_script_path()
+        if not script.is_file():
+            return
+        try:
+            flags = 0
+            if hasattr(subprocess, "CREATE_NO_WINDOW"):
+                flags |= subprocess.CREATE_NO_WINDOW
+            if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+                flags |= subprocess.CREATE_NEW_PROCESS_GROUP
+            subprocess.Popen(
+                [
+                    "powershell.exe",
+                    "-STA",
+                    "-NoProfile",
+                    "-WindowStyle",
+                    "Hidden",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(script),
+                ],
+                cwd=str(script.parent),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=flags,
+            )
+        except Exception:
+            logger.exception("Could not start PowerShell splash")
 
 
 def close_splash() -> None:

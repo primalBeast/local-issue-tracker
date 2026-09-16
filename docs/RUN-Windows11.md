@@ -133,7 +133,7 @@ uv run lit doctor
 
 Easiest: double-click **`start.cmd`**. It starts the server and opens the browser. Leave that window open. If the app is already running, it just opens http://127.0.0.1:8765.
 
-**WebView2 window (no browser tab):** double-click **`start-webview.vbs`** (splash first, no console flash) or **`start-webview.cmd`**. The helper console is **minimized** to the taskbar; restore **Local Issue Tracker** there to read logs. A splash window shows while the server starts. Or:
+**WebView2 window (no browser tab):** double-click **`start-webview.vbs`** (splash first, no console flash) or **`start-webview.cmd`**. The helper console is **minimized** to the taskbar; restore **Local Issue Tracker** there to read logs. A splash window shows while the server starts (uses the app’s Python, not PowerShell, so it still works on locked-down work PCs). Or:
 
 ```powershell
 uv run lit serve --webview
