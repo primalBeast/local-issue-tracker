@@ -272,40 +272,6 @@
     )
   );
 
-  let skipFocusExitClick = false;
-  let activationEpoch = 0;
-  let activationPointerStamp = -1;
-
-  function onAppWindowBlur() {
-    skipFocusExitClick = true;
-  }
-
-  function onAppWindowFocus() {
-    const epoch = ++activationEpoch;
-    // Alt+Tab back has no pointer. Drop the skip after two frames so a later
-    // click still ends focus. A click that reactivates the window lands first.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (epoch === activationEpoch) skipFocusExitClick = false;
-      });
-    });
-  }
-
-  function isWindowActivationClick(e: PointerEvent): boolean {
-    if (e.timeStamp === activationPointerStamp) return true;
-    if (!skipFocusExitClick) return false;
-    skipFocusExitClick = false;
-    activationEpoch += 1;
-    activationPointerStamp = e.timeStamp;
-    return true;
-  }
-
-  function isEmptyToolbarClick(t: EventTarget | null): boolean {
-    if (!(t instanceof Element)) return false;
-    if (!t.closest('.topbar')) return false;
-    return !isTopbarInteractive(t);
-  }
-
   onMount(() => {
     const syncWebview = () => {
       inWebview =
@@ -444,16 +410,12 @@
     };
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('pointerdown', onDocPointerDown, true);
-    window.addEventListener('blur', onAppWindowBlur);
-    window.addEventListener('focus', onAppWindowFocus);
     return () => {
       clearInterval(tick);
       clearInterval(healthTick);
       clearInterval(webviewTick);
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('pointerdown', onDocPointerDown, true);
-      window.removeEventListener('blur', onAppWindowBlur);
-      window.removeEventListener('focus', onAppWindowFocus);
       endCanvasPan();
       clearCtrlPanClickSuppress();
       endZoomScrub();
@@ -1281,7 +1243,6 @@
       exitFocusStage();
     }
     function onPointerDown(e: PointerEvent) {
-      if (isWindowActivationClick(e)) return;
       if (
         document.body.classList.contains('lit-panel-dragging') ||
         document.body.classList.contains('lit-panel-resizing')
@@ -1293,7 +1254,6 @@
       if (t instanceof Element && t.closest('[data-sort-panels]')) return;
       if (t instanceof Element && t.closest('[data-see-all]')) return;
       if (t instanceof Element && t.closest('[data-zoom-100]')) return;
-      if (isEmptyToolbarClick(t)) return;
       if (pointerInFocusBuffer(e)) return;
       exitFocusStage();
     }
@@ -1409,7 +1369,6 @@
   function onCanvasPointerDown(e: PointerEvent) {
     if (e.button !== 0 || !workspace) return;
     if (e.ctrlKey) return;
-    if (isWindowActivationClick(e)) return;
     const t = e.target as HTMLElement | null;
     if (focusStage && pointerInFocusBuffer(e)) {
       if (!t?.closest?.('.panel')) return;
@@ -1811,8 +1770,6 @@
   ): boolean {
     if (!rowDefs.some((d) => isExternalTicketId(d.id))) return false;
     if (!shown.some((d) => isExternalTicketId(d.id))) return false;
-    const probe = rowDefs.find((d) => d.id === 'external_ticket');
-    if (!probe || !isVisible(probe, { ...fields, external_ticket: '' })) return false;
     return slotsToShow(extraTicketSlots[itemId], fields) < 3;
   }
 
