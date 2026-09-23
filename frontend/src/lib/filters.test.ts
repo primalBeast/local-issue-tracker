@@ -37,6 +37,10 @@ describe('isVisible', () => {
     expect(isVisible(def, { state: 'External Fixing – PS' })).toBe(true);
     expect(isVisible(def, { state: 'Submitted' })).toBe(false);
     expect(isVisible(def, { state: 'In fixing' })).toBe(false);
+    expect(
+      isVisible(def, { state: 'In Fixing', external_ticket: 'https://jira.example/browse/ABC-1' })
+    ).toBe(true);
+    expect(isVisible(def, { state: 'In Fixing', external_ticket: '  ' })).toBe(false);
   });
 });
 

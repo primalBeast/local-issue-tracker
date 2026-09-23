@@ -228,7 +228,7 @@ label.field-label {
   flex: 0 0 auto;
   align-items: center;
   gap: 4px;
-  margin-left: 6px;
+  margin-left: 16px;
 }
 .url-ticket-tail:hover .url-ticket-actions,
 .url-ticket-actions:focus-within {

@@ -1,9 +1,12 @@
 import type { FieldDef, Item } from './api';
 import { notesFieldText } from './notePreview';
 import { compareItemFields } from './panelSort';
+import { isExternalTicketId } from './urlTicket';
 import { isItemWaiting } from './waiting';
 
 export function isVisible(def: FieldDef, fields: Record<string, unknown>): boolean {
+  // A saved external ticket stays on the panel after the state leaves External Fixing.
+  if (isExternalTicketId(def.id) && String(fields[def.id] ?? '').trim()) return true;
   const vw = def.visible_when;
   if (!vw) return true;
   const value = fields[vw.field];

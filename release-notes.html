@@ -258,12 +258,12 @@
         <p class="lede">
           A fully local personal issue tracker: floating workspaces, configurable fields,
           waiting metrics, and a dark-mode-first UI. History below is from the GitHub
-          <code>main</code> branch, 9 Aug 2026 through 16 Sep 2026.
+          <code>main</code> branch, 9 Aug 2026 through 22 Sep 2026.
         </p>
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 16 Sep 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 22 Sep 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,14 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>22 Sep 2026 — Focus stays put, external tickets stay visible</h3>
+          <ul>
+            <li>A focused panel stays focused if you click the empty toolbar, or if you click back into the app after using another window.</li>
+            <li>Saved external tickets stay on the ticket panel after the state leaves External Fixing (for example In Fixing). Empty slots still appear only in an External Fixing state.</li>
+            <li>Hover buttons on an external ticket sit farther from the ticket number.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>16 Sep 2026 — Splash via mshta (same as Local HTML Reader)</h3>
           <ul>
             <li>Startup splash is an HTA opened with <code>mshta</code>, not a hidden PowerShell or Python process. Corporate PCs often block those, and CrowdStrike flagged the Python splash.</li>
@@ -413,7 +421,14 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "11959b1",
+    "hash": "bb514f8",
+    "date": "2026-09-22",
+    "subject": "fix: keep focus and saved external tickets visible",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "212ef01",
     "date": "2026-09-16",
     "subject": "fix: show startup splash with mshta instead of Python",
     "kind": "fix",
