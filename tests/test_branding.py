@@ -34,6 +34,16 @@ def test_cmd_serve_starts_splash_before_server():
     assert src.index("start_splash") < src.index("backup_all_projects")
 
 
+def test_start_splash_skips_when_launcher_already_showed_it():
+    import inspect
+
+    from lit.branding import start_splash
+
+    src = inspect.getsource(start_splash)
+    assert 'os.environ.get("LIT_SPLASH")' in src
+    assert src.index("LIT_SPLASH") < src.index("Popen")
+
+
 def test_webview_launchers_start_splash_and_minimize_console():
     from pathlib import Path
 
@@ -42,10 +52,13 @@ def test_webview_launchers_start_splash_and_minimize_console():
     cmd = (root / "start-webview.cmd").read_text(encoding="utf-8")
     assert "splash.hta" in vbs
     assert "mshta.exe" in vbs
+    assert "LIT_SPLASH" in vbs
+    assert "lit-splash.close" in vbs
     assert "pythonw" not in vbs
     assert ", 7, True" in vbs
     assert "If rc = 1 Then" in vbs
     assert "splash.hta" in cmd
     assert "mshta.exe" in cmd
+    assert "LIT_SPLASH" in cmd
     assert "pythonw" not in cmd
     assert "minimize-console.ps1" in cmd

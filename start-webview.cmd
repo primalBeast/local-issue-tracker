@@ -2,7 +2,11 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 title Local Issue Tracker
-if exist "%~dp0lit\assets\splash.hta" start "" mshta.exe "%~dp0lit\assets\splash.hta"
+if not defined LIT_SPLASH if exist "%~dp0lit\assets\splash.hta" (
+  if exist "%TEMP%\lit-splash.close" del /q "%TEMP%\lit-splash.close"
+  start "" mshta.exe "%~dp0lit\assets\splash.hta"
+  set "LIT_SPLASH=1"
+)
 
 REM Minimize THIS console (do not hide it). Logs stay in the window; restore from the taskbar.
 powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0scripts\minimize-console.ps1"

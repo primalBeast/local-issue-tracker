@@ -11,9 +11,11 @@
     editing: boolean;
     onCommit: (value: unknown) => void;
     onEnd: () => void;
+    /** Move to the next editable cell on this row. Return true if one was opened. */
+    onTab?: () => boolean;
   }
 
-  let { def, value, display, editing, onCommit, onEnd }: Props = $props();
+  let { def, value, display, editing, onCommit, onEnd, onTab }: Props = $props();
 
   function selectOptions(): string[] {
     return waitingNameChoices(def.options, value);
@@ -34,6 +36,7 @@
   let original: unknown = undefined;
   let flushed = false;
   let placingCaret = false;
+  let movingToNext = false;
   const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
   const dateCells = $derived(calendarMonth(viewYear, viewMonth));
   const todayIso = todayLocalDate();
@@ -95,18 +98,26 @@
     datePopup = { top, left, ready: true };
   }
 
-  function placeCaretAtEnd(el: HTMLInputElement) {
+  function focusEditInput(el: HTMLInputElement, selectAll: boolean) {
     placingCaret = true;
     el.focus();
     el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    const len = el.value.length;
     try {
-      el.setSelectionRange(len, len);
+      if (selectAll) {
+        // type=number cannot show a text selection.
+        if (el.type === 'number') el.type = 'text';
+        el.select();
+        el.setSelectionRange(0, el.value.length);
+      } else {
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
+      }
     } catch {
       if (el.type === 'number') {
         el.type = 'text';
-        el.setSelectionRange(len, len);
-        el.type = 'number';
+        if (selectAll) el.select();
+        else el.setSelectionRange(el.value.length, el.value.length);
+        if (!selectAll) el.type = 'number';
       }
     }
     placingCaret = false;
@@ -155,8 +166,13 @@
   }
 
   function finish() {
-    if (placingCaret) return;
+    if (placingCaret || movingToNext) return;
     flush();
+    onEnd();
+  }
+
+  function dismiss() {
+    if (movingToNext) return;
     onEnd();
   }
 
@@ -174,11 +190,30 @@
         flush();
       };
     }
+    const selectAll =
+      def.type === 'text' || def.type === 'url' || def.id === 'urgency' || def.id === 'priority';
+    let onPointerUp: (() => void) | null = null;
+    let cancelled = false;
     void tick().then(() => {
-      if (!editing || !inputEl) return;
-      placeCaretAtEnd(inputEl);
+      if (cancelled || !editing || !inputEl) return;
+      const el = inputEl;
+      const apply = () => {
+        if (!editing || inputEl !== el) return;
+        focusEditInput(el, selectAll);
+      };
+      apply();
+      // Right-click's mouseup can land after the box appears and collapse the selection.
+      requestAnimationFrame(apply);
+      onPointerUp = () => {
+        apply();
+        if (onPointerUp) window.removeEventListener('pointerup', onPointerUp, true);
+        onPointerUp = null;
+      };
+      window.addEventListener('pointerup', onPointerUp, true);
     });
     return () => {
+      cancelled = true;
+      if (onPointerUp) window.removeEventListener('pointerup', onPointerUp, true);
       flush();
     };
   });
@@ -203,6 +238,12 @@
     if (e.key === 'Tab') {
       e.preventDefault();
       e.stopPropagation();
+      if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+      const commitsDraft = def.type !== 'select' && def.type !== 'checkbox' && def.type !== 'date';
+      if (commitsDraft) flush();
+      movingToNext = true;
+      const moved = onTab?.() ?? false;
+      if (!moved) movingToNext = false;
       return;
     }
     if (e.key !== 'Enter' && e.key !== 'Escape') return;
@@ -245,7 +286,7 @@
       style:visibility={selectPopup.ready ? 'visible' : 'hidden'}
       onpointerdown={(e) => e.stopPropagation()}
       ondblclick={(e) => e.stopPropagation()}
-      onblur={onEnd}
+      onblur={dismiss}
       onkeydown={onKey}
     >
       {#if !def.required}
@@ -277,7 +318,8 @@
       <span class="list-cell-label list-cell-sizer">{display || '\u00a0'}</span>
       <input
         class="list-cell-edit"
-        type="number"
+        type={def.id === 'urgency' || def.id === 'priority' ? 'text' : 'number'}
+        inputmode={def.id === 'urgency' || def.id === 'priority' ? 'numeric' : undefined}
         size="1"
         min={def.validation?.min as number | undefined}
         max={def.validation?.max as number | undefined}
@@ -305,7 +347,7 @@
         onCommit(e.currentTarget.checked);
         onEnd();
       }}
-      onblur={onEnd}
+      onblur={dismiss}
       onkeydown={onKey}
     />
   {:else if def.type === 'date'}
@@ -322,7 +364,7 @@
       style:visibility={datePopup.ready ? 'visible' : 'hidden'}
       onpointerdown={(e) => e.stopPropagation()}
       ondblclick={(e) => e.stopPropagation()}
-      onblur={onEnd}
+      onblur={dismiss}
       onkeydown={onKey}
     >
       <div class="list-date-head">

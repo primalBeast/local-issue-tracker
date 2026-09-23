@@ -8,6 +8,12 @@ dir = fso.GetParentFolderName(WScript.ScriptFullName)
 sh.CurrentDirectory = dir
 splash = dir & "\lit\assets\splash.hta"
 If fso.FileExists(splash) Then
+  ' Drop a leftover close marker so the new splash does not shut itself immediately.
+  On Error Resume Next
+  fso.DeleteFile sh.ExpandEnvironmentStrings("%TEMP%\lit-splash.close"), True
+  On Error GoTo 0
+  ' cmd and Python must not start a second splash (that closes this one and opens another).
+  sh.Environment("PROCESS")("LIT_SPLASH") = "1"
   sh.Run "mshta.exe """ & splash & """", 1, False
 End If
 cmd = "cmd.exe /c """ & dir & "\start-webview.cmd"""

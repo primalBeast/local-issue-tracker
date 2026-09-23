@@ -1,34 +1,3 @@
-
-  /** Keep the workspaces list in sync with the in-memory current workspace. */
-  function flushCurrentWorkspaceToList() {
-    if (!workspace) return;
-    const snap = cloneWorkspace(workspace);
-    const idx = workspaces.findIndex((w) => w.id === snap.id);
-    if (idx >= 0) {
-      workspaces = workspaces.map((w) => (w.id === snap.id ? snap : w));
-    } else {
-      workspaces = [...workspaces, snap];
-    }
-  }
-
-  function scheduleWorkspaceSave() {
-    if (!project || !workspace) return;
-    // Always mirror latest local state into the list immediately
-    const id = workspace.id;
-    flushCurrentWorkspaceToList();
-
-    if (saveTimer) clearTimeout(saveTimer);
-    const slug = project.slug;
-    saveTimer = setTimeout(async () => {
-      const toSave = workspaces.find((w) => w.id === id);
-      if (!toSave) return;
-      try {
-        const saved = await api.putWorkspace(slug, id, toSave);
-        workspaces = workspaces.map((w) => (w.id === id ? saved : w));
-        // Do not replace the live workspace if the user has already switched away
-        if (workspace?.id === id) {
-          workspace = {
-            ...cloneWorkspace(workspace),
             updated_at: saved.updated_at,
           };
         }
@@ -733,6 +702,12 @@
   }
 
   function onAllItemsRowDblClick(e: MouseEvent, itemId: string) {
+    if (urgencySuppressClick) {
+      urgencySuppressClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (e.ctrlKey || canvasPan.swallowClicks) return;
     e.preventDefault();
     e.stopPropagation();
@@ -901,3 +876,65 @@
   }
 
   function canAddExternalTicket(
+    shown: FieldDef[],
+    rowDefs: FieldDef[],
+    fields: Record<string, unknown>,
+    itemId: string
+  ): boolean {
+    if (!rowDefs.some((d) => isExternalTicketId(d.id))) return false;
+    if (!shown.some((d) => isExternalTicketId(d.id))) return false;
+    const probe = rowDefs.find((d) => d.id === 'external_ticket');
+    if (!probe || !isVisible(probe, { ...fields, external_ticket: '' })) return false;
+    return slotsToShow(extraTicketSlots[itemId], fields) < 3;
+  }
+
+  function revealExternalTicketSlot(itemId: string, fields: Record<string, unknown>) {
+    extraTicketSlots = {
+      ...extraTicketSlots,
+      [itemId]: Math.min(3, slotsToShow(extraTicketSlots[itemId], fields) + 1),
+    };
+  }
+
+  function removeExternalTicket(itemId: string, fieldId: string) {
+    const current = detailCache[itemId] || items.find((i) => i.id === itemId);
+    const fields = current?.fields ?? {};
+    const patch = removeExternalTicketSlot(fields, fieldId);
+    extraTicketSlots = {
+      ...extraTicketSlots,
+      [itemId]: Math.max(1, filledTicketSlots({ ...fields, ...patch })),
+    };
+    scheduleItemPatch(itemId, patch);
+  }
+
+  function patchItemFields(itemId: string, id: string, value: unknown) {
+    const patch: Record<string, unknown> = { [id]: value };
+    const current = detailCache[itemId] || items.find((i) => i.id === itemId);
+    if (id === 'state' && value === 'Done') patch.waiting = false;
+    if (id === 'waiting' && value === true) {
+      if (!current?.fields?.waiting_since) patch.waiting_since = todayLocalDate();
+    }
+    if (id === 'waiting_for') {
+      const name = String(value ?? '').trim();
+      if (name) {
+        patch.waiting = true;
+        if (!current?.fields?.waiting_since) patch.waiting_since = todayLocalDate();
+      } else {
+        patch.waiting = false;
+      }
+    }
+    if (id === 'waiting_since') {
+      const date = String(value ?? '').trim();
+      const hadDate = String(current?.fields?.waiting_since ?? '').trim();
+      if (date && (!hadDate || !current || !isItemWaiting(current))) patch.waiting = true;
+    }
+    scheduleItemPatch(itemId, patch);
+  }
+
+  function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
+    if (!project) return;
+    // Optimistic lean list update
+    const touched = nowStamp();
+    items = items.map((it) =>
+      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields }, updated_at: touched } : it
+    );
+    stampPanels('item', itemId, touched);

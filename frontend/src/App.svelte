@@ -48,6 +48,7 @@
     inPaddedRect,
     type FocusStage,
   } from './lib/focusStage';
+  import { planUrgencyMove, urgencySwapDelta } from './lib/urgencyReorder';
   import {
     formatWaitingDays,
     isItemWaiting,
@@ -338,8 +339,12 @@
         }
       }
       if (listEdit && e.key === 'Tab') {
-        e.preventDefault();
-        e.stopPropagation();
+        // The cell editor handles Tab (commit and move right). Don't let it
+        // leave the list, and don't steal the event before the editor sees it.
+        if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         return;
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 's' || e.key === 'S')) {
@@ -458,6 +463,7 @@
       clearCtrlPanClickSuppress();
       endZoomScrub();
       resetTabDrag();
+      endUrgencyDrag();
     };
   });
 
@@ -1636,6 +1642,12 @@
   }
 
   function onAllItemsRowDblClick(e: MouseEvent, itemId: string) {
+    if (urgencySuppressClick) {
+      urgencySuppressClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (e.ctrlKey || canvasPan.swallowClicks) return;
     e.preventDefault();
     e.stopPropagation();
@@ -2046,6 +2058,23 @@
     return String(item.fields[f.id] ?? '');
   }
 
+  function tabToNextListCell(): boolean {
+    if (!listEdit) return false;
+    const item = items.find((i) => i.id === listEdit.itemId) ?? listEditAnchor;
+    if (!item) return false;
+    const cols = [...allItemsColumns];
+    if (waitingSinceField && !cols.some((f) => f.id === waitingSinceField.id)) {
+      cols.push(waitingSinceField);
+    }
+    const start = cols.findIndex((f) => f.id === listEdit.fieldId);
+    for (let i = start + 1; i < cols.length; i++) {
+      if (!canListEditCell(cols[i], item)) continue;
+      listEdit = { itemId: item.id, fieldId: cols[i].id };
+      return true;
+    }
+    return false;
+  }
+
   function beginListEdit(e: MouseEvent, item: Item, field: FieldDef) {
     if (!canListEditCell(field, item)) return;
     e.preventDefault();
@@ -2168,6 +2197,107 @@
     window.addEventListener('scroll', hide, true);
     return () => window.removeEventListener('scroll', hide, true);
   });
+
+  let urgencyDrag = $state<{
+    itemId: string;
+    fieldId: 'urgency' | 'priority';
+    pointerId: number;
+    body: HTMLTableSectionElement;
+  } | null>(null);
+  let urgencyDragY = 0;
+  let urgencyDragStartY = 0;
+  let urgencyDragMoved = false;
+  let urgencySuppressClick = false;
+
+  function clearUrgencyDragListeners() {
+    window.removeEventListener('pointermove', onUrgencyDragMove, true);
+    window.removeEventListener('pointerup', endUrgencyDrag, true);
+    window.removeEventListener('pointercancel', endUrgencyDrag, true);
+  }
+
+  function endUrgencyDrag() {
+    if (urgencyDragMoved) urgencySuppressClick = true;
+    urgencyDrag = null;
+    urgencyDragMoved = false;
+    clearUrgencyDragListeners();
+    document.body.classList.remove('lit-urgency-dragging');
+  }
+
+  function stepUrgencyDrag(): boolean {
+    const drag = urgencyDrag;
+    if (!drag || workspace?.sort?.field !== drag.fieldId) return false;
+    const order = filteredItems;
+    const index = order.findIndex((it) => it.id === drag.itemId);
+    const rows = [...drag.body.querySelectorAll('tr[data-list-item]')];
+    if (index < 0 || rows.length !== order.length) return false;
+    const delta = urgencySwapDelta(
+      index,
+      urgencyDragY,
+      rows.map((row) => {
+        const r = row.getBoundingClientRect();
+        return { top: r.top, height: r.height };
+      })
+    );
+    if (delta == null) return false;
+    const plan = planUrgencyMove(
+      order.map((it) => ({ id: it.id, urgency: it.fields[drag.fieldId] })),
+      index,
+      delta
+    );
+    if (!plan) return false;
+    if (plan.clearSecondary && workspace.sort.secondary) {
+      updateWorkspace((ws) => {
+        if (ws.sort) delete ws.sort.secondary;
+      });
+    }
+    for (const patch of plan.patches) scheduleItemPatch(patch.id, { [drag.fieldId]: patch.urgency });
+    if (plan.clearSecondary) placeFilteredOrder(plan.orderIds);
+    return filteredItems.findIndex((it) => it.id === drag.itemId) !== index;
+  }
+
+  /** Put the filtered rows into this order inside `items` so a stable urgency sort keeps ties. */
+  function placeFilteredOrder(orderIds: string[]) {
+    const wanted = new Set(orderIds);
+    const byId = new Map(items.map((it) => [it.id, it]));
+    let next = 0;
+    items = items.map((it) => {
+      if (!wanted.has(it.id)) return it;
+      const id = orderIds[next++];
+      return byId.get(id) ?? it;
+    });
+  }
+
+  function pumpUrgencyDrag(steps = 0) {
+    if (!urgencyDrag || steps > 40) return;
+    if (!stepUrgencyDrag()) return;
+    requestAnimationFrame(() => pumpUrgencyDrag(steps + 1));
+  }
+
+  function onUrgencyDragMove(e: PointerEvent) {
+    const drag = urgencyDrag;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    e.preventDefault();
+    if (Math.abs(e.clientY - urgencyDragStartY) > 3) urgencyDragMoved = true;
+    urgencyDragY = e.clientY;
+    pumpUrgencyDrag();
+  }
+
+  function onUrgencyPointerDown(e: PointerEvent, item: Item, fieldId: 'urgency' | 'priority') {
+    if (e.button !== 0 || workspace?.sort?.field !== fieldId) return;
+    if (listEdit?.itemId === item.id && listEdit.fieldId === fieldId) return;
+    const body = (e.currentTarget as HTMLElement).closest('tbody');
+    if (!body) return;
+    e.preventDefault();
+    e.stopPropagation();
+    urgencyDragMoved = false;
+    urgencyDragStartY = e.clientY;
+    urgencyDragY = e.clientY;
+    urgencyDrag = { itemId: item.id, fieldId, pointerId: e.pointerId, body };
+    document.body.classList.add('lit-urgency-dragging');
+    window.addEventListener('pointermove', onUrgencyDragMove, true);
+    window.addEventListener('pointerup', endUrgencyDrag, true);
+    window.addEventListener('pointercancel', endUrgencyDrag, true);
+  }
 
   function listSortFirstDir(field: string): 'asc' | 'desc' {
     return field === '_updated' ? 'desc' : 'asc';
@@ -3475,6 +3605,8 @@
                   {#each filteredItems as it (it.id)}
                     <tr
                       class="clickable"
+                      class:urgency-dragging={urgencyDrag?.itemId === it.id}
+                      data-list-item={it.id}
                       ondblclick={(e) => onAllItemsRowDblClick(e, it.id)}
                       oncontextmenu={(e) => {
                         const t = e.target as HTMLElement | null;
@@ -3498,6 +3630,19 @@
                         <td
                           class:list-editable={canListEditCell(f, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
+                          class:urgency-drag={
+                            (f.id === 'urgency' || f.id === 'priority') &&
+                            workspace.sort?.field === f.id &&
+                            !(listEdit?.itemId === it.id && listEdit?.fieldId === f.id)
+                          }
+                          title={
+                            (f.id === 'urgency' || f.id === 'priority') && workspace.sort?.field === f.id
+                              ? `Drag up or down to reorder by ${f.label || f.id}`
+                              : undefined
+                          }
+                          onpointerdown={(e) => {
+                            if (f.id === 'urgency' || f.id === 'priority') onUrgencyPointerDown(e, it, f.id);
+                          }}
                           class:list-flash={listFlash[listFlashKey(it.id, f.id)] != null}
                           data-list-flash={listFlash[listFlashKey(it.id, f.id)] != null
                             ? listFlashKey(it.id, f.id)
@@ -3514,6 +3659,7 @@
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
                             onCommit={(value) => commitListCell(it.id, f.id, value)}
                             onEnd={endListEdit}
+                            onTab={tabToNextListCell}
                           />
                         </td>
                       {/each}
@@ -3545,6 +3691,7 @@
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
                             onCommit={(value) => commitListCell(it.id, 'waiting_since', value)}
                             onEnd={endListEdit}
+                            onTab={tabToNextListCell}
                           />
                         </td>
                       {/if}

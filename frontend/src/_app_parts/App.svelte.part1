@@ -48,6 +48,7 @@
     inPaddedRect,
     type FocusStage,
   } from './lib/focusStage';
+  import { planUrgencyMove, urgencySwapDelta } from './lib/urgencyReorder';
   import {
     formatWaitingDays,
     isItemWaiting,
@@ -338,8 +339,12 @@
         }
       }
       if (listEdit && e.key === 'Tab') {
-        e.preventDefault();
-        e.stopPropagation();
+        // The cell editor handles Tab (commit and move right). Don't let it
+        // leave the list, and don't steal the event before the editor sees it.
+        if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         return;
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 's' || e.key === 'S')) {
@@ -458,6 +463,7 @@
       clearCtrlPanClickSuppress();
       endZoomScrub();
       resetTabDrag();
+      endUrgencyDrag();
     };
   });
 
@@ -901,3 +907,34 @@
   function cloneWorkspace(ws: Workspace): Workspace {
     return JSON.parse(JSON.stringify(ws)) as Workspace;
   }
+
+  /** Keep the workspaces list in sync with the in-memory current workspace. */
+  function flushCurrentWorkspaceToList() {
+    if (!workspace) return;
+    const snap = cloneWorkspace(workspace);
+    const idx = workspaces.findIndex((w) => w.id === snap.id);
+    if (idx >= 0) {
+      workspaces = workspaces.map((w) => (w.id === snap.id ? snap : w));
+    } else {
+      workspaces = [...workspaces, snap];
+    }
+  }
+
+  function scheduleWorkspaceSave() {
+    if (!project || !workspace) return;
+    // Always mirror latest local state into the list immediately
+    const id = workspace.id;
+    flushCurrentWorkspaceToList();
+
+    if (saveTimer) clearTimeout(saveTimer);
+    const slug = project.slug;
+    saveTimer = setTimeout(async () => {
+      const toSave = workspaces.find((w) => w.id === id);
+      if (!toSave) return;
+      try {
+        const saved = await api.putWorkspace(slug, id, toSave);
+        workspaces = workspaces.map((w) => (w.id === id ? saved : w));
+        // Do not replace the live workspace if the user has already switched away
+        if (workspace?.id === id) {
+          workspace = {
+            ...cloneWorkspace(workspace),

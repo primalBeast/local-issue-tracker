@@ -162,6 +162,23 @@
   }
 
   function onNotesHotkey(e: KeyboardEvent) {
+    if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const target = e.target;
+      if (!(target instanceof Element) || !target.closest('.ProseMirror')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!editor) return;
+      const inList = editor.isActive('listItem');
+      if (e.shiftKey) {
+        if (inList) editor.chain().focus().liftListItem('listItem').run();
+      } else if (inList) {
+        editor.chain().focus().sinkListItem('listItem').run();
+      } else {
+        editor.chain().focus().insertContent('\t').run();
+      }
+      toolbarTick += 1;
+      return;
+    }
     if (isStrikeHotkey(e)) {
       e.preventDefault();
       e.stopPropagation();

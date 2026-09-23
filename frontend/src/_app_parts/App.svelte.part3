@@ -1,65 +1,3 @@
-    shown: FieldDef[],
-    rowDefs: FieldDef[],
-    fields: Record<string, unknown>,
-    itemId: string
-  ): boolean {
-    if (!rowDefs.some((d) => isExternalTicketId(d.id))) return false;
-    if (!shown.some((d) => isExternalTicketId(d.id))) return false;
-    const probe = rowDefs.find((d) => d.id === 'external_ticket');
-    if (!probe || !isVisible(probe, { ...fields, external_ticket: '' })) return false;
-    return slotsToShow(extraTicketSlots[itemId], fields) < 3;
-  }
-
-  function revealExternalTicketSlot(itemId: string, fields: Record<string, unknown>) {
-    extraTicketSlots = {
-      ...extraTicketSlots,
-      [itemId]: Math.min(3, slotsToShow(extraTicketSlots[itemId], fields) + 1),
-    };
-  }
-
-  function removeExternalTicket(itemId: string, fieldId: string) {
-    const current = detailCache[itemId] || items.find((i) => i.id === itemId);
-    const fields = current?.fields ?? {};
-    const patch = removeExternalTicketSlot(fields, fieldId);
-    extraTicketSlots = {
-      ...extraTicketSlots,
-      [itemId]: Math.max(1, filledTicketSlots({ ...fields, ...patch })),
-    };
-    scheduleItemPatch(itemId, patch);
-  }
-
-  function patchItemFields(itemId: string, id: string, value: unknown) {
-    const patch: Record<string, unknown> = { [id]: value };
-    const current = detailCache[itemId] || items.find((i) => i.id === itemId);
-    if (id === 'state' && value === 'Done') patch.waiting = false;
-    if (id === 'waiting' && value === true) {
-      if (!current?.fields?.waiting_since) patch.waiting_since = todayLocalDate();
-    }
-    if (id === 'waiting_for') {
-      const name = String(value ?? '').trim();
-      if (name) {
-        patch.waiting = true;
-        if (!current?.fields?.waiting_since) patch.waiting_since = todayLocalDate();
-      } else {
-        patch.waiting = false;
-      }
-    }
-    if (id === 'waiting_since') {
-      const date = String(value ?? '').trim();
-      const hadDate = String(current?.fields?.waiting_since ?? '').trim();
-      if (date && (!hadDate || !current || !isItemWaiting(current))) patch.waiting = true;
-    }
-    scheduleItemPatch(itemId, patch);
-  }
-
-  function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
-    if (!project) return;
-    // Optimistic lean list update
-    const touched = nowStamp();
-    items = items.map((it) =>
-      it.id === itemId ? { ...it, fields: { ...it.fields, ...fields }, updated_at: touched } : it
-    );
-    stampPanels('item', itemId, touched);
     if (detailCache[itemId]) {
       detailCache = {
         ...detailCache,
@@ -240,6 +178,23 @@
     return String(item.fields[f.id] ?? '');
   }
 
+  function tabToNextListCell(): boolean {
+    if (!listEdit) return false;
+    const item = items.find((i) => i.id === listEdit.itemId) ?? listEditAnchor;
+    if (!item) return false;
+    const cols = [...allItemsColumns];
+    if (waitingSinceField && !cols.some((f) => f.id === waitingSinceField.id)) {
+      cols.push(waitingSinceField);
+    }
+    const start = cols.findIndex((f) => f.id === listEdit.fieldId);
+    for (let i = start + 1; i < cols.length; i++) {
+      if (!canListEditCell(cols[i], item)) continue;
+      listEdit = { itemId: item.id, fieldId: cols[i].id };
+      return true;
+    }
+    return false;
+  }
+
   function beginListEdit(e: MouseEvent, item: Item, field: FieldDef) {
     if (!canListEditCell(field, item)) return;
     e.preventDefault();
@@ -362,6 +317,107 @@
     window.addEventListener('scroll', hide, true);
     return () => window.removeEventListener('scroll', hide, true);
   });
+
+  let urgencyDrag = $state<{
+    itemId: string;
+    fieldId: 'urgency' | 'priority';
+    pointerId: number;
+    body: HTMLTableSectionElement;
+  } | null>(null);
+  let urgencyDragY = 0;
+  let urgencyDragStartY = 0;
+  let urgencyDragMoved = false;
+  let urgencySuppressClick = false;
+
+  function clearUrgencyDragListeners() {
+    window.removeEventListener('pointermove', onUrgencyDragMove, true);
+    window.removeEventListener('pointerup', endUrgencyDrag, true);
+    window.removeEventListener('pointercancel', endUrgencyDrag, true);
+  }
+
+  function endUrgencyDrag() {
+    if (urgencyDragMoved) urgencySuppressClick = true;
+    urgencyDrag = null;
+    urgencyDragMoved = false;
+    clearUrgencyDragListeners();
+    document.body.classList.remove('lit-urgency-dragging');
+  }
+
+  function stepUrgencyDrag(): boolean {
+    const drag = urgencyDrag;
+    if (!drag || workspace?.sort?.field !== drag.fieldId) return false;
+    const order = filteredItems;
+    const index = order.findIndex((it) => it.id === drag.itemId);
+    const rows = [...drag.body.querySelectorAll('tr[data-list-item]')];
+    if (index < 0 || rows.length !== order.length) return false;
+    const delta = urgencySwapDelta(
+      index,
+      urgencyDragY,
+      rows.map((row) => {
+        const r = row.getBoundingClientRect();
+        return { top: r.top, height: r.height };
+      })
+    );
+    if (delta == null) return false;
+    const plan = planUrgencyMove(
+      order.map((it) => ({ id: it.id, urgency: it.fields[drag.fieldId] })),
+      index,
+      delta
+    );
+    if (!plan) return false;
+    if (plan.clearSecondary && workspace.sort.secondary) {
+      updateWorkspace((ws) => {
+        if (ws.sort) delete ws.sort.secondary;
+      });
+    }
+    for (const patch of plan.patches) scheduleItemPatch(patch.id, { [drag.fieldId]: patch.urgency });
+    if (plan.clearSecondary) placeFilteredOrder(plan.orderIds);
+    return filteredItems.findIndex((it) => it.id === drag.itemId) !== index;
+  }
+
+  /** Put the filtered rows into this order inside `items` so a stable urgency sort keeps ties. */
+  function placeFilteredOrder(orderIds: string[]) {
+    const wanted = new Set(orderIds);
+    const byId = new Map(items.map((it) => [it.id, it]));
+    let next = 0;
+    items = items.map((it) => {
+      if (!wanted.has(it.id)) return it;
+      const id = orderIds[next++];
+      return byId.get(id) ?? it;
+    });
+  }
+
+  function pumpUrgencyDrag(steps = 0) {
+    if (!urgencyDrag || steps > 40) return;
+    if (!stepUrgencyDrag()) return;
+    requestAnimationFrame(() => pumpUrgencyDrag(steps + 1));
+  }
+
+  function onUrgencyDragMove(e: PointerEvent) {
+    const drag = urgencyDrag;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    e.preventDefault();
+    if (Math.abs(e.clientY - urgencyDragStartY) > 3) urgencyDragMoved = true;
+    urgencyDragY = e.clientY;
+    pumpUrgencyDrag();
+  }
+
+  function onUrgencyPointerDown(e: PointerEvent, item: Item, fieldId: 'urgency' | 'priority') {
+    if (e.button !== 0 || workspace?.sort?.field !== fieldId) return;
+    if (listEdit?.itemId === item.id && listEdit.fieldId === fieldId) return;
+    const body = (e.currentTarget as HTMLElement).closest('tbody');
+    if (!body) return;
+    e.preventDefault();
+    e.stopPropagation();
+    urgencyDragMoved = false;
+    urgencyDragStartY = e.clientY;
+    urgencyDragY = e.clientY;
+    urgencyDrag = { itemId: item.id, fieldId, pointerId: e.pointerId, body };
+    document.body.classList.add('lit-urgency-dragging');
+    window.addEventListener('pointermove', onUrgencyDragMove, true);
+    window.addEventListener('pointerup', endUrgencyDrag, true);
+    window.addEventListener('pointercancel', endUrgencyDrag, true);
+  }
 
   function listSortFirstDir(field: string): 'asc' | 'desc' {
     return field === '_updated' ? 'desc' : 'asc';
@@ -882,22 +938,3 @@
         </button>
         {#if themeMenuOpen}
           <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-          <div
-            class="theme-dialog"
-            role="dialog"
-            tabindex="-1"
-            aria-label="Themes"
-            onclick={(e) => e.stopPropagation()}
-          >
-            <div class="theme-dialog-head">
-              <div class="board-editor-title" style="margin:0">Themes</div>
-              <button
-                type="button"
-                class="ghost theme-dialog-close"
-                title="Close"
-                onclick={() => closeThemeMenu(true)}
-              >✕</button>
-            </div>
-            <div class="theme-dialog-tools">
-              <label
-                class="theme-transparent"

@@ -1656,6 +1656,17 @@ body.lit-panel-resizing * { cursor: inherit !important; }
 .table td.list-editable {
   min-width: 4ch;
 }
+.table td.urgency-drag {
+  cursor: ns-resize;
+}
+.table tr.urgency-dragging td {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+body.lit-urgency-dragging,
+body.lit-urgency-dragging * {
+  cursor: ns-resize !important;
+  user-select: none;
+}
 .table td.list-editing {
   cursor: auto;
 }

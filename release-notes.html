@@ -271,6 +271,14 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>23 Sep 2026 — List drag, notes Tab, splash stays up</h3>
+          <ul>
+            <li>Sort All Items by Urgency or Priority, then drag that value up or down. Different numbers swap. Dragging through a block of the same number joins that number, and the ticket you pass keeps it. Secondary sort turns off for that move so the row stays put.</li>
+            <li>Right-click a text, Urgency, or Priority cell to edit it with the whole value selected. Tab moves to the next editable cell on the right.</li>
+            <li>Tab in Project Notes stays in the editor, the same as ticket notes. The startup splash no longer blinks off and back on.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>23 Sep 2026 — Yesterday’s panel behavior is back on GitHub</h3>
           <ul>
             <li>The automatic UI rebuild had replaced <code>App.svelte</code> with an older copy, so a pull did not keep focus on an empty toolbar click or when returning from another app.</li>
@@ -428,7 +436,21 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "2c3bf95",
+    "hash": "ce136fd",
+    "date": "2026-09-23",
+    "subject": "feat: drag Urgency and Priority in All Items",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "ac06d93",
+    "date": "2026-09-23",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "5032309",
     "date": "2026-09-23",
     "subject": "fix: restore panel focus behavior wiped by the UI rebuild",
     "kind": "fix",

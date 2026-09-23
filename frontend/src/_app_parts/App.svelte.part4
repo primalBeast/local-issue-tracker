@@ -1,3 +1,22 @@
+          <div
+            class="theme-dialog"
+            role="dialog"
+            tabindex="-1"
+            aria-label="Themes"
+            onclick={(e) => e.stopPropagation()}
+          >
+            <div class="theme-dialog-head">
+              <div class="board-editor-title" style="margin:0">Themes</div>
+              <button
+                type="button"
+                class="ghost theme-dialog-close"
+                title="Close"
+                onclick={() => closeThemeMenu(true)}
+              >✕</button>
+            </div>
+            <div class="theme-dialog-tools">
+              <label
+                class="theme-transparent"
                 title="See through panel fill — no wallpaper painted in the card"
               >
                 <input
@@ -766,6 +785,8 @@
                   {#each filteredItems as it (it.id)}
                     <tr
                       class="clickable"
+                      class:urgency-dragging={urgencyDrag?.itemId === it.id}
+                      data-list-item={it.id}
                       ondblclick={(e) => onAllItemsRowDblClick(e, it.id)}
                       oncontextmenu={(e) => {
                         const t = e.target as HTMLElement | null;
@@ -789,6 +810,19 @@
                         <td
                           class:list-editable={canListEditCell(f, it)}
                           class:list-editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
+                          class:urgency-drag={
+                            (f.id === 'urgency' || f.id === 'priority') &&
+                            workspace.sort?.field === f.id &&
+                            !(listEdit?.itemId === it.id && listEdit?.fieldId === f.id)
+                          }
+                          title={
+                            (f.id === 'urgency' || f.id === 'priority') && workspace.sort?.field === f.id
+                              ? `Drag up or down to reorder by ${f.label || f.id}`
+                              : undefined
+                          }
+                          onpointerdown={(e) => {
+                            if (f.id === 'urgency' || f.id === 'priority') onUrgencyPointerDown(e, it, f.id);
+                          }}
                           class:list-flash={listFlash[listFlashKey(it.id, f.id)] != null}
                           data-list-flash={listFlash[listFlashKey(it.id, f.id)] != null
                             ? listFlashKey(it.id, f.id)
@@ -805,6 +839,7 @@
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === f.id}
                             onCommit={(value) => commitListCell(it.id, f.id, value)}
                             onEnd={endListEdit}
+                            onTab={tabToNextListCell}
                           />
                         </td>
                       {/each}
@@ -836,6 +871,7 @@
                             editing={listEdit?.itemId === it.id && listEdit?.fieldId === 'waiting_since'}
                             onCommit={(value) => commitListCell(it.id, 'waiting_since', value)}
                             onEnd={endListEdit}
+                            onTab={tabToNextListCell}
                           />
                         </td>
                       {/if}

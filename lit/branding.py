@@ -67,6 +67,10 @@ def _find_splash_hwnd() -> int:
 def start_splash() -> None:
     if sys.platform != "win32":
         return
+    # The .vbs/.cmd launcher already showed the splash. Starting mshta again
+    # closes that window (SINGLEINSTANCE) and opens a second one — a flicker.
+    if os.environ.get("LIT_SPLASH") == "1" or _find_splash_hwnd():
+        return
     hta = splash_hta_path()
     if not hta.is_file():
         return
