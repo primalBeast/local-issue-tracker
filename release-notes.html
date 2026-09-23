@@ -258,12 +258,12 @@
         <p class="lede">
           A fully local personal issue tracker: floating workspaces, configurable fields,
           waiting metrics, and a dark-mode-first UI. History below is from the GitHub
-          <code>main</code> branch, 9 Aug 2026 through 22 Sep 2026.
+          <code>main</code> branch, 9 Aug 2026 through 23 Sep 2026.
         </p>
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 22 Sep 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 23 Sep 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,13 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>23 Sep 2026 — Yesterday’s panel behavior is back on GitHub</h3>
+          <ul>
+            <li>The automatic UI rebuild had replaced <code>App.svelte</code> with an older copy, so a pull did not keep focus on an empty toolbar click or when returning from another app.</li>
+            <li>That behavior is restored. Saved external tickets still stay visible after leaving External Fixing, and the hover buttons stay spaced away from the ticket number.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>22 Sep 2026 — Focus stays put, external tickets stay visible</h3>
           <ul>
             <li>A focused panel stays focused if you click the empty toolbar, or if you click back into the app after using another window.</li>
@@ -421,7 +428,21 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "bb514f8",
+    "hash": "2c3bf95",
+    "date": "2026-09-23",
+    "subject": "fix: restore panel focus behavior wiped by the UI rebuild",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "56e8074",
+    "date": "2026-09-23",
+    "subject": "chore: rebuild frontend dist so Windows clones get a working UI",
+    "kind": "chore",
+    "rebuild": true
+  },
+  {
+    "hash": "5230e1b",
     "date": "2026-09-22",
     "subject": "fix: keep focus and saved external tickets visible",
     "kind": "fix",
