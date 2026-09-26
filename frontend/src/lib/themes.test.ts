@@ -18,11 +18,11 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe('themes', () => {
-  it('includes the midnight default plus two hundred and thirty-seven wallpapers', () => {
+  it('includes the midnight default plus three hundred and thirty-seven wallpapers', () => {
     expect(THEMES[0].id).toBe('midnight');
     expect(THEMES[0].name.toLowerCase()).toContain('default');
-    expect(THEMES).toHaveLength(244);
-    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(237);
+    expect(THEMES).toHaveLength(344);
+    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(337);
     expect(THEMES.filter((t) => t.video)).toHaveLength(6);
   });
 
@@ -119,6 +119,30 @@ describe('themes', () => {
       const theme = THEMES.find((t) => t.id === id);
       expect(theme?.wallpaper, id).toBe(`/themes/${id}.jpg`);
       expect(theme?.name.length, id).toBeGreaterThan(0);
+      const file = resolve(here, '../../public', theme!.wallpaper!.replace(/^\//, ''));
+      expect(existsSync(file), `missing ${file}`).toBe(true);
+    }
+  });
+
+  it('ships one hundred various wallpapers across ten groups', () => {
+    const labels = [
+      'Weather',
+      'Cities',
+      'Wild',
+      'Halls',
+      'Shores',
+      'After Dark',
+      'Gardens',
+      'Works',
+      'Skies',
+      'Ruins',
+    ];
+    const ids = labels.flatMap((label) => THEME_GROUPS.find((g) => g.label === label)?.ids ?? []);
+    expect(ids).toHaveLength(100);
+    expect(new Set(ids).size).toBe(100);
+    for (const id of ids) {
+      const theme = THEMES.find((t) => t.id === id);
+      expect(theme?.wallpaper, id).toBe(`/themes/${id}.jpg`);
       const file = resolve(here, '../../public', theme!.wallpaper!.replace(/^\//, ''));
       expect(existsSync(file), `missing ${file}`).toBe(true);
     }

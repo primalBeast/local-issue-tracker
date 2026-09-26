@@ -242,7 +242,107 @@ export type ThemeId =
   | 'stardunes'
   | 'rainpagoda'
   | 'ciderorchard'
-  | 'neoncanal';
+  | 'neoncanal'
+  | 'thundersheet'
+  | 'hailfield'
+  | 'fogpier'
+  | 'sundog'
+  | 'dustdevil'
+  | 'raincanopy'
+  | 'snowsquall'
+  | 'heatmirage'
+  | 'cloudbreak'
+  | 'frostfern'
+  | 'lisbondawn'
+  | 'havanadusk'
+  | 'marrakech'
+  | 'istanblue'
+  | 'chicagofog'
+  | 'pragueriver'
+  | 'gizadusk'
+  | 'reykjavik'
+  | 'valparaiso'
+  | 'supertree'
+  | 'montsnow'
+  | 'brooklyndawn'
+  | 'baobabmoon'
+  | 'rhododendron'
+  | 'badlands'
+  | 'ferncanyon'
+  | 'tundragold'
+  | 'acaciastorm'
+  | 'glaciercave'
+  | 'mineralpool'
+  | 'gooseneck'
+  | 'aspengold'
+  | 'cypressbay'
+  | 'meadowmix'
+  | 'emptyball'
+  | 'planetarium'
+  | 'palmhouse'
+  | 'maproom'
+  | 'rainatrium'
+  | 'tilebath'
+  | 'operahouse'
+  | 'stationhall'
+  | 'winecellar'
+  | 'atelier'
+  | 'clockworks'
+  | 'natatorium'
+  | 'whitecaps'
+  | 'seacave'
+  | 'driftwood'
+  | 'tidalflat'
+  | 'seastack'
+  | 'wrackline'
+  | 'pinksand'
+  | 'cliffbloom'
+  | 'dawnpier'
+  | 'iceshelf'
+  | 'fireflymead'
+  | 'lakestars'
+  | 'oilrain'
+  | 'moonwell'
+  | 'campfire'
+  | 'cityglow'
+  | 'lanternpath'
+  | 'bloodmoon'
+  | 'starpool'
+  | 'silentroad'
+  | 'mossgarden'
+  | 'rosecourt'
+  | 'moongate'
+  | 'wisteria'
+  | 'topiary'
+  | 'cactusbloom'
+  | 'reflectpool'
+  | 'ferncourt'
+  | 'olivegrove'
+  | 'flagiris'
+  | 'windfarm'
+  | 'shipyard'
+  | 'grainrise'
+  | 'powerlines'
+  | 'marblequarry'
+  | 'railyard'
+  | 'coolingtower'
+  | 'saltworks'
+  | 'lenticular'
+  | 'mammatus'
+  | 'nacreous'
+  | 'contrails'
+  | 'balloonfog'
+  | 'cloudsea'
+  | 'greenflash'
+  | 'noctilucent'
+  | 'romanbath'
+  | 'cliffdwell'
+  | 'jungletemple'
+  | 'roofless'
+  | 'seafort'
+  | 'kiva'
+  | 'brickviaduct'
+  | 'sunkencity';
 
 export type Theme = {
   id: ThemeId;
@@ -2490,6 +2590,906 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,10,16,0.52) 0%, rgba(6,10,16,0.18) 44%, rgba(6,10,16,0.5) 100%)',
   }),
+    themed('thundersheet', 'Thunder Sheet', 'thundersheet.jpg', '#e2e8f0', '#fbbf24', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
+    '--panel-glass': 'rgba(8, 10, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,10,16,0.52) 0%, rgba(8,10,16,0.18) 44%, rgba(8,10,16,0.5) 100%)',
+  }),
+  themed('hailfield', 'Hail Field', 'hailfield.jpg', '#f8fafc', '#94a3b8', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(248, 250, 252, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(248, 250, 252, 0.4)',
+    '--panel-glass': 'rgba(12, 14, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,14,16,0.52) 0%, rgba(12,14,16,0.18) 44%, rgba(12,14,16,0.5) 100%)',
+  }),
+  themed('fogpier', 'Fog Pier', 'fogpier.jpg', '#cbd5e1', '#94a3b8', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(203, 213, 225, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(203, 213, 225, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,14,0.52) 0%, rgba(10,12,14,0.18) 44%, rgba(10,12,14,0.5) 100%)',
+  }),
+  themed('sundog', 'Sun Dog', 'sundog.jpg', '#fde68a', '#93c5fd', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(253, 230, 138, 0.22)',
+    '--accent-soft': 'rgba(147, 197, 253, 0.14)',
+    '--brand-glow': 'rgba(253, 230, 138, 0.4)',
+    '--panel-glass': 'rgba(14, 12, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,12,10,0.52) 0%, rgba(14,12,10,0.18) 44%, rgba(14,12,10,0.5) 100%)',
+  }),
+  themed('dustdevil', 'Dust Devil', 'dustdevil.jpg', '#f59e0b', '#fb923c', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(245, 158, 11, 0.22)',
+    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
+    '--brand-glow': 'rgba(245, 158, 11, 0.4)',
+    '--panel-glass': 'rgba(20, 12, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(20,12,6,0.52) 0%, rgba(20,12,6,0.18) 44%, rgba(20,12,6,0.5) 100%)',
+  }),
+  themed('raincanopy', 'Rain Canopy', 'raincanopy.jpg', '#4ade80', '#86efac', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(134, 239, 172, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(6, 14, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,14,10,0.52) 0%, rgba(6,14,10,0.18) 44%, rgba(6,14,10,0.5) 100%)',
+  }),
+  themed('snowsquall', 'Snow Squall', 'snowsquall.jpg', '#e2e8f0', '#64748b', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(100, 116, 139, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
+    '--panel-glass': 'rgba(12, 14, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,14,16,0.52) 0%, rgba(12,14,16,0.18) 44%, rgba(12,14,16,0.5) 100%)',
+  }),
+  themed('heatmirage', 'Heat Mirage', 'heatmirage.jpg', '#fdba74', '#fbbf24', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(253, 186, 116, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(253, 186, 116, 0.4)',
+    '--panel-glass': 'rgba(18, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(18,12,8,0.52) 0%, rgba(18,12,8,0.18) 44%, rgba(18,12,8,0.5) 100%)',
+  }),
+  themed('cloudbreak', 'Cloud Break', 'cloudbreak.jpg', '#f8fafc', '#38bdf8', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(248, 250, 252, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(248, 250, 252, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 18, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,18,0.52) 0%, rgba(8,12,18,0.18) 44%, rgba(8,12,18,0.5) 100%)',
+  }),
+  themed('frostfern', 'Frost Fern', 'frostfern.jpg', '#e0f2fe', '#a5f3fc', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(224, 242, 254, 0.22)',
+    '--accent-soft': 'rgba(165, 243, 252, 0.14)',
+    '--brand-glow': 'rgba(224, 242, 254, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,16,0.52) 0%, rgba(8,12,16,0.18) 44%, rgba(8,12,16,0.5) 100%)',
+  }),
+  themed('lisbondawn', 'Lisbon Dawn', 'lisbondawn.jpg', '#fbbf24', '#fb7185', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(251, 113, 133, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(16, 10, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(16,10,8,0.52) 0%, rgba(16,10,8,0.18) 44%, rgba(16,10,8,0.5) 100%)',
+  }),
+  themed('havanadusk', 'Havana Dusk', 'havanadusk.jpg', '#fb7185', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(18, 10, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(18,10,10,0.52) 0%, rgba(18,10,10,0.18) 44%, rgba(18,10,10,0.5) 100%)',
+  }),
+  themed('marrakech', 'Marrakech Night', 'marrakech.jpg', '#f59e0b', '#38bdf8', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(245, 158, 11, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(245, 158, 11, 0.4)',
+    '--panel-glass': 'rgba(14, 8, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,8,8,0.52) 0%, rgba(14,8,8,0.18) 44%, rgba(14,8,8,0.5) 100%)',
+  }),
+  themed('istanblue', 'Bosphorus Dawn', 'istanblue.jpg', '#fb923c', '#93c5fd', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(147, 197, 253, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,10,16,0.52) 0%, rgba(10,10,16,0.18) 44%, rgba(10,10,16,0.5) 100%)',
+  }),
+  themed('chicagofog', 'River Fog', 'chicagofog.jpg', '#94a3b8', '#fbbf24', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(148, 163, 184, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(148, 163, 184, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,14,0.52) 0%, rgba(10,12,14,0.18) 44%, rgba(10,12,14,0.5) 100%)',
+  }),
+  themed('pragueriver', 'River Castle', 'pragueriver.jpg', '#fbbf24', '#818cf8', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(129, 140, 248, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(10, 8, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,8,14,0.52) 0%, rgba(10,8,14,0.18) 44%, rgba(10,8,14,0.5) 100%)',
+  }),
+  themed('gizadusk', 'Stone Dusk', 'gizadusk.jpg', '#f59e0b', '#fdba74', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(245, 158, 11, 0.22)',
+    '--accent-soft': 'rgba(253, 186, 116, 0.14)',
+    '--brand-glow': 'rgba(245, 158, 11, 0.4)',
+    '--panel-glass': 'rgba(18, 10, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(18,10,6,0.52) 0%, rgba(18,10,6,0.18) 44%, rgba(18,10,6,0.5) 100%)',
+  }),
+  themed('reykjavik', 'Color Snow', 'reykjavik.jpg', '#fb7185', '#38bdf8', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,16,0.52) 0%, rgba(8,12,16,0.18) 44%, rgba(8,12,16,0.5) 100%)',
+  }),
+  themed('valparaiso', 'Hill Color', 'valparaiso.jpg', '#f472b6', '#22d3ee', {
+    '--text': '#fdf2f8',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,8,14,0.52) 0%, rgba(12,8,14,0.18) 44%, rgba(12,8,14,0.5) 100%)',
+  }),
+  themed('supertree', 'Garden Towers', 'supertree.jpg', '#a3e635', '#c084fc', {
+    '--text': '#f7fee7',
+    '--focus-ring': 'rgba(163, 230, 53, 0.22)',
+    '--accent-soft': 'rgba(192, 132, 252, 0.14)',
+    '--brand-glow': 'rgba(163, 230, 53, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,14,0.52) 0%, rgba(8,12,14,0.18) 44%, rgba(8,12,14,0.5) 100%)',
+  }),
+  themed('montsnow', 'Snow Quarter', 'montsnow.jpg', '#e2e8f0', '#fbbf24', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,14,0.52) 0%, rgba(10,12,14,0.18) 44%, rgba(10,12,14,0.5) 100%)',
+  }),
+  themed('brooklyndawn', 'Bridge Dawn', 'brooklyndawn.jpg', '#fb923c', '#94a3b8', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,10,12,0.52) 0%, rgba(12,10,12,0.18) 44%, rgba(12,10,12,0.5) 100%)',
+  }),
+  themed('baobabmoon', 'Baobab Moon', 'baobabmoon.jpg', '#fde68a', '#a78bfa', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(253, 230, 138, 0.22)',
+    '--accent-soft': 'rgba(167, 139, 250, 0.14)',
+    '--brand-glow': 'rgba(253, 230, 138, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,10,8,0.52) 0%, rgba(12,10,8,0.18) 44%, rgba(12,10,8,0.5) 100%)',
+  }),
+  themed('rhododendron', 'Rhododendron', 'rhododendron.jpg', '#f472b6', '#4ade80', {
+    '--text': '#fdf2f8',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,10,0.52) 0%, rgba(10,12,10,0.18) 44%, rgba(10,12,10,0.5) 100%)',
+  }),
+  themed('badlands', 'Painted Hills', 'badlands.jpg', '#f97316', '#e7e5e4', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(249, 115, 22, 0.22)',
+    '--accent-soft': 'rgba(231, 229, 228, 0.14)',
+    '--brand-glow': 'rgba(249, 115, 22, 0.4)',
+    '--panel-glass': 'rgba(16, 8, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(16,8,6,0.52) 0%, rgba(16,8,6,0.18) 44%, rgba(16,8,6,0.5) 100%)',
+  }),
+  themed('ferncanyon', 'Fern Canyon', 'ferncanyon.jpg', '#4ade80', '#bbf7d0', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(187, 247, 208, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(6, 14, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,14,8,0.52) 0%, rgba(6,14,8,0.18) 44%, rgba(6,14,8,0.5) 100%)',
+  }),
+  themed('tundragold', 'Tundra Gold', 'tundragold.jpg', '#f59e0b', '#d97706', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(245, 158, 11, 0.22)',
+    '--accent-soft': 'rgba(217, 119, 6, 0.14)',
+    '--brand-glow': 'rgba(245, 158, 11, 0.4)',
+    '--panel-glass': 'rgba(14, 10, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,10,6,0.52) 0%, rgba(14,10,6,0.18) 44%, rgba(14,10,6,0.5) 100%)',
+  }),
+  themed('acaciastorm', 'Acacia Storm', 'acaciastorm.jpg', '#fbbf24', '#64748b', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(100, 116, 139, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(14, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,12,8,0.52) 0%, rgba(14,12,8,0.18) 44%, rgba(14,12,8,0.5) 100%)',
+  }),
+  themed('glaciercave', 'Glacier Cave', 'glaciercave.jpg', '#7dd3fc', '#e0f2fe', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(125, 211, 252, 0.22)',
+    '--accent-soft': 'rgba(224, 242, 254, 0.14)',
+    '--brand-glow': 'rgba(125, 211, 252, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 18, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,12,18,0.52) 0%, rgba(6,12,18,0.18) 44%, rgba(6,12,18,0.5) 100%)',
+  }),
+  themed('mineralpool', 'Mineral Pools', 'mineralpool.jpg', '#fde047', '#2dd4bf', {
+    '--text': '#fefce8',
+    '--focus-ring': 'rgba(253, 224, 71, 0.22)',
+    '--accent-soft': 'rgba(45, 212, 191, 0.14)',
+    '--brand-glow': 'rgba(253, 224, 71, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,8,0.52) 0%, rgba(10,12,8,0.18) 44%, rgba(10,12,8,0.5) 100%)',
+  }),
+  themed('gooseneck', 'Gooseneck', 'gooseneck.jpg', '#22c55e', '#a16207', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(34, 197, 94, 0.22)',
+    '--accent-soft': 'rgba(161, 98, 7, 0.14)',
+    '--brand-glow': 'rgba(34, 197, 94, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,8,0.52) 0%, rgba(8,12,8,0.18) 44%, rgba(8,12,8,0.5) 100%)',
+  }),
+  themed('aspengold', 'Aspen Gold', 'aspengold.jpg', '#fbbf24', '#f8fafc', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(248, 250, 252, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(14, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,12,8,0.52) 0%, rgba(14,12,8,0.18) 44%, rgba(14,12,8,0.5) 100%)',
+  }),
+  themed('cypressbay', 'Cypress Bayou', 'cypressbay.jpg', '#86efac', '#a3a3a3', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(134, 239, 172, 0.22)',
+    '--accent-soft': 'rgba(163, 163, 163, 0.14)',
+    '--brand-glow': 'rgba(134, 239, 172, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,12,10,0.52) 0%, rgba(6,12,10,0.18) 44%, rgba(6,12,10,0.5) 100%)',
+  }),
+  themed('meadowmix', 'Alpine Meadow', 'meadowmix.jpg', '#f472b6', '#facc15', {
+    '--text': '#fdf2f8',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(250, 204, 21, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,8,0.52) 0%, rgba(10,12,8,0.18) 44%, rgba(10,12,8,0.5) 100%)',
+  }),
+  themed('emptyball', 'Empty Ballroom', 'emptyball.jpg', '#fde68a', '#e2e8f0', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(253, 230, 138, 0.22)',
+    '--accent-soft': 'rgba(226, 232, 240, 0.14)',
+    '--brand-glow': 'rgba(253, 230, 138, 0.4)',
+    '--panel-glass': 'rgba(14, 12, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,12,10,0.52) 0%, rgba(14,12,10,0.18) 44%, rgba(14,12,10,0.5) 100%)',
+  }),
+  themed('planetarium', 'Planetarium', 'planetarium.jpg', '#818cf8', '#e0e7ff', {
+    '--text': '#eef2ff',
+    '--focus-ring': 'rgba(129, 140, 248, 0.22)',
+    '--accent-soft': 'rgba(224, 231, 255, 0.14)',
+    '--brand-glow': 'rgba(129, 140, 248, 0.4)',
+    '--panel-glass': 'rgba(8, 8, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,8,16,0.52) 0%, rgba(8,8,16,0.18) 44%, rgba(8,8,16,0.5) 100%)',
+  }),
+  themed('palmhouse', 'Palm House', 'palmhouse.jpg', '#4ade80', '#fde68a', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(253, 230, 138, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,8,0.52) 0%, rgba(8,12,8,0.18) 44%, rgba(8,12,8,0.5) 100%)',
+  }),
+  themed('maproom', 'Map Room', 'maproom.jpg', '#fbbf24', '#d97706', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(217, 119, 6, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(14, 10, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,10,6,0.52) 0%, rgba(14,10,6,0.18) 44%, rgba(14,10,6,0.5) 100%)',
+  }),
+  themed('rainatrium', 'Rain Atrium', 'rainatrium.jpg', '#94a3b8', '#4ade80', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(148, 163, 184, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(148, 163, 184, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,12,0.52) 0%, rgba(8,12,12,0.18) 44%, rgba(8,12,12,0.5) 100%)',
+  }),
+  themed('tilebath', 'Tile Bath', 'tilebath.jpg', '#38bdf8', '#e0f2fe', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
+    '--accent-soft': 'rgba(224, 242, 254, 0.14)',
+    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,16,0.52) 0%, rgba(8,12,16,0.18) 44%, rgba(8,12,16,0.5) 100%)',
+  }),
+  themed('operahouse', 'Opera House', 'operahouse.jpg', '#f43f5e', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(244, 63, 94, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(244, 63, 94, 0.4)',
+    '--panel-glass': 'rgba(16, 6, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(16,6,8,0.52) 0%, rgba(16,6,8,0.18) 44%, rgba(16,6,8,0.5) 100%)',
+  }),
+  themed('stationhall', 'Station Hall', 'stationhall.jpg', '#fbbf24', '#64748b', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(100, 116, 139, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,12,0.52) 0%, rgba(12,12,12,0.18) 44%, rgba(12,12,12,0.5) 100%)',
+  }),
+  themed('winecellar', 'Wine Cellar', 'winecellar.jpg', '#f87171', '#fbbf24', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(248, 113, 113, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(248, 113, 113, 0.4)',
+    '--panel-glass': 'rgba(14, 8, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,8,6,0.52) 0%, rgba(14,8,6,0.18) 44%, rgba(14,8,6,0.5) 100%)',
+  }),
+  themed('atelier', 'North Light', 'atelier.jpg', '#e2e8f0', '#fb7185', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(251, 113, 133, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,14,0.52) 0%, rgba(12,12,14,0.18) 44%, rgba(12,12,14,0.5) 100%)',
+  }),
+  themed('clockworks', 'Clockworks', 'clockworks.jpg', '#fbbf24', '#d97706', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(217, 119, 6, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(16, 12, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(16,12,6,0.52) 0%, rgba(16,12,6,0.18) 44%, rgba(16,12,6,0.5) 100%)',
+  }),
+  themed('natatorium', 'Natatorium', 'natatorium.jpg', '#67e8f9', '#e2e8f0', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(103, 232, 249, 0.22)',
+    '--accent-soft': 'rgba(226, 232, 240, 0.14)',
+    '--brand-glow': 'rgba(103, 232, 249, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,16,0.52) 0%, rgba(8,12,16,0.18) 44%, rgba(8,12,16,0.5) 100%)',
+  }),
+  themed('whitecaps', 'White Caps', 'whitecaps.jpg', '#e2e8f0', '#64748b', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(100, 116, 139, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,14,0.52) 0%, rgba(10,12,14,0.18) 44%, rgba(10,12,14,0.5) 100%)',
+  }),
+  themed('seacave', 'Sea Cave', 'seacave.jpg', '#67e8f9', '#f8fafc', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(103, 232, 249, 0.22)',
+    '--accent-soft': 'rgba(248, 250, 252, 0.14)',
+    '--brand-glow': 'rgba(103, 232, 249, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,12,16,0.52) 0%, rgba(6,12,16,0.18) 44%, rgba(6,12,16,0.5) 100%)',
+  }),
+  themed('driftwood', 'Driftwood', 'driftwood.jpg', '#d6d3d1', '#94a3b8', {
+    '--text': '#fafaf9',
+    '--focus-ring': 'rgba(214, 211, 209, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(214, 211, 209, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,12,0.52) 0%, rgba(12,12,12,0.18) 44%, rgba(12,12,12,0.5) 100%)',
+  }),
+  themed('tidalflat', 'Tidal Flat', 'tidalflat.jpg', '#fda4af', '#e0f2fe', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(253, 164, 175, 0.22)',
+    '--accent-soft': 'rgba(224, 242, 254, 0.14)',
+    '--brand-glow': 'rgba(253, 164, 175, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,14,0.52) 0%, rgba(12,12,14,0.18) 44%, rgba(12,12,14,0.5) 100%)',
+  }),
+  themed('seastack', 'Sea Stack', 'seastack.jpg', '#fb923c', '#93c5fd', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(147, 197, 253, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,10,16,0.52) 0%, rgba(10,10,16,0.18) 44%, rgba(10,10,16,0.5) 100%)',
+  }),
+  themed('wrackline', 'Wrack Line', 'wrackline.jpg', '#84cc16', '#eab308', {
+    '--text': '#f7fee7',
+    '--focus-ring': 'rgba(132, 204, 22, 0.22)',
+    '--accent-soft': 'rgba(234, 179, 8, 0.14)',
+    '--brand-glow': 'rgba(132, 204, 22, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,8,0.52) 0%, rgba(10,12,8,0.18) 44%, rgba(10,12,8,0.5) 100%)',
+  }),
+  themed('pinksand', 'Pink Sand', 'pinksand.jpg', '#fb7185', '#22d3ee', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(14, 10, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,10,12,0.52) 0%, rgba(14,10,12,0.18) 44%, rgba(14,10,12,0.5) 100%)',
+  }),
+  themed('cliffbloom', 'Cliff Bloom', 'cliffbloom.jpg', '#f472b6', '#38bdf8', {
+    '--text': '#fdf2f8',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,10,14,0.52) 0%, rgba(10,10,14,0.18) 44%, rgba(10,10,14,0.5) 100%)',
+  }),
+  themed('dawnpier', 'Dawn Pier', 'dawnpier.jpg', '#fdba74', '#7dd3fc', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(253, 186, 116, 0.22)',
+    '--accent-soft': 'rgba(125, 211, 252, 0.14)',
+    '--brand-glow': 'rgba(253, 186, 116, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,14,0.52) 0%, rgba(12,12,14,0.18) 44%, rgba(12,12,14,0.5) 100%)',
+  }),
+  themed('iceshelf', 'Ice Shelf', 'iceshelf.jpg', '#e0f2fe', '#94a3b8', {
+    '--text': '#f0f9ff',
+    '--focus-ring': 'rgba(224, 242, 254, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(224, 242, 254, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,16,0.52) 0%, rgba(8,12,16,0.18) 44%, rgba(8,12,16,0.5) 100%)',
+  }),
+  themed('fireflymead', 'Firefly Meadow', 'fireflymead.jpg', '#bef264', '#4ade80', {
+    '--text': '#f7fee7',
+    '--focus-ring': 'rgba(190, 242, 100, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(190, 242, 100, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,12,8,0.52) 0%, rgba(6,12,8,0.18) 44%, rgba(6,12,8,0.5) 100%)',
+  }),
+  themed('lakestars', 'Lake Stars', 'lakestars.jpg', '#e0e7ff', '#818cf8', {
+    '--text': '#eef2ff',
+    '--focus-ring': 'rgba(224, 231, 255, 0.22)',
+    '--accent-soft': 'rgba(129, 140, 248, 0.14)',
+    '--brand-glow': 'rgba(224, 231, 255, 0.4)',
+    '--panel-glass': 'rgba(8, 8, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,8,16,0.52) 0%, rgba(8,8,16,0.18) 44%, rgba(8,8,16,0.5) 100%)',
+  }),
+  themed('oilrain', 'Oil Rain', 'oilrain.jpg', '#22d3ee', '#f472b6', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
+    '--accent-soft': 'rgba(244, 114, 182, 0.14)',
+    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
+    '--panel-glass': 'rgba(8, 8, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,8,12,0.52) 0%, rgba(8,8,12,0.18) 44%, rgba(8,8,12,0.5) 100%)',
+  }),
+  themed('moonwell', 'Moon Well', 'moonwell.jpg', '#e2e8f0', '#94a3b8', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,14,0.52) 0%, rgba(10,12,14,0.18) 44%, rgba(10,12,14,0.5) 100%)',
+  }),
+  themed('campfire', 'Lone Fire', 'campfire.jpg', '#fb923c', '#fbbf24', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 6, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,8,6,0.52) 0%, rgba(12,8,6,0.18) 44%, rgba(12,8,6,0.5) 100%)',
+  }),
+  themed('cityglow', 'City Glow', 'cityglow.jpg', '#fbbf24', '#818cf8', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(129, 140, 248, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(8, 8, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,8,14,0.52) 0%, rgba(8,8,14,0.18) 44%, rgba(8,8,14,0.5) 100%)',
+  }),
+  themed('lanternpath', 'Lantern Path', 'lanternpath.jpg', '#fbbf24', '#4ade80', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(10, 10, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,10,8,0.52) 0%, rgba(10,10,8,0.18) 44%, rgba(10,10,8,0.5) 100%)',
+  }),
+  themed('bloodmoon', 'Blood Moon', 'bloodmoon.jpg', '#f87171', '#fecaca', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(248, 113, 113, 0.22)',
+    '--accent-soft': 'rgba(254, 202, 202, 0.14)',
+    '--brand-glow': 'rgba(248, 113, 113, 0.4)',
+    '--panel-glass': 'rgba(12, 6, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,6,8,0.52) 0%, rgba(12,6,8,0.18) 44%, rgba(12,6,8,0.5) 100%)',
+  }),
+  themed('starpool', 'Star Pool', 'starpool.jpg', '#c4b5fd', '#e0e7ff', {
+    '--text': '#f5f3ff',
+    '--focus-ring': 'rgba(196, 181, 253, 0.22)',
+    '--accent-soft': 'rgba(224, 231, 255, 0.14)',
+    '--brand-glow': 'rgba(196, 181, 253, 0.4)',
+    '--panel-glass': 'rgba(8, 8, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,8,14,0.52) 0%, rgba(8,8,14,0.18) 44%, rgba(8,8,14,0.5) 100%)',
+  }),
+  themed('silentroad', 'Silent Road', 'silentroad.jpg', '#fde68a', '#94a3b8', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(253, 230, 138, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(253, 230, 138, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,12,0.52) 0%, rgba(10,12,12,0.18) 44%, rgba(10,12,12,0.5) 100%)',
+  }),
+  themed('mossgarden', 'Moss Garden', 'mossgarden.jpg', '#4ade80', '#a3e635', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(163, 230, 53, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,12,8,0.52) 0%, rgba(6,12,8,0.18) 44%, rgba(6,12,8,0.5) 100%)',
+  }),
+  themed('rosecourt', 'Rose Court', 'rosecourt.jpg', '#fb7185', '#fda4af', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(251, 113, 133, 0.22)',
+    '--accent-soft': 'rgba(253, 164, 175, 0.14)',
+    '--brand-glow': 'rgba(251, 113, 133, 0.4)',
+    '--panel-glass': 'rgba(14, 6, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,6,8,0.52) 0%, rgba(14,6,8,0.18) 44%, rgba(14,6,8,0.5) 100%)',
+  }),
+  themed('moongate', 'Moon Gate', 'moongate.jpg', '#86efac', '#e2e8f0', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(134, 239, 172, 0.22)',
+    '--accent-soft': 'rgba(226, 232, 240, 0.14)',
+    '--brand-glow': 'rgba(134, 239, 172, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,10,0.52) 0%, rgba(8,12,10,0.18) 44%, rgba(8,12,10,0.5) 100%)',
+  }),
+  themed('wisteria', 'Wisteria', 'wisteria.jpg', '#c084fc', '#4ade80', {
+    '--text': '#faf5ff',
+    '--focus-ring': 'rgba(192, 132, 252, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(192, 132, 252, 0.4)',
+    '--panel-glass': 'rgba(12, 8, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,8,14,0.52) 0%, rgba(12,8,14,0.18) 44%, rgba(12,8,14,0.5) 100%)',
+  }),
+  themed('topiary', 'Topiary Fog', 'topiary.jpg', '#4ade80', '#94a3b8', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,10,0.52) 0%, rgba(8,12,10,0.18) 44%, rgba(8,12,10,0.5) 100%)',
+  }),
+  themed('cactusbloom', 'Cactus Bloom', 'cactusbloom.jpg', '#f472b6', '#84cc16', {
+    '--text': '#fdf2f8',
+    '--focus-ring': 'rgba(244, 114, 182, 0.22)',
+    '--accent-soft': 'rgba(132, 204, 22, 0.14)',
+    '--brand-glow': 'rgba(244, 114, 182, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,10,8,0.52) 0%, rgba(12,10,8,0.18) 44%, rgba(12,10,8,0.5) 100%)',
+  }),
+  themed('reflectpool', 'Reflecting Pool', 'reflectpool.jpg', '#e2e8f0', '#86efac', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(134, 239, 172, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,12,0.52) 0%, rgba(8,12,12,0.18) 44%, rgba(8,12,12,0.5) 100%)',
+  }),
+  themed('ferncourt', 'Fern Court', 'ferncourt.jpg', '#4ade80', '#166534', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(22, 101, 52, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,12,8,0.52) 0%, rgba(6,12,8,0.18) 44%, rgba(6,12,8,0.5) 100%)',
+  }),
+  themed('olivegrove', 'Olive Grove', 'olivegrove.jpg', '#d6d3d1', '#fbbf24', {
+    '--text': '#fafaf9',
+    '--focus-ring': 'rgba(214, 211, 209, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(214, 211, 209, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,8,0.52) 0%, rgba(12,12,8,0.18) 44%, rgba(12,12,8,0.5) 100%)',
+  }),
+  themed('flagiris', 'Iris Water', 'flagiris.jpg', '#818cf8', '#4ade80', {
+    '--text': '#eef2ff',
+    '--focus-ring': 'rgba(129, 140, 248, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(129, 140, 248, 0.4)',
+    '--panel-glass': 'rgba(8, 10, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,10,14,0.52) 0%, rgba(8,10,14,0.18) 44%, rgba(8,10,14,0.5) 100%)',
+  }),
+  themed('windfarm', 'Wind Farm', 'windfarm.jpg', '#f87171', '#94a3b8', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(248, 113, 113, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(248, 113, 113, 0.4)',
+    '--panel-glass': 'rgba(8, 10, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,10,14,0.52) 0%, rgba(8,10,14,0.18) 44%, rgba(8,10,14,0.5) 100%)',
+  }),
+  themed('shipyard', 'Shipyard', 'shipyard.jpg', '#fb923c', '#64748b', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(100, 116, 139, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,14,0.52) 0%, rgba(12,12,14,0.18) 44%, rgba(12,12,14,0.5) 100%)',
+  }),
+  themed('grainrise', 'Grain Rise', 'grainrise.jpg', '#fbbf24', '#64748b', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(100, 116, 139, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(14, 12, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,12,10,0.52) 0%, rgba(14,12,10,0.18) 44%, rgba(14,12,10,0.5) 100%)',
+  }),
+  themed('powerlines', 'Power Lines', 'powerlines.jpg', '#c084fc', '#fbbf24', {
+    '--text': '#faf5ff',
+    '--focus-ring': 'rgba(192, 132, 252, 0.22)',
+    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
+    '--brand-glow': 'rgba(192, 132, 252, 0.4)',
+    '--panel-glass': 'rgba(10, 8, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,8,14,0.52) 0%, rgba(10,8,14,0.18) 44%, rgba(10,8,14,0.5) 100%)',
+  }),
+  themed('marblequarry', 'Marble Quarry', 'marblequarry.jpg', '#f8fafc', '#38bdf8', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(248, 250, 252, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(248, 250, 252, 0.4)',
+    '--panel-glass': 'rgba(12, 14, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,14,16,0.52) 0%, rgba(12,14,16,0.18) 44%, rgba(12,14,16,0.5) 100%)',
+  }),
+  themed('railyard', 'Rail Yard', 'railyard.jpg', '#fbbf24', '#f87171', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(248, 113, 113, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,10,10,0.52) 0%, rgba(12,10,10,0.18) 44%, rgba(12,10,10,0.5) 100%)',
+  }),
+  themed('coolingtower', 'Cooling Towers', 'coolingtower.jpg', '#e2e8f0', '#fb923c', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,14,0.52) 0%, rgba(12,12,14,0.18) 44%, rgba(12,12,14,0.5) 100%)',
+  }),
+  themed('saltworks', 'Salt Works', 'saltworks.jpg', '#fda4af', '#f8fafc', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(253, 164, 175, 0.22)',
+    '--accent-soft': 'rgba(248, 250, 252, 0.14)',
+    '--brand-glow': 'rgba(253, 164, 175, 0.4)',
+    '--panel-glass': 'rgba(14, 12, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,12,12,0.52) 0%, rgba(14,12,12,0.18) 44%, rgba(14,12,12,0.5) 100%)',
+  }),
+  themed('lenticular', 'Lenticular', 'lenticular.jpg', '#f8fafc', '#fb923c', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(248, 250, 252, 0.22)',
+    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
+    '--brand-glow': 'rgba(248, 250, 252, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,16,0.52) 0%, rgba(12,12,16,0.18) 44%, rgba(12,12,16,0.5) 100%)',
+  }),
+  themed('mammatus', 'Mammatus', 'mammatus.jpg', '#f59e0b', '#fdba74', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(245, 158, 11, 0.22)',
+    '--accent-soft': 'rgba(253, 186, 116, 0.14)',
+    '--brand-glow': 'rgba(245, 158, 11, 0.4)',
+    '--panel-glass': 'rgba(14, 8, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,8,8,0.52) 0%, rgba(14,8,8,0.18) 44%, rgba(14,8,8,0.5) 100%)',
+  }),
+  themed('nacreous', 'Nacreous', 'nacreous.jpg', '#f9a8d4', '#a5f3fc', {
+    '--text': '#fdf2f8',
+    '--focus-ring': 'rgba(249, 168, 212, 0.22)',
+    '--accent-soft': 'rgba(165, 243, 252, 0.14)',
+    '--brand-glow': 'rgba(249, 168, 212, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,10,16,0.52) 0%, rgba(12,10,16,0.18) 44%, rgba(12,10,16,0.5) 100%)',
+  }),
+  themed('contrails', 'Contrail Dusk', 'contrails.jpg', '#fdba74', '#93c5fd', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(253, 186, 116, 0.22)',
+    '--accent-soft': 'rgba(147, 197, 253, 0.14)',
+    '--brand-glow': 'rgba(253, 186, 116, 0.4)',
+    '--panel-glass': 'rgba(14, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,12,14,0.52) 0%, rgba(14,12,14,0.18) 44%, rgba(14,12,14,0.5) 100%)',
+  }),
+  themed('balloonfog', 'Balloon Fog', 'balloonfog.jpg', '#f87171', '#fde68a', {
+    '--text': '#fff1f2',
+    '--focus-ring': 'rgba(248, 113, 113, 0.22)',
+    '--accent-soft': 'rgba(253, 230, 138, 0.14)',
+    '--brand-glow': 'rgba(248, 113, 113, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,10,12,0.52) 0%, rgba(12,10,12,0.18) 44%, rgba(12,10,12,0.5) 100%)',
+  }),
+  themed('cloudsea', 'Cloud Sea', 'cloudsea.jpg', '#fde68a', '#e0f2fe', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(253, 230, 138, 0.22)',
+    '--accent-soft': 'rgba(224, 242, 254, 0.14)',
+    '--brand-glow': 'rgba(253, 230, 138, 0.4)',
+    '--panel-glass': 'rgba(12, 14, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,14,16,0.52) 0%, rgba(12,14,16,0.18) 44%, rgba(12,14,16,0.5) 100%)',
+  }),
+  themed('greenflash', 'Green Flash', 'greenflash.jpg', '#4ade80', '#fb923c', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 12, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,12,0.52) 0%, rgba(8,12,12,0.18) 44%, rgba(8,12,12,0.5) 100%)',
+  }),
+  themed('noctilucent', 'Noctilucent', 'noctilucent.jpg', '#67e8f9', '#c4b5fd', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(103, 232, 249, 0.22)',
+    '--accent-soft': 'rgba(196, 181, 253, 0.14)',
+    '--brand-glow': 'rgba(103, 232, 249, 0.4)',
+    '--panel-glass': 'rgba(6, 8, 16, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,8,16,0.52) 0%, rgba(6,8,16,0.18) 44%, rgba(6,8,16,0.5) 100%)',
+  }),
+  themed('romanbath', 'Roman Bath', 'romanbath.jpg', '#fbbf24', '#a8a29e', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(168, 162, 158, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,10,8,0.52) 0%, rgba(12,10,8,0.18) 44%, rgba(12,10,8,0.5) 100%)',
+  }),
+  themed('cliffdwell', 'Cliff Rooms', 'cliffdwell.jpg', '#f97316', '#a8a29e', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(249, 115, 22, 0.22)',
+    '--accent-soft': 'rgba(168, 162, 158, 0.14)',
+    '--brand-glow': 'rgba(249, 115, 22, 0.4)',
+    '--panel-glass': 'rgba(16, 10, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(16,10,8,0.52) 0%, rgba(16,10,8,0.18) 44%, rgba(16,10,8,0.5) 100%)',
+  }),
+  themed('jungletemple', 'Jungle Temple', 'jungletemple.jpg', '#4ade80', '#a8a29e', {
+    '--text': '#f0fdf4',
+    '--focus-ring': 'rgba(74, 222, 128, 0.22)',
+    '--accent-soft': 'rgba(168, 162, 158, 0.14)',
+    '--brand-glow': 'rgba(74, 222, 128, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,12,8,0.52) 0%, rgba(6,12,8,0.18) 44%, rgba(6,12,8,0.5) 100%)',
+  }),
+  themed('roofless', 'Roofless Abbey', 'roofless.jpg', '#e2e8f0', '#4ade80', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
+    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
+    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
+    '--panel-glass': 'rgba(10, 12, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(10,12,10,0.52) 0%, rgba(10,12,10,0.18) 44%, rgba(10,12,10,0.5) 100%)',
+  }),
+  themed('seafort', 'Sea Fort', 'seafort.jpg', '#94a3b8', '#38bdf8', {
+    '--text': '#f8fafc',
+    '--focus-ring': 'rgba(148, 163, 184, 0.22)',
+    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
+    '--brand-glow': 'rgba(148, 163, 184, 0.4)',
+    '--panel-glass': 'rgba(8, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(8,12,14,0.52) 0%, rgba(8,12,14,0.18) 44%, rgba(8,12,14,0.5) 100%)',
+  }),
+  themed('kiva', 'Desert Kiva', 'kiva.jpg', '#fbbf24', '#78716c', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(120, 113, 108, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(14, 10, 8, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(14,10,8,0.52) 0%, rgba(14,10,8,0.18) 44%, rgba(14,10,8,0.5) 100%)',
+  }),
+  themed('brickviaduct', 'Brick Viaduct', 'brickviaduct.jpg', '#fb923c', '#94a3b8', {
+    '--text': '#fff7ed',
+    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
+    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
+    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
+    '--panel-glass': 'rgba(12, 10, 10, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,10,10,0.52) 0%, rgba(12,10,10,0.18) 44%, rgba(12,10,10,0.5) 100%)',
+  }),
+  themed('sunkencity', 'Sunken City', 'sunkencity.jpg', '#67e8f9', '#e7e5e4', {
+    '--text': '#ecfeff',
+    '--focus-ring': 'rgba(103, 232, 249, 0.22)',
+    '--accent-soft': 'rgba(231, 229, 228, 0.14)',
+    '--brand-glow': 'rgba(103, 232, 249, 0.4)',
+    '--panel-glass': 'rgba(6, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(6,12,14,0.52) 0%, rgba(6,12,14,0.18) 44%, rgba(6,12,14,0.5) 100%)',
+  }),
     videoThemed('sakuravideo', 'Sakura', 'sakura.mp4', '#fb7185', '#f472b6', {
     '--text': '#fff1f2',
     '--focus-ring': 'rgba(251, 113, 133, 0.22)',
@@ -2844,6 +3844,156 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'rainpagoda',
       'ciderorchard',
       'neoncanal',
+    ],
+  },
+  {
+    label: 'Weather',
+    ids: [
+      'thundersheet',
+      'hailfield',
+      'fogpier',
+      'sundog',
+      'dustdevil',
+      'raincanopy',
+      'snowsquall',
+      'heatmirage',
+      'cloudbreak',
+      'frostfern',
+    ],
+  },
+  {
+    label: 'Cities',
+    ids: [
+      'lisbondawn',
+      'havanadusk',
+      'marrakech',
+      'istanblue',
+      'chicagofog',
+      'pragueriver',
+      'gizadusk',
+      'reykjavik',
+      'valparaiso',
+      'supertree',
+      'montsnow',
+      'brooklyndawn',
+    ],
+  },
+  {
+    label: 'Wild',
+    ids: [
+      'baobabmoon',
+      'rhododendron',
+      'badlands',
+      'ferncanyon',
+      'tundragold',
+      'acaciastorm',
+      'glaciercave',
+      'mineralpool',
+      'gooseneck',
+      'aspengold',
+      'cypressbay',
+      'meadowmix',
+    ],
+  },
+  {
+    label: 'Halls',
+    ids: [
+      'emptyball',
+      'planetarium',
+      'palmhouse',
+      'maproom',
+      'rainatrium',
+      'tilebath',
+      'operahouse',
+      'stationhall',
+      'winecellar',
+      'atelier',
+      'clockworks',
+      'natatorium',
+    ],
+  },
+  {
+    label: 'Shores',
+    ids: [
+      'whitecaps',
+      'seacave',
+      'driftwood',
+      'tidalflat',
+      'seastack',
+      'wrackline',
+      'pinksand',
+      'cliffbloom',
+      'dawnpier',
+      'iceshelf',
+    ],
+  },
+  {
+    label: 'After Dark',
+    ids: [
+      'fireflymead',
+      'lakestars',
+      'oilrain',
+      'moonwell',
+      'campfire',
+      'cityglow',
+      'lanternpath',
+      'bloodmoon',
+      'starpool',
+      'silentroad',
+    ],
+  },
+  {
+    label: 'Gardens',
+    ids: [
+      'mossgarden',
+      'rosecourt',
+      'moongate',
+      'wisteria',
+      'topiary',
+      'cactusbloom',
+      'reflectpool',
+      'ferncourt',
+      'olivegrove',
+      'flagiris',
+    ],
+  },
+  {
+    label: 'Works',
+    ids: [
+      'windfarm',
+      'shipyard',
+      'grainrise',
+      'powerlines',
+      'marblequarry',
+      'railyard',
+      'coolingtower',
+      'saltworks',
+    ],
+  },
+  {
+    label: 'Skies',
+    ids: [
+      'lenticular',
+      'mammatus',
+      'nacreous',
+      'contrails',
+      'balloonfog',
+      'cloudsea',
+      'greenflash',
+      'noctilucent',
+    ],
+  },
+  {
+    label: 'Ruins',
+    ids: [
+      'romanbath',
+      'cliffdwell',
+      'jungletemple',
+      'roofless',
+      'seafort',
+      'kiva',
+      'brickviaduct',
+      'sunkencity',
     ],
   },
   {
