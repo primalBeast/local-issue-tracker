@@ -18,11 +18,11 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe('themes', () => {
-  it('includes the midnight default plus one hundred and seventy-eight wallpapers', () => {
+  it('includes the midnight default plus two hundred and thirty-seven wallpapers', () => {
     expect(THEMES[0].id).toBe('midnight');
     expect(THEMES[0].name.toLowerCase()).toContain('default');
-    expect(THEMES).toHaveLength(185);
-    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(178);
+    expect(THEMES).toHaveLength(244);
+    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(237);
     expect(THEMES.filter((t) => t.video)).toHaveLength(6);
   });
 
@@ -106,6 +106,20 @@ describe('themes', () => {
       expect(video?.video, id).toMatch(/^\/themes\/.+\.mp4$/);
       expect(video?.vars['--wallpaper'], id).toBe('none');
       const file = resolve(here, '../../public', video!.video!.replace(/^\//, ''));
+      expect(existsSync(file), `missing ${file}`).toBe(true);
+    }
+  });
+
+  it('ships fifty-nine random wallpapers in the Random theme group', () => {
+    const group = THEME_GROUPS.find((g) => g.label === 'Random');
+    expect(group?.ids).toHaveLength(59);
+    const ids = new Set(group?.ids);
+    expect(ids.size).toBe(59);
+    for (const id of group!.ids) {
+      const theme = THEMES.find((t) => t.id === id);
+      expect(theme?.wallpaper, id).toBe(`/themes/${id}.jpg`);
+      expect(theme?.name.length, id).toBeGreaterThan(0);
+      const file = resolve(here, '../../public', theme!.wallpaper!.replace(/^\//, ''));
       expect(existsSync(file), `missing ${file}`).toBe(true);
     }
   });
