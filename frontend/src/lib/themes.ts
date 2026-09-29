@@ -157,6 +157,7 @@ export type ThemeId =
   | 'umbravideo'
   | 'uenovideo'
   | 'fogbridgevideo'
+  | 'alpinehutvideo'
   | 'saucer'
   | 'cropdisc'
   | 'mothership'
@@ -3544,6 +3545,15 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,8,12,0.42) 0%, rgba(6,8,12,0.12) 44%, rgba(6,8,12,0.4) 100%)',
   }),
+  videoThemed('alpinehutvideo', 'Alpine Hut', 'alpinehut.mp4', '#fbbf24', '#e2e8f0', {
+    '--text': '#fffbeb',
+    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
+    '--accent-soft': 'rgba(226, 232, 240, 0.14)',
+    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
+    '--panel-glass': 'rgba(12, 12, 14, 0.6)',
+    '--wallpaper-veil':
+      'linear-gradient(180deg, rgba(12,12,14,0.42) 0%, rgba(12,12,14,0.12) 44%, rgba(12,12,14,0.4) 100%)',
+  }),
 ];
 
 export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
@@ -3998,7 +4008,15 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
   },
   {
     label: 'Video',
-    ids: ['sakuravideo', 'oasisvideo', 'reefvideo', 'umbravideo', 'uenovideo', 'fogbridgevideo'],
+    ids: [
+      'sakuravideo',
+      'oasisvideo',
+      'reefvideo',
+      'umbravideo',
+      'uenovideo',
+      'fogbridgevideo',
+      'alpinehutvideo',
+    ],
   },
 ];
 

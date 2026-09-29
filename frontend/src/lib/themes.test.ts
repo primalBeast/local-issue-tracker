@@ -21,9 +21,9 @@ describe('themes', () => {
   it('includes the midnight default plus three hundred and thirty-seven wallpapers', () => {
     expect(THEMES[0].id).toBe('midnight');
     expect(THEMES[0].name.toLowerCase()).toContain('default');
-    expect(THEMES).toHaveLength(344);
+    expect(THEMES).toHaveLength(345);
     expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(337);
-    expect(THEMES.filter((t) => t.video)).toHaveLength(6);
+    expect(THEMES.filter((t) => t.video)).toHaveLength(7);
   });
 
   it('groups every look into the theme menu without duplicates', () => {
@@ -100,6 +100,7 @@ describe('themes', () => {
       'umbravideo',
       'uenovideo',
       'fogbridgevideo',
+      'alpinehutvideo',
     ]);
     for (const id of group!.ids) {
       const video = THEMES.find((t) => t.id === id);
