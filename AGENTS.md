@@ -18,3 +18,20 @@ Whenever the user asks to **commit and push** (to GitHub):
 6. Do not skip the notes for “small” UI work. Dist-only rebuilds can stay in the git log; they do not need a new highlight card.
 
 The page is `release-notes.html`. Open it locally with the default browser when the user asks to view notes.
+
+## Continuity
+
+This project is tracked in the private ledger `primalBeast/grok-projects` under slug `local-issue-tracker`.
+
+Before substantial work, read these files on branch `main`:
+
+- `PROTOCOL.md`
+- `projects/local-issue-tracker/RESUME.md`
+- `projects/local-issue-tracker/project.json`
+- `projects/local-issue-tracker/DECISIONS.md`
+
+Obey recorded decisions. Do not relitigate them unless the user explicitly reverses one, and then append the reversal to `DECISIONS.md`.
+
+Before the session ends, update the packet using the session-close ritual in `PROTOCOL.md`. Commit the ledger separately from product code.
+
+Never copy secrets, tokens, or `.env` values into the ledger. Secret names and where they live belong in `project.json`.
