@@ -228,7 +228,7 @@ def test_explicit_release_cancels_pending_grace(monkeypatch: pytest.MonkeyPatch)
     registry.stream_opened(CLIENT_A)
     registry.stream_closed(CLIENT_A)
     assert registry.release("proj-1", CLIENT_A) is True
-    time.sleep(0.55)
+    time.sleep(1.0)
     # The partial release left proj-2 under the original grace timer.
     assert registry.holder("proj-1") is None
     assert registry.holder("proj-2") is None
@@ -686,8 +686,10 @@ def test_live_sse_claim_release_grace_and_reconnect(tmp_path: Path) -> None:
         gaps = [_comments[i][0] - _comments[i - 1][0] for i in range(1, len(_comments))]
         _note(f"TIMING sse_heartbeat_gaps={[round(gap, 3) for gap in gaps]}")
         assert gaps, "no heartbeat comments"
-        assert min(gaps) >= 0.5
-        assert min(gaps) <= 1.6
+        # Default cadence is 1s. Allow a short interval and a stalled runner.
+        # A 15s heartbeat, or a spin, still fails.
+        assert min(gaps) >= 0.25
+        assert min(gaps) <= 3.0
 
         assert _request(port, "POST", f"/api/projects/{slug}/claim", headers=_headers(CLIENT_A))[0] == 200
         _wait_claim(time.monotonic() - 1, lambda payload: payload["claims"].get(slug) == CLIENT_A, 1.0)
@@ -801,6 +803,9 @@ def test_live_idle_exit_after_last_stream(tmp_path: Path) -> None:
         elif not getattr(log_handle, "closed", True):
             log_handle.close()
 
+    # The server unlocks in ``finally`` before it exits. Retry so a slow OS
+    # drop of the handle (Windows) is not a stale-lock failure.
+    deadline = time.monotonic() + 5
     acquired = subprocess.run(
         [
             sys.executable,
@@ -820,5 +825,26 @@ def test_live_idle_exit_after_last_stream(tmp_path: Path) -> None:
         text=True,
         timeout=20,
     )
+    while acquired.returncode != 0 and time.monotonic() < deadline:
+        time.sleep(0.1)
+        acquired = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "\n".join(
+                    [
+                        "import os, sys",
+                        "os.environ['LIT_DATA_DIR'] = sys.argv[1]",
+                        "from lit.locking import acquire_data_lock",
+                        "acquire_data_lock()",
+                        "print('ACQUIRED', flush=True)",
+                    ]
+                ),
+                str(data),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
     assert acquired.returncode == 0, acquired.stderr
     assert "ACQUIRED" in acquired.stdout

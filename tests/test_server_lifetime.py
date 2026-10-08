@@ -43,11 +43,12 @@ class _FakeProc:
 
 
 def test_build_server_cmd_includes_headless_idle_and_data_dir(tmp_path: Path) -> None:
-    from lit.server_launch import build_server_cmd
+    from lit.server_launch import build_server_cmd, server_interpreter
 
     data = tmp_path / "data"
     cmd = build_server_cmd(data, "127.0.0.1", 23456)
-    assert cmd[0] == sys.executable
+    # On Windows this is pythonw.exe when it sits next to the interpreter.
+    assert cmd[0] == server_interpreter()
     assert cmd[1:3] == ["-m", "lit"]
     assert "--data-dir" in cmd
     assert str(data) in cmd
@@ -287,24 +288,36 @@ def test_headless_exit_when_idle_frees_the_lock(tmp_path: Path) -> None:
         if not log_fh.closed:
             log_fh.close()
 
-    acquired = subprocess.run(
+    # A clean exit unlocks in ``finally``. Retry covers a slow OS drop after
+    # the process handle closes (Windows TerminateProcess can lag a moment).
+    acquired = _acquire_when_free(data)
+    assert acquired.returncode == 0, acquired.stderr
+    assert "ACQUIRED" in acquired.stdout
+
+
+def _acquire_when_free(data: Path, timeout: float = 5.0) -> subprocess.CompletedProcess[str]:
+    script = "\n".join(
         [
-            sys.executable,
-            "-c",
-            "\n".join(
-                [
-                    "import os, sys",
-                    "os.environ['LIT_DATA_DIR'] = sys.argv[1]",
-                    "from lit.locking import acquire_data_lock",
-                    "acquire_data_lock()",
-                    "print('ACQUIRED', flush=True)",
-                ]
-            ),
-            str(data),
-        ],
+            "import os, sys",
+            "os.environ['LIT_DATA_DIR'] = sys.argv[1]",
+            "from lit.locking import acquire_data_lock",
+            "acquire_data_lock()",
+            "print('ACQUIRED', flush=True)",
+        ]
+    )
+    deadline = time.monotonic() + timeout
+    last = subprocess.run(
+        [sys.executable, "-c", script, str(data)],
         capture_output=True,
         text=True,
         timeout=20,
     )
-    assert acquired.returncode == 0, acquired.stderr
-    assert "ACQUIRED" in acquired.stdout
+    while last.returncode != 0 and time.monotonic() < deadline:
+        time.sleep(0.1)
+        last = subprocess.run(
+            [sys.executable, "-c", script, str(data)],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    return last

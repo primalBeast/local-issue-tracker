@@ -139,7 +139,7 @@ Easiest: double-click **`start.cmd`**. It starts the server and opens the browse
 uv run lit serve --webview
 ```
 
-That is the same local server. Close the WebView2 window to stop (if this process started the server). `--open` still opens Edge/Chrome as before. Do not pass both; `--webview` wins.
+That opens a window on the shared local server. See **Multiple windows** below. `--open` still opens Edge/Chrome as before. Do not pass both; `--webview` wins.
 
 The WebView2 window has no Windows title bar. Resize from the outer edges. Minimize / maximize / close are on the right of the app toolbar. **F11** toggles fullscreen. **Alt+F4** also quits.
 
@@ -158,7 +158,7 @@ uv run lit serve --open
 - `--webview` opens a WebView2 app window instead
 - If the browser does not open, go to: [http://127.0.0.1:8765](http://127.0.0.1:8765)
 
-Leave the PowerShell window open while you use the app (browser mode). Stop the server with **Ctrl+C**, or close the WebView2 window.
+Leave the PowerShell window open while you use the app in browser mode, and stop that server with **Ctrl+C**. WebView windows use the shared server in **Multiple windows** below.
 
 ### Daily start (after the first setup)
 
@@ -169,6 +169,17 @@ cd D:\dev\local-issue-tracker   # your clone path
 uv run lit serve --open
 # or
 uv run lit serve --webview
+```
+
+### Multiple windows
+
+You can open more than one window (run `start-webview` again, or another `uv run lit serve --webview`). They share one background server. A project is open in one window at a time. Other windows still list it, greyed out, with the tooltip "Already open in another window". Close the window that has it and the project becomes selectable in the others right away.
+
+The shared server exits about 10 seconds after the last window closes. While the app is running, `backup-now` and `init-project` go through it:
+
+```powershell
+uv run lit backup-now
+uv run lit init-project my-proj --name "My Project"
 ```
 
 ---

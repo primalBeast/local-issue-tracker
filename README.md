@@ -107,6 +107,12 @@ uv run lit backup-now --project issue-tracker --force
 uv run lit doctor                # diagnose install
 ```
 
+### Multiple windows
+
+Several app windows can run at the same time. A project is open in one window at a time. The others still list it, greyed out, with the tooltip "Already open in another window". When that window closes, the project becomes selectable in the others right away.
+
+The windows share one background server. It exits about 10 seconds after the last window closes. While the app is running, `backup-now` and `init-project` go through it.
+
 ## Frontend development
 
 ```bash

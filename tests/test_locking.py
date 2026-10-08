@@ -1,20 +1,24 @@
 """Cross-platform data-root lock and lock-aware backup/init tests.
 
-CI on windows-latest should run this file: the Windows fail-closed lock is the
-point of ``test_lock_busy_then_free_after_kill``.
+The ``lock-windows`` CI job runs this file on windows-latest. POSIX-only tests
+skip on win32; the msvcrt backend test skips everywhere else.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import socket
 import sqlite3
 import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -44,12 +48,20 @@ ACQUIRE_SCRIPT = "\n".join(
 
 
 @pytest.fixture(autouse=True)
-def _drop_process_lock() -> Iterator[None]:
-    from lit.locking import release_data_lock
+def _drop_process_lock(tmp_path: Path) -> Iterator[None]:
+    """Drop the data lock and SQLite handles before ``tmp_path`` is removed.
 
+    The fixture depends on ``tmp_path`` so this teardown runs first. Windows
+    cannot delete a file that another handle still has open.
+    """
+    from lit.locking import release_data_lock
+    from lit.storage import items_db
+
+    del tmp_path
     release_data_lock()
     yield
     release_data_lock()
+    items_db.close_all()
 
 
 def _use_data(path: Path) -> None:
@@ -275,6 +287,39 @@ def test_missing_lock_backend_exits_nonzero(
         acquire_data_lock()
     assert exc.value.code not in (0, None)
     assert "no file-locking backend" in capsys.readouterr().err
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only: msvcrt is the data-lock backend")
+def test_lock_backend_on_windows_is_msvcrt(tmp_path: Path) -> None:
+    """win32 must select msvcrt.locking, not a warn-and-continue fallback."""
+    import lit.locking as locking
+
+    data = (tmp_path / "data").resolve()
+    data.mkdir()
+    _use_data(data)
+    assert locking.try_acquire_data_lock() is True
+    try:
+        assert locking._backend_name == "msvcrt"
+        import msvcrt
+
+        assert hasattr(msvcrt, "locking")
+        assert hasattr(msvcrt, "LK_NBLCK")
+    finally:
+        locking.release_data_lock()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only: fcntl flock is the data-lock backend")
+def test_lock_backend_on_posix_is_fcntl(tmp_path: Path) -> None:
+    import lit.locking as locking
+
+    data = (tmp_path / "data").resolve()
+    data.mkdir()
+    _use_data(data)
+    assert locking.try_acquire_data_lock() is True
+    try:
+        assert locking._backend_name == "fcntl"
+    finally:
+        locking.release_data_lock()
 
 
 def test_direct_init_and_backup_release_the_lock(tmp_path: Path) -> None:
@@ -568,3 +613,235 @@ def test_api_backups_now(tmp_path: Path) -> None:
     finally:
         conn.close()
     assert any("via-api" in row for row in rows)
+
+
+def _health(port: int) -> bool:
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=0.4) as response:
+            return int(getattr(response, "status", 200) or 200) == 200
+    except (OSError, urllib.error.URLError, ValueError):
+        return False
+
+
+def _api(port: int, method: str, path: str, payload: dict | None = None) -> tuple[int, object]:
+    data = None if payload is None else json.dumps(payload).encode("utf-8")
+    headers = {"Accept": "application/json"}
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}{path}",
+        data=data,
+        headers=headers,
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            raw = response.read().decode("utf-8")
+            return int(response.status), json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as exc:
+        raw = exc.read().decode("utf-8", errors="replace")
+        try:
+            parsed: object = json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            parsed = {"raw": raw}
+        return int(exc.code), parsed
+
+
+@contextmanager
+def _headless_server(data: Path, log_path: Path) -> Iterator[int]:
+    """A real ``lit serve --headless`` that holds the data-root lock."""
+    port = _free_port()
+    env = os.environ.copy()
+    for key in (
+        "LIT_DATA_DIR",
+        "LIT_IDLE_STARTUP_SECONDS",
+        "LIT_IDLE_EXIT_SECONDS",
+        "LIT_CLAIM_GRACE_SECONDS",
+    ):
+        env.pop(key, None)
+    env["PYTHONUNBUFFERED"] = "1"
+    cmd = [
+        sys.executable,
+        "-m",
+        "lit",
+        "--data-dir",
+        str(data),
+        "serve",
+        "--headless",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(port),
+    ]
+    log_fh = open(log_path, "w", encoding="utf-8")
+    proc: subprocess.Popen[str] | None = None
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            env=env,
+            text=True,
+        )
+        deadline = time.monotonic() + 30
+        healthy = False
+        while time.monotonic() < deadline and proc.poll() is None:
+            if _health(port):
+                healthy = True
+                break
+            time.sleep(0.05)
+        if not healthy:
+            tail = log_path.read_text(encoding="utf-8", errors="replace")[-4000:]
+            raise AssertionError(f"server did not become healthy (rc={proc.poll()})\n{tail}")
+        yield port
+    finally:
+        if proc is not None and proc.poll() is None:
+            proc.kill()
+        if proc is not None:
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=5)
+        if not log_fh.closed:
+            log_fh.close()
+
+
+def test_backup_now_and_init_project_use_the_running_server(tmp_path: Path) -> None:
+    """While a server holds the data lock, both commands succeed through its API.
+
+    The server stays up and keeps the lock, so the CLI cannot take the local
+    write path. ``test_backup_now_calls_api_when_lock_held`` checks that path
+    leaves the files untouched when the HTTP call itself does not write.
+    """
+    data = (tmp_path / "data").resolve()
+    data.mkdir()
+    with _headless_server(data, tmp_path / "server.log") as port:
+        busy = _acquire_subprocess(data)
+        assert busy.returncode == 1, busy.stderr
+
+        backed = _lit(
+            data,
+            "backup-now",
+            "--project",
+            "issue-tracker",
+            "--force",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+        )
+        assert backed.returncode == 0, backed.stderr + backed.stdout
+        backups = list((data / "projects" / "issue-tracker" / "backups").rglob("items.sqlite"))
+        assert backups
+        assert _health(port)
+        still_held = _acquire_subprocess(data)
+        assert still_held.returncode == 1, still_held.stderr
+
+        created = _lit(
+            data,
+            "init-project",
+            "beta",
+            "--name",
+            "Beta",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+        )
+        assert created.returncode == 0, created.stderr + created.stdout
+        assert (data / "projects" / "beta" / "project.json").is_file()
+        assert _health(port)
+        still_held = _acquire_subprocess(data)
+        assert still_held.returncode == 1, still_held.stderr
+
+
+def test_api_backups_stay_consistent_while_items_are_patched(tmp_path: Path) -> None:
+    """Item PATCHes during several /api/backups/now calls must not tear a snapshot."""
+    data = (tmp_path / "data").resolve()
+    data.mkdir()
+    with _headless_server(data, tmp_path / "backup-server.log") as port:
+        status, projects = _api(port, "GET", "/api/projects")
+        assert status == 200 and isinstance(projects, list) and projects
+        slug = str(projects[0]["slug"])
+        status, created = _api(
+            port,
+            "POST",
+            f"/api/projects/{slug}/items",
+            {"fields": {"ticket_key": "ABC-1", "title": "seed", "priority": 3, "state": "Submitted"}},
+        )
+        assert status == 201, created
+        assert isinstance(created, dict)
+        item_id = str(created["id"])
+
+        stop = threading.Event()
+        guard = threading.Lock()
+        state: dict[str, object] = {"ok": 0, "errors": []}
+
+        def hammer() -> None:
+            n = 0
+            while not stop.is_set():
+                n += 1
+                code, body = _api(
+                    port,
+                    "PATCH",
+                    f"/api/projects/{slug}/items/{item_id}",
+                    {"fields": {"title": f"row-{n}"}},
+                )
+                if code != 200:
+                    with guard:
+                        errors = state["errors"]
+                        assert isinstance(errors, list)
+                        errors.append(f"{code} {body}")
+                    return
+                with guard:
+                    state["ok"] = int(state["ok"]) + 1
+
+        thread = threading.Thread(target=hammer, name="lit-patch-hammer")
+        thread.start()
+        snaps: list[bytes] = []
+        try:
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                with guard:
+                    done = int(state["ok"])
+                    errors = list(state["errors"]) if isinstance(state["errors"], list) else []
+                if done >= 1 or errors:
+                    break
+                time.sleep(0.01)
+            with guard:
+                assert int(state["ok"]) >= 1, state["errors"]
+            assert thread.is_alive()
+            for _ in range(5):
+                code, body = _api(port, "POST", "/api/backups/now", {"project": slug, "force": True})
+                assert code == 200, body
+                assert isinstance(body, dict)
+                assert body.get("status") == "created", body
+                manifest = body["manifest"]
+                assert isinstance(manifest, dict)
+                sqlite_file = data / "projects" / slug / "backups" / str(manifest["local_date"]) / "items.sqlite"
+                assert sqlite_file.is_file()
+                snaps.append(sqlite_file.read_bytes())
+                assert not (sqlite_file.parent / "items.sqlite-wal").exists()
+                assert not (sqlite_file.parent / "items.sqlite-shm").exists()
+        finally:
+            stop.set()
+            thread.join(timeout=20)
+
+        assert not thread.is_alive()
+        assert state["errors"] == []
+        assert int(state["ok"]) >= 1
+        assert len(snaps) == 5
+
+    for index, blob in enumerate(snaps):
+        dest = tmp_path / f"snap-{index}.sqlite"
+        dest.write_bytes(blob)
+        conn = sqlite3.connect(dest)
+        try:
+            assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            rows = [row[0] for row in conn.execute("SELECT fields_json FROM items")]
+        finally:
+            conn.close()
+        assert rows
+        parsed = [json.loads(row) for row in rows]
+        assert any("title" in row for row in parsed)
