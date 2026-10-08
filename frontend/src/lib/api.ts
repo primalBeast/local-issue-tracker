@@ -231,11 +231,13 @@ export const api = {
     slug: string,
     id: string,
     fields: Record<string, unknown>,
-    version?: number
+    version?: number,
+    opts?: { keepalive?: boolean }
   ) =>
     req<Item>(`/api/projects/${slug}/items/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ fields, version }),
+      ...(opts?.keepalive ? { keepalive: true } : {}),
     }),
   deleteItem: (slug: string, id: string) =>
     req(`/api/projects/${slug}/items/${id}`, { method: 'DELETE' }),

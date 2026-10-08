@@ -8,6 +8,7 @@
     type Project,
     type Workspace,
   } from './lib/api';
+  import { createItemSaveQueue, flushThen, installUnloadFlush } from './lib/itemSaveQueue';
   import { panelColors } from './lib/color';
   import { isVisible, itemMatchesFilters, itemMatchesSearch, sortItems } from './lib/filters';
   import FieldRenderer from './lib/FieldRenderer.svelte';
@@ -93,7 +94,6 @@
   let toast = $state<string | null>(null);
   let nowTick = $state(Date.now());
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
-  let itemSaveTimers: Record<string, ReturnType<typeof setTimeout>> = {};
   /** Pointer-based tab reorder. Click still selects unless a drag happened. */
   let dragWsId = $state<string | null>(null);
   const tabDrag = {
@@ -359,7 +359,10 @@
       if (e.key === 'F5' && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
         e.stopPropagation();
-        reloadApp();
+        // The WebView host registers its own capture-phase F5 listener later
+        // and calls location.reload() directly. Stop it so our flush runs first.
+        e.stopImmediatePropagation();
+        void reloadApp();
         return;
       }
       if (e.key === 'Escape') {
@@ -447,11 +450,13 @@
       if (t?.closest?.('.ws-tab')) return; // tab open/context menu owns the click
       boardEditor = null;
     };
+    const uninstallUnloadFlush = installUnloadFlush(itemSaveQueue, window, document);
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('pointerdown', onDocPointerDown, true);
     window.addEventListener('blur', onAppWindowBlur);
     window.addEventListener('focus', onAppWindowFocus);
     return () => {
+      uninstallUnloadFlush();
       clearInterval(tick);
       clearInterval(healthTick);
       clearInterval(webviewTick);
@@ -1681,10 +1686,7 @@
 
   function stripItemLocally(itemId: string) {
     items = items.filter((i) => i.id !== itemId);
-    if (itemSaveTimers[itemId]) {
-      clearTimeout(itemSaveTimers[itemId]);
-      delete itemSaveTimers[itemId];
-    }
+    itemSaveQueue.cancel(itemId);
     const nextCache = { ...detailCache };
     delete nextCache[itemId];
     detailCache = nextCache;
@@ -1705,6 +1707,7 @@
     const id = itemDeleteConfirm.id;
     const slug = project.slug;
     itemDeleteConfirm = null;
+    itemSaveQueue.cancel(id);
     try {
       await api.deleteItem(slug, id);
       stripItemLocally(id);
@@ -1870,8 +1873,78 @@
     scheduleItemPatch(itemId, patch);
   }
 
+  function applySavedItem(itemId: string, updated: Item) {
+    items = items.map((it) => {
+      if (it.id !== itemId) return it;
+      // lean merge: omit textarea/richtext from list store but keep others
+      const leanFields = { ...it.fields };
+      for (const [k, v] of Object.entries(updated.fields)) {
+        const def = fieldDefs.find((f) => f.id === k);
+        if (def && (def.type === 'richtext' || def.type === 'textarea')) continue;
+        leanFields[k] = v;
+      }
+      return {
+        ...it,
+        fields: leanFields,
+        version: updated.version,
+        waiting: updated.waiting,
+        updated_at: updated.updated_at,
+      };
+    });
+    detailCache = { ...detailCache, [itemId]: updated };
+  }
+
+  async function reloadItemAfterFailedSave(itemId: string, slug: string) {
+    if (project?.slug !== slug) return;
+    try {
+      const full = await api.item(slug, itemId);
+      if (project?.slug !== slug) return;
+      detailCache = { ...detailCache, [itemId]: full };
+      const nextItems = await api.items(slug);
+      if (project?.slug !== slug) return;
+      items = nextItems;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  const itemSaveQueue = createItemSaveQueue({
+    send: (req) =>
+      api.patchItem(req.slug, req.itemId, req.fields, req.version, {
+        keepalive: req.keepalive,
+      }),
+    getVersion: (itemId) =>
+      (detailCache[itemId] || items.find((it) => it.id === itemId))?.version,
+    onSaved: (itemId, updated, slug) => {
+      if (project?.slug !== slug) return;
+      applySavedItem(itemId, updated);
+      // A newer edit may already be queued. Put it back on top of the server
+      // copy so an in-flight response cannot undo a live drag reorder.
+      const pending = itemSaveQueue.pendingFields(itemId);
+      if (!pending) return;
+      items = items.map((it) =>
+        it.id === itemId ? { ...it, fields: { ...it.fields, ...pending } } : it
+      );
+      if (detailCache[itemId]) {
+        detailCache = {
+          ...detailCache,
+          [itemId]: {
+            ...detailCache[itemId],
+            fields: { ...detailCache[itemId].fields, ...pending },
+          },
+        };
+      }
+    },
+    onError: (itemId, slug, err) => {
+      showToast('Save failed — reloading item');
+      console.error(err);
+      return reloadItemAfterFailedSave(itemId, slug);
+    },
+  });
+
   function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
     if (!project) return;
+    const slug = project.slug;
     // Optimistic lean list update
     const touched = nowStamp();
     items = items.map((it) =>
@@ -1887,34 +1960,7 @@
         },
       };
     }
-    if (itemSaveTimers[itemId]) clearTimeout(itemSaveTimers[itemId]);
-    itemSaveTimers[itemId] = setTimeout(async () => {
-      try {
-        const current = detailCache[itemId] || items.find((i) => i.id === itemId);
-        const version = current?.version;
-        const updated = await api.patchItem(project!.slug, itemId, fields, version);
-        items = items.map((it) => {
-          if (it.id !== itemId) return it;
-          // lean merge: omit textarea/richtext from list store but keep others
-          const leanFields = { ...it.fields };
-          for (const [k, v] of Object.entries(updated.fields)) {
-            const def = fieldDefs.find((f) => f.id === k);
-            if (def && (def.type === 'richtext' || def.type === 'textarea')) continue;
-            leanFields[k] = v;
-          }
-          return { ...it, fields: leanFields, version: updated.version, waiting: updated.waiting, updated_at: updated.updated_at };
-        });
-        detailCache = { ...detailCache, [itemId]: updated };
-      } catch (e) {
-        showToast('Save failed — reloading item');
-        console.error(e);
-        if (project) {
-          const full = await api.item(project.slug, itemId);
-          detailCache = { ...detailCache, [itemId]: full };
-          items = await api.items(project.slug);
-        }
-      }
-    }, 350);
+    itemSaveQueue.schedule(slug, itemId, fields);
   }
 
   function keyField(): string {
@@ -2221,6 +2267,7 @@
     urgencyDragMoved = false;
     clearUrgencyDragListeners();
     document.body.classList.remove('lit-urgency-dragging');
+    itemSaveQueue.release();
   }
 
   function stepUrgencyDrag(): boolean {
@@ -2293,6 +2340,7 @@
     urgencyDragStartY = e.clientY;
     urgencyDragY = e.clientY;
     urgencyDrag = { itemId: item.id, fieldId, pointerId: e.pointerId, body };
+    itemSaveQueue.hold();
     document.body.classList.add('lit-urgency-dragging');
     window.addEventListener('pointermove', onUrgencyDragMove, true);
     window.addEventListener('pointerup', endUrgencyDrag, true);
@@ -2575,8 +2623,10 @@
     window.open('/release-notes.html', '_blank', 'noopener,noreferrer');
   }
 
-  function reloadApp() {
-    location.reload();
+  async function reloadApp() {
+    await flushThen(itemSaveQueue, () => {
+      location.reload();
+    });
   }
 
   function webviewApi():
@@ -2927,7 +2977,7 @@
             type="button"
             class="window-chrome-btn window-chrome-close"
             title="Close"
-            onclick={() => void webviewApi()?.close_app?.()}
+            onclick={() => void flushThen(itemSaveQueue, () => webviewApi()?.close_app?.())}
           >✕</button>
         </div>
       {/if}
