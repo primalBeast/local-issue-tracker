@@ -587,6 +587,7 @@ describe('item save queue', () => {
     queue.schedule('s', 'ascii', { notes: 'x'.repeat(70_000) });
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0][0].keepalive).toBe(false);
+    expect(send.mock.calls[0][0].version).toBe(1);
     expect(send.mock.calls[0][0].itemId).toBe('ascii');
 
     // 16k emoji is 32k UTF-16 code units but 64k UTF-8 bytes, over the 60 KB budget.
@@ -596,6 +597,91 @@ describe('item save queue', () => {
 
     await vi.advanceTimersByTimeAsync(350);
     expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('oversized edits for one item wait for the in-flight save and keep its version', async () => {
+    let version = 4;
+    const notes = (mark: string) => `${mark}${'x'.repeat(70_000)}`;
+    const active = new Map<string, number>();
+    let maxConcurrency = 0;
+    const pending: Array<(item: Item) => void> = [];
+    const events: string[] = [];
+    const send = vi.fn((req: ItemSaveRequest) => {
+      const now = (active.get(req.itemId) ?? 0) + 1;
+      active.set(req.itemId, now);
+      maxConcurrency = Math.max(maxConcurrency, now);
+      events.push(`start:${req.version ?? 'none'}:${String(req.fields.notes).slice(0, 1)}`);
+      expect(req.version).toEqual(expect.any(Number));
+      return new Promise<Item>((resolve) => {
+        pending.push((item) => {
+          active.set(req.itemId, (active.get(req.itemId) ?? 1) - 1);
+          events.push(`end:${item.version}`);
+          resolve(item);
+        });
+      });
+    });
+    const queue = createItemSaveQueue({
+      send,
+      getVersion: () => version,
+      onSaved: (_id, item) => {
+        version = item.version;
+      },
+      onError: () => {},
+    });
+
+    queue.schedule('proj', 'item-1', { notes: notes('a') });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toMatchObject({
+      slug: 'proj',
+      itemId: 'item-1',
+      version: 4,
+      keepalive: false,
+    });
+    expect(String(send.mock.calls[0][0].fields.notes).startsWith('a')).toBe(true);
+
+    queue.schedule('proj', 'item-1', { notes: notes('b') });
+    await vi.advanceTimersByTimeAsync(350);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(maxConcurrency).toBe(1);
+
+    pending[0](saved({ version: 11, id: 'item-1', fields: {} }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][0]).toMatchObject({
+      slug: 'proj',
+      itemId: 'item-1',
+      version: 11,
+      keepalive: false,
+    });
+    expect(String(send.mock.calls[1][0].fields.notes).startsWith('b')).toBe(true);
+    expect(events).toEqual(['start:4:a', 'end:11', 'start:11:b']);
+
+    queue.schedule('proj', 'item-1', { notes: notes('c') });
+    queue.schedule('proj', 'item-1', { title: 'merged' });
+    await vi.advanceTimersByTimeAsync(350);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(maxConcurrency).toBe(1);
+
+    pending[1](saved({ version: 18, id: 'item-1', fields: {} }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(send.mock.calls[2][0]).toMatchObject({
+      slug: 'proj',
+      itemId: 'item-1',
+      version: 18,
+      keepalive: false,
+      fields: { title: 'merged' },
+    });
+    expect(String(send.mock.calls[2][0].fields.notes).startsWith('c')).toBe(true);
+    expect(events).toEqual(['start:4:a', 'end:11', 'start:11:b', 'end:18', 'start:18:c']);
+    expect(send.mock.calls.map((call) => call[0].version)).toEqual([4, 11, 18]);
+    expect(maxConcurrency).toBe(1);
+
+    pending[2](saved({ version: 19, id: 'item-1', fields: {} }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(queue.busy()).toBe(false);
   });
 
   it('flushKeepalive sends an oversized body without keepalive and keeps busy until it settles', async () => {

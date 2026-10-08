@@ -206,8 +206,15 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
   /**
    * Start the PATCH now. `send` is called synchronously so a keepalive flush
    * still reaches fetch while the page is unloading.
-   * A save that is already in flight for this item is sent with no version:
-   * both edits are ours, and the server skips the check so the last write wins.
+   * Version is omitted only for that close-time keepalive flush when this
+   * item already has a save in flight: both edits are ours, and the server
+   * skips the check so the last write wins. Every other send includes
+   * `getVersion`. Non-keepalive callers do not overlap an in-flight save
+   * for the same item: schedule arms the debounce, flush retries only after
+   * the current PATCH settles, and release goes through pump, which sends
+   * once that PATCH has settled. The 409 retry is not another startSend;
+   * it carries the version just fetched and runs inside the failed attempt's
+   * gate, after that attempt's request has settled.
    */
   function startSend(itemId: string, keepalive: boolean): Promise<void> {
     const slot = slots.get(itemId);
@@ -219,7 +226,7 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
       slot.timer = null;
     }
     const { slug, fields } = slot;
-    const version = ownSaveInFlight ? undefined : opts.getVersion(itemId);
+    const version = keepalive && ownSaveInFlight ? undefined : opts.getVersion(itemId);
     const large = oversized(fields, version);
     const useKeepalive = keepalive && !large;
     if (large) largeInflight += 1;
@@ -299,8 +306,11 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
       slot.timer = null;
     }
     if (held) return;
+    // Skip the debounce only when the body cannot use keepalive and this
+    // item has no save in flight. An in-flight PATCH must finish first so
+    // the merged batch is sent with the version that save just stored.
     const version = opts.getVersion(itemId);
-    if (oversized(slot.fields, version)) {
+    if (oversized(slot.fields, version) && !inflight.has(itemId)) {
       startSend(itemId, false);
       return;
     }
@@ -383,6 +393,8 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
   function hasLargeSave(): boolean {
     if (largeInflight > 0) return true;
     for (const [itemId, slot] of slots) {
+      // Same version a keepalive flush would send right now. A normal send
+      // waits until this item is idle, then includes getVersion.
       const version = inflight.has(itemId) ? undefined : opts.getVersion(itemId);
       if (oversized(slot.fields, version)) return true;
     }
