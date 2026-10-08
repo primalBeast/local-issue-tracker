@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import ctypes
 import logging
+import re
 import socket
 import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from typing import Any
@@ -17,7 +19,28 @@ logger = logging.getLogger("lit.webview")
 
 # Do not hang a pywebview Window on js_api — JS enumeration of window.native
 # (WinForms Form) recurses until it crashes (Empty.Empty… / ModifierKeys.A…).
-_active: dict[str, Any] = {"window": None, "url": ""}
+# client_id / released / finalizing are guarded by _state_lock. The window
+# close worker reads them from another thread.
+_active: dict[str, Any] = {
+    "window": None,
+    "url": "",
+    "client_id": None,
+    "released": False,
+    "finalizing": False,
+    "close_started": False,
+    "close_worker": None,
+}
+_state_lock = threading.Lock()
+
+# Same shape the session API accepts (a uuid fits). Invalid ids are ignored.
+CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+# Page helpers from the window. Missing helpers are a no-op (falsy pending).
+CLOSE_FLUSH_JS = "window.__litCloseFlush && window.__litCloseFlush()"
+SAVES_PENDING_JS = "!!(window.__litSavesPending && window.__litSavesPending())"
+# Flush budget is 500 ms (Tracker Review). The release POST is capped at 1 s.
+FLUSH_CAP_SECONDS = 0.5
+FLUSH_POLL_SECONDS = 0.05
+RELEASE_TIMEOUT_SECONDS = 1.0
 
 F5_RELOAD_JS = """
 (function () {
@@ -118,7 +141,15 @@ class WebviewBridge:
             window.minimize()
 
     def close_app(self) -> None:
-        window = _active.get("window")
+        """Close after the page has already flushed and released.
+
+        The ✕ path does flush-then-release in JS, then calls this. Marking
+        ``released`` makes the closing hook let that close through instead of
+        posting release-all a second time.
+        """
+        with _state_lock:
+            _active["released"] = True
+            window = _active.get("window")
         if window is not None:
             window.destroy()
 
@@ -176,11 +207,189 @@ class WebviewBridge:
         """Drag the frameless window (HTCAPTION)."""
         _begin_ncl_resize(2)
 
-    def main_ready(self) -> None:
-        """Called from the UI after first paint so the splash can close."""
+    def main_ready(self, client_id: str | None = None) -> None:
+        """Called from the UI after first paint so the splash can close.
+
+        ``client_id`` is this window's sessionStorage id. The closing hook
+        posts release-all with it. An invalid id is ignored and does not
+        clear one that was already stored.
+        """
+        remember_client_id(client_id)
         from lit.branding import close_splash
 
         close_splash()
+
+
+class CloseIO:
+    """Side effects for the close sequence. Tests replace these."""
+
+    def __init__(self) -> None:
+        self.poster: Callable[[str, float], None] = post_release_all
+        self.clock: Callable[[], float] = time.monotonic
+        self.sleep: Callable[[float], None] = time.sleep
+        self.flush_cap = FLUSH_CAP_SECONDS
+        self.poll_interval = FLUSH_POLL_SECONDS
+        self.release_timeout = RELEASE_TIMEOUT_SECONDS
+
+
+def remember_client_id(client_id: str | None) -> None:
+    """Store ``client_id`` when it matches the session API. Otherwise keep the old one."""
+    if client_id is None or client_id == "":
+        return
+    if not isinstance(client_id, str) or CLIENT_ID_RE.fullmatch(client_id) is None:
+        logger.warning("Ignoring invalid webview client id")
+        return
+    with _state_lock:
+        _active["client_id"] = client_id
+
+
+def release_all_url(page_url: str, client_id: str) -> str | None:
+    """POST target for release-all, from the URL passed to ``open_webview``."""
+    try:
+        parsed = urllib.parse.urlsplit(page_url)
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        logger.error("Cannot parse server URL %r for session release", page_url)
+        return None
+    if not host:
+        return None
+    if port is None:
+        port = 443 if parsed.scheme == "https" else 80
+    scheme = parsed.scheme or "http"
+    host_part = f"[{host}]" if ":" in host else host
+    query = urllib.parse.urlencode({"client": client_id})
+    return f"{scheme}://{host_part}:{port}/api/session/release-all?{query}"
+
+
+def post_release_all(url: str, timeout: float) -> None:
+    """POST release-all. No Origin header: this is not a browser fetch.
+
+    Errors are logged and swallowed. The window still closes if the server
+    is already gone.
+    """
+    request = urllib.request.Request(url, data=b"", method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            response.read()
+    except Exception:
+        logger.exception("Session release-all failed: %s", url)
+
+
+close_io = CloseIO()
+
+
+def _still_pending(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() == "true"
+    return bool(value)
+
+
+def _flush_pending_saves(window: Any) -> None:
+    """Run the page flush, then poll until saves are clear or the cap hits.
+
+    Any ``evaluate_js`` failure means the page is already gone: stop waiting
+    and let the caller release.
+    """
+    clock = close_io.clock
+    sleep = close_io.sleep
+    cap = close_io.flush_cap
+    interval = close_io.poll_interval
+    start = clock()
+
+    try:
+        window.evaluate_js(CLOSE_FLUSH_JS)
+    except Exception:
+        logger.exception("Close flush failed; treating the page as gone")
+        return
+
+    # Backstop if the clock barely moves, so a broken sleep cannot spin.
+    polls = 0
+    while clock() - start < cap:
+        polls += 1
+        if polls > 10000:
+            logger.warning("Close-flush poll backstop hit; releasing anyway")
+            return
+        try:
+            pending = window.evaluate_js(SAVES_PENDING_JS)
+        except Exception:
+            logger.exception("Save-pending poll failed; treating the page as gone")
+            return
+        if not _still_pending(pending):
+            return
+        remaining = cap - (clock() - start)
+        if remaining <= 0:
+            return
+        before = clock()
+        sleep(min(interval, remaining))
+        # A clock that does not move would spin. Release instead.
+        if clock() <= before:
+            logger.warning("Close-flush clock did not advance; releasing anyway")
+            return
+
+
+def _post_client_release(page_url: str, client_id: str) -> None:
+    url = release_all_url(page_url, client_id)
+    if url is None:
+        logger.error("No server URL for session release-all; skipping POST")
+        return
+    try:
+        close_io.poster(url, close_io.release_timeout)
+    except Exception:
+        logger.exception("Session release-all failed: %s", url)
+
+
+def _finish_close(window: Any, client_id: str, page_url: str) -> None:
+    """Flush, then release, then destroy. Runs off the UI thread."""
+    try:
+        logger.info("Window closing: flush then release client %s", client_id)
+        try:
+            _flush_pending_saves(window)
+        except Exception:
+            logger.exception("Close flush failed")
+        _post_client_release(page_url, client_id)
+    finally:
+        # Always mark the close finished before destroy, so the closing event
+        # destroy() raises is allowed through even if the flush or POST failed.
+        with _state_lock:
+            _active["released"] = True
+            _active["finalizing"] = True
+        try:
+            window.destroy()
+        except Exception:
+            logger.exception("Destroy after release failed")
+
+
+def on_window_closing() -> bool | None:
+    """pywebview ``closing`` handler.
+
+    Return False to cancel the close once and finish it from a worker.
+    Return None to let the close proceed.
+
+    Do not evaluate JavaScript or join the worker here. The handler runs on
+    the WinForms UI thread inside FormClosing, and a synchronous script call
+    deadlocks EdgeChromium: the result is marshalled back onto that same thread.
+    """
+    with _state_lock:
+        client_id = _active.get("client_id")
+        if _active.get("released") or not client_id or _active.get("finalizing"):
+            return None
+        if _active.get("close_started"):
+            return False
+        window = _active.get("window")
+        page_url = str(_active.get("url") or "")
+        if window is None or not isinstance(client_id, str):
+            return None
+        _active["close_started"] = True
+        thread = threading.Thread(
+            target=_finish_close,
+            args=(window, client_id, page_url),
+            name="lit-close-release",
+            daemon=True,
+        )
+        _active["close_worker"] = thread
+    thread.start()
+    return False
 
 
 def _resize_hit(edge: str) -> int | None:
@@ -457,8 +666,14 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
     )
     if window is None:
         raise RuntimeError("Could not create the WebView2 window")
-    _active["window"] = window
-    _active["url"] = url
+    with _state_lock:
+        _active["window"] = window
+        _active["url"] = url
+        _active["client_id"] = None
+        _active["released"] = False
+        _active["finalizing"] = False
+        _active["close_started"] = False
+        _active["close_worker"] = None
 
     def bind_keys() -> None:
         try:
@@ -487,6 +702,7 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
 
     window.events.shown += on_shown
     window.events.loaded += on_loaded
+    window.events.closing += on_window_closing
     start_kwargs: dict[str, Any] = {}
     if sys.platform == "win32":
         start_kwargs["gui"] = "edgechromium"
@@ -505,5 +721,11 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
             close_splash()
         except Exception:
             pass
-        _active["window"] = None
-        _active["url"] = ""
+        with _state_lock:
+            _active["window"] = None
+            _active["url"] = ""
+            _active["client_id"] = None
+            _active["released"] = False
+            _active["finalizing"] = False
+            _active["close_started"] = False
+            _active["close_worker"] = None

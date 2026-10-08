@@ -15,12 +15,11 @@ from lit.storage.settings_store import load_settings
 
 logger = logging.getLogger("lit.backup")
 
+# items.sqlite is copied with the SQLite backup API, not as a file copy.
+# -wal/-shm are not part of a consistent snapshot and are never copied.
 INCLUDE_FILES = (
     "project.json",
     "fields.json",
-    "items.sqlite",
-    "items.sqlite-wal",
-    "items.sqlite-shm",
     "notes.json",
     "deliverables.json",
 )
@@ -42,36 +41,39 @@ def backup_project(slug: str, *, force: bool = False) -> dict[str, Any] | None:
         logger.info("Backup for %s already exists at %s; skip", slug, dest)
         return None
 
-    # Checkpoint SQLite
-    db_path = items_db.items_db_path(proj)
-    if db_path.exists():
-        items_db.run_db(db_path, items_db.checkpoint)
-
     partial = backups_root / f"{day}.partial"
     if partial.exists():
         shutil.rmtree(partial)
     partial.mkdir(parents=True, exist_ok=True)
 
-    for name in INCLUDE_FILES:
-        src = proj / name
-        if src.exists() and src.is_file():
-            shutil.copy2(src, partial / name)
-
-    ws_src = proj / "workspaces"
-    if ws_src.is_dir():
-        shutil.copytree(ws_src, partial / "workspaces")
-
-    manifest = {
-        "created_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
-        "local_date": day,
-        "project_slug": slug,
-        "schema_version": 1,
-    }
-    write_json(partial / "backup_manifest.json", manifest)
-
-    if dest.exists() and force:
-        shutil.rmtree(dest)
-    partial.rename(dest)
+    db_path = items_db.items_db_path(proj)
+    try:
+        # Hold the items lock across the JSON copy and the SQLite backup so a
+        # writer going through items_db cannot commit between the two.
+        with items_db.project_db_lock(db_path):
+            for name in INCLUDE_FILES:
+                src = proj / name
+                if src.is_file():
+                    shutil.copy2(src, partial / name)
+            if db_path.is_file():
+                items_db.backup_to(db_path, partial / "items.sqlite")
+            ws_src = proj / "workspaces"
+            if ws_src.is_dir():
+                shutil.copytree(ws_src, partial / "workspaces")
+            manifest = {
+                "created_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+                "local_date": day,
+                "project_slug": slug,
+                "schema_version": 1,
+            }
+            write_json(partial / "backup_manifest.json", manifest)
+            if dest.exists() and force:
+                shutil.rmtree(dest)
+            partial.rename(dest)
+    except Exception:
+        if partial.exists():
+            shutil.rmtree(partial, ignore_errors=True)
+        raise
     logger.info("Created backup %s for project %s", dest, slug)
 
     _apply_retention(slug)

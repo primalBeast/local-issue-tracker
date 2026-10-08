@@ -4,10 +4,10 @@ import json
 import uuid
 from typing import Any, NoReturn
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from lit.api.deps import require_project
+from lit.api.deps import require_project, require_writable
 from lit.storage.project_fs import (
     delete_workspace,
     list_workspaces,
@@ -29,7 +29,7 @@ def get_workspaces(slug: str) -> list[dict[str, Any]]:
     return list_workspaces(slug)
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_writable)])
 def create_workspace(slug: str, body: WorkspaceCreate) -> dict[str, Any]:
     require_project(slug)
     ws_id = f"ws-{uuid.uuid4().hex[:8]}"
@@ -77,7 +77,7 @@ def get_workspace(slug: str, workspace_id: str) -> dict[str, Any]:
         _reject_bad_workspace_id(exc)
 
 
-@router.put("/{workspace_id}")
+@router.put("/{workspace_id}", dependencies=[Depends(require_writable)])
 def put_workspace(slug: str, workspace_id: str, body: dict[str, Any]) -> dict[str, Any]:
     require_project(slug)
     # LWW full replace
@@ -89,7 +89,7 @@ def put_workspace(slug: str, workspace_id: str, body: dict[str, Any]) -> dict[st
         _reject_bad_workspace_id(exc)
 
 
-@router.delete("/{workspace_id}")
+@router.delete("/{workspace_id}", dependencies=[Depends(require_writable)])
 def remove_workspace(slug: str, workspace_id: str) -> dict[str, str]:
     require_project(slug)
     try:

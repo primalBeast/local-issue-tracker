@@ -2,13 +2,21 @@
   import { onMount, tick } from 'svelte';
   import {
     api,
+    isProjectLockedError,
     type FieldDef,
     type Item,
     type Panel,
     type Project,
     type Workspace,
   } from './lib/api';
+  import { getClientId } from './lib/clientId';
   import { createItemSaveQueue, flushThen, installUnloadFlush } from './lib/itemSaveQueue';
+  import {
+    browserClaimsStream,
+    createProjectClaims,
+    pickerItemState,
+    TAKEN_TITLE,
+  } from './lib/projectClaims';
   import { panelColors } from './lib/color';
   import { isVisible, itemMatchesFilters, itemMatchesSearch, sortItems } from './lib/filters';
   import FieldRenderer from './lib/FieldRenderer.svelte';
@@ -94,6 +102,14 @@
   let toast = $state<string | null>(null);
   let nowTick = $state(Date.now());
   let saveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Workspace PUT that has already been sent and not yet settled. */
+  let workspaceSaveFlight: Promise<void> | null = null;
+  /** This window's id. Set on mount before bootstrap claims a project. */
+  let clientId = $state('');
+  let liveClaims = $state<Record<string, string>>({});
+  let landingNewName = $state('');
+  /** While true, a second 423 from an in-flight save must not toast or drop again. */
+  let suppressLockDrop = false;
   /** Pointer-based tab reorder. Click still selects unless a drag happened. */
   let dragWsId = $state<string | null>(null);
   const tabDrag = {
@@ -307,7 +323,28 @@
     return !isTopbarInteractive(t);
   }
 
+  const projectClaims = createProjectClaims({
+    openEventSource: browserClaimsStream,
+    claimProject: (slug) => api.claimProject(slug),
+    onLost: (slug) => {
+      if (project?.slug !== slug) return;
+      dropToPicker('This project was opened in another window');
+    },
+  });
+
   onMount(() => {
+    clientId = getClientId();
+    api.setClientId(clientId);
+    const unsubscribeClaims = projectClaims.subscribe((next) => {
+      liveClaims = next;
+    });
+    projectClaims.connect(clientId);
+    const closeHooks = window as unknown as {
+      __litCloseFlush?: () => void;
+      __litSavesPending?: () => boolean;
+    };
+    closeHooks.__litCloseFlush = litCloseFlush;
+    closeHooks.__litSavesPending = litSavesPending;
     const syncWebview = () => {
       inWebview =
         document.documentElement.getAttribute('data-webview') === '1' || Boolean(webviewApi());
@@ -456,6 +493,10 @@
     window.addEventListener('blur', onAppWindowBlur);
     window.addEventListener('focus', onAppWindowFocus);
     return () => {
+      unsubscribeClaims();
+      projectClaims.disconnect();
+      delete closeHooks.__litCloseFlush;
+      delete closeHooks.__litSavesPending;
       uninstallUnloadFlush();
       clearInterval(tick);
       clearInterval(healthTick);
@@ -558,13 +599,13 @@
   function revealApp() {
     const veil = document.getElementById('boot-veil');
     if (!veil || veil.classList.contains('is-gone')) {
-      void webviewApi()?.main_ready?.();
+      void webviewApi()?.main_ready?.(clientId);
       return;
     }
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         veil.classList.add('is-gone');
-        void webviewApi()?.main_ready?.();
+        void webviewApi()?.main_ready?.(clientId);
         window.setTimeout(() => veil.remove(), 280);
       });
     });
@@ -840,6 +881,13 @@
   }
 
   async function loadProject(slug: string) {
+    const claimed = await api.claimProject(slug);
+    if (!claimed.ok) {
+      showToast(TAKEN_TITLE);
+      return;
+    }
+    suppressLockDrop = false;
+    projectClaims.setCurrentProject(slug);
     project = await api.project(slug);
     const serverPrefix = project.ticket_prefix;
     const localPrefix = readStoredPrefix(slug);
@@ -851,6 +899,10 @@
         const saved = await api.patchProject(slug, { ticket_prefix: localPrefix });
         project = { ...saved, ticket_prefix: saved.ticket_prefix || localPrefix };
       } catch (e) {
+        if (isProjectLockedError(e)) {
+          dropToPicker('This project is open in another window');
+          return;
+        }
         console.error(e);
       }
     } else if (serverPrefix) {
@@ -925,19 +977,12 @@
     }
   }
 
-  function scheduleWorkspaceSave() {
-    if (!project || !workspace) return;
-    // Always mirror latest local state into the list immediately
-    const id = workspace.id;
-    flushCurrentWorkspaceToList();
-
-    if (saveTimer) clearTimeout(saveTimer);
-    const slug = project.slug;
-    saveTimer = setTimeout(async () => {
-      const toSave = workspaces.find((w) => w.id === id);
-      if (!toSave) return;
+  function runWorkspaceSave(slug: string, id: string, opts?: { keepalive?: boolean }): Promise<void> {
+    const toSave = workspaces.find((w) => w.id === id);
+    if (!toSave) return workspaceSaveFlight ?? Promise.resolve();
+    const run = (async () => {
       try {
-        const saved = await api.putWorkspace(slug, id, toSave);
+        const saved = await api.putWorkspace(slug, id, toSave, opts);
         workspaces = workspaces.map((w) => (w.id === id ? saved : w));
         // Do not replace the live workspace if the user has already switched away
         if (workspace?.id === id) {
@@ -947,10 +992,45 @@
           };
         }
       } catch (e) {
+        if (isProjectLockedError(e)) {
+          if (project?.slug === slug) dropToPicker('This project is open in another window');
+          return;
+        }
         showToast('Failed to save layout');
         console.error(e);
       }
+    })();
+    const prev = workspaceSaveFlight;
+    const tracked = (prev ? prev.then(() => run, () => run) : run).finally(() => {
+      if (workspaceSaveFlight === tracked) workspaceSaveFlight = null;
+    });
+    workspaceSaveFlight = tracked;
+    return tracked;
+  }
+
+  function scheduleWorkspaceSave() {
+    if (!project || !workspace) return;
+    // Always mirror latest local state into the list immediately
+    const id = workspace.id;
+    flushCurrentWorkspaceToList();
+
+    if (saveTimer) clearTimeout(saveTimer);
+    const slug = project.slug;
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      void runWorkspaceSave(slug, id);
     }, 400);
+  }
+
+  /** Fire a pending layout save now and wait until the PUT settles. */
+  async function flushWorkspaceSave(): Promise<void> {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      if (project && workspace) void runWorkspaceSave(project.slug, workspace.id);
+    }
+    const flight = workspaceSaveFlight;
+    if (flight) await flight;
   }
 
   function updateWorkspace(mutator: (ws: Workspace) => void) {
@@ -1021,6 +1101,10 @@
         }
       }
     } catch (e) {
+      if (isProjectLockedError(e)) {
+        dropToPicker('This project is open in another window');
+        return;
+      }
       if (fallback) workspaces = sortWorkspaces(fallback.map(cloneWorkspace));
       showToast('Failed to save board order');
       console.error(e);
@@ -1713,8 +1797,7 @@
       stripItemLocally(id);
       showToast('Ticket deleted');
     } catch (err) {
-      showToast('Failed to delete ticket');
-      console.error(err);
+      onWriteError(err, 'Failed to delete ticket');
     }
   }
 
@@ -1800,6 +1883,10 @@
       openItemPanel(item.id);
       showToast('Item created');
     } catch (e) {
+      if (isProjectLockedError(e)) {
+        dropToPicker('This project is open in another window');
+        return;
+      }
       showToast(e instanceof Error ? e.message : 'Create failed');
     }
   }
@@ -1936,6 +2023,10 @@
       }
     },
     onError: (itemId, slug, err) => {
+      if (isProjectLockedError(err)) {
+        if (project?.slug === slug) dropToPicker('This project is open in another window');
+        return;
+      }
       showToast('Save failed — reloading item');
       console.error(err);
       return reloadItemAfterFailedSave(itemId, slug);
@@ -2083,8 +2174,7 @@
       patchItemFields(itemId, fieldId, name);
       nameAdd = null;
     } catch (err) {
-      showToast('Could not save name');
-      console.error(err);
+      onWriteError(err, 'Could not save name');
     }
   }
 
@@ -2413,8 +2503,8 @@
     try {
       await api.putNotes(project.slug, content);
       stampPanels('notes');
-    } catch {
-      showToast('Notes save failed');
+    } catch (err) {
+      onWriteError(err, 'Notes save failed');
     }
   }
 
@@ -2424,8 +2514,8 @@
     try {
       await api.putDeliverables(project.slug, next);
       stampPanels('deliverables');
-    } catch {
-      showToast('Deliverables save failed');
+    } catch (err) {
+      onWriteError(err, 'Deliverables save failed');
     }
   }
 
@@ -2494,8 +2584,7 @@
       });
       void rememberLastWorkspace(w.id);
     } catch (e) {
-      showToast('Failed to create workspace');
-      console.error(e);
+      onWriteError(e, 'Failed to create workspace');
     }
   }
 
@@ -2537,8 +2626,7 @@
       }
       showToast('Board updated');
     } catch (err) {
-      showToast('Failed to update board');
-      console.error(err);
+      onWriteError(err, 'Failed to update board');
     }
   }
 
@@ -2601,8 +2689,7 @@
       await api.deleteWorkspace(slug, id);
       showToast('Board removed');
     } catch (err) {
-      showToast('Failed to remove board');
-      console.error(err);
+      onWriteError(err, 'Failed to remove board');
     }
   }
 
@@ -2623,8 +2710,79 @@
     window.open('/release-notes.html', '_blank', 'noopener,noreferrer');
   }
 
+  function dropToPicker(message: string) {
+    if (suppressLockDrop) return;
+    suppressLockDrop = true;
+    showToast(message);
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    itemSaveQueue.cancelAll();
+    projectClaims.setCurrentProject(null);
+    project = null;
+    workspace = null;
+    projectEditor = null;
+    templateEditorOpen = false;
+  }
+
+  function onWriteError(err: unknown, fallback: string) {
+    if (isProjectLockedError(err)) {
+      dropToPicker('This project is open in another window');
+      return;
+    }
+    console.error(err);
+    showToast(fallback);
+  }
+
+  /**
+   * Python's window `closing` hook (Alt+F4 / taskbar) calls this, then polls
+   * `__litSavesPending`, then POSTs release-all itself. Starts requests now.
+   * Not used for F5 — reload never releases.
+   */
+  function litCloseFlush() {
+    itemSaveQueue.flushKeepalive();
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      if (project && workspace) void runWorkspaceSave(project.slug, workspace.id, { keepalive: true });
+    }
+  }
+
+  function litSavesPending(): boolean {
+    return itemSaveQueue.busy() || saveTimer !== null || workspaceSaveFlight !== null;
+  }
+
+  /** Give up so the window can close if release-all does not return. */
+  async function releaseAllBounded(timeoutMs = 800): Promise<void> {
+    const ctrl = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<void>((resolve) => {
+      timer = setTimeout(() => {
+        ctrl.abort();
+        resolve();
+      }, timeoutMs);
+    });
+    try {
+      await Promise.race([
+        api.releaseAll({ keepalive: true, signal: ctrl.signal }).then(
+          () => undefined,
+          (err: unknown) => {
+            if (err instanceof Error && err.name === 'AbortError') return;
+            console.error(err);
+          }
+        ),
+        timeout,
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  }
+
   async function reloadApp() {
-    await flushThen(itemSaveQueue, () => {
+    // Flush only. The same clientId reconnects inside the grace period.
+    await flushThen(itemSaveQueue, async () => {
+      await flushWorkspaceSave();
       location.reload();
     });
   }
@@ -2637,7 +2795,7 @@
         close_app?: () => Promise<unknown>;
         start_resize?: (edge: string) => Promise<unknown>;
         start_drag?: () => Promise<unknown>;
-        main_ready?: () => Promise<unknown>;
+        main_ready?: (clientId?: string) => Promise<unknown>;
       }
     | undefined {
     return (
@@ -2650,7 +2808,7 @@
             close_app?: () => Promise<unknown>;
             start_resize?: (edge: string) => Promise<unknown>;
             start_drag?: () => Promise<unknown>;
-            main_ready?: () => Promise<unknown>;
+            main_ready?: (clientId?: string) => Promise<unknown>;
           };
         };
       }
@@ -2728,6 +2886,10 @@
       if (toast) showToast('Project updated');
       return true;
     } catch (err) {
+      if (isProjectLockedError(err)) {
+        dropToPicker('This project is open in another window');
+        return false;
+      }
       if (toast) showToast('Failed to update project');
       console.error(err);
       return false;
@@ -2759,9 +2921,46 @@
     if (save) await persistProjectMeta(ed.name, ed.ticket_prefix, ed.url_prefix, false);
   }
 
+  async function closeOpenProject() {
+    if (!project) return;
+    const slug = project.slug;
+    await itemSaveQueue.flush();
+    await flushWorkspaceSave();
+    projectClaims.setCurrentProject(null);
+    try {
+      await api.releaseProject(slug);
+    } catch (err) {
+      projectClaims.setCurrentProject(slug);
+      onWriteError(err, 'Could not close project');
+      return;
+    }
+    project = null;
+    workspace = null;
+    projectEditor = null;
+  }
+
   async function switchProject(slug: string) {
     if (projectEditor) await closeProjectEditor(true);
     if (!project || slug === project.slug) return;
+    if (pickerItemState(liveClaims, clientId, slug, project.slug).disabled) {
+      showToast(TAKEN_TITLE);
+      return;
+    }
+    const previousSlug = project.slug;
+    await itemSaveQueue.flush();
+    await flushWorkspaceSave();
+    if (!project || project.slug !== previousSlug) return;
+    const claimed = await api.claimProject(slug);
+    if (!claimed.ok) {
+      showToast(TAKEN_TITLE);
+      return;
+    }
+    projectClaims.setCurrentProject(slug);
+    try {
+      await api.releaseProject(previousSlug);
+    } catch (err) {
+      console.error(err);
+    }
     await loadProject(slug);
   }
 
@@ -2773,6 +2972,10 @@
       return;
     }
     const ticket_prefix = normalizeTicketPrefix(projectEditor.newPrefix);
+    const template = projectEditor.newTemplate || undefined;
+    const previousSlug = project?.slug ?? null;
+    await itemSaveQueue.flush();
+    await flushWorkspaceSave();
     const slug = uniqueSlug(
       slugFromName(name),
       projects.map((p) => p.slug)
@@ -2782,15 +2985,46 @@
         slug,
         name,
         ticket_prefix,
-        template: projectEditor.newTemplate || undefined,
+        template,
       });
       projects = [...projects, created];
       projectEditor = null;
       await loadProject(created.slug);
-      showToast('Project created');
+      if (previousSlug && previousSlug !== created.slug && project?.slug === created.slug) {
+        try {
+          await api.releaseProject(previousSlug);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      if (project?.slug === created.slug) showToast('Project created');
     } catch (err) {
-      showToast('Failed to create project');
-      console.error(err);
+      onWriteError(err, 'Failed to create project');
+    }
+  }
+
+  async function createLandingProject() {
+    const name = landingNewName.trim();
+    if (!name) {
+      showToast('New project needs a name');
+      return;
+    }
+    const slug = uniqueSlug(
+      slugFromName(name),
+      projects.map((p) => p.slug)
+    );
+    try {
+      const created = await api.createProject({
+        slug,
+        name,
+        ticket_prefix: 'NEW-',
+      });
+      projects = [...projects, created];
+      landingNewName = '';
+      await loadProject(created.slug);
+      if (project?.slug === created.slug) showToast('Project created');
+    } catch (err) {
+      onWriteError(err, 'Failed to create project');
     }
   }
 
@@ -2977,7 +3211,7 @@
             type="button"
             class="window-chrome-btn window-chrome-close"
             title="Close"
-            onclick={() => void flushThen(itemSaveQueue, () => webviewApi()?.close_app?.())}
+            onclick={() => void flushThen(itemSaveQueue, async () => { await flushWorkspaceSave(); await releaseAllBounded(); await webviewApi()?.close_app?.(); })}
           >✕</button>
         </div>
       {/if}
@@ -3062,15 +3296,21 @@
         <section class="project-section">
           <div class="project-section-title">Open project</div>
           <div class="project-list">
-            {#each projects as p}
+            {#each projects as p (p.slug)}
+              {@const state = pickerItemState(liveClaims, clientId, p.slug, project.slug)}
               <button
                 type="button"
                 class:current={p.slug === project.slug}
+                disabled={state.disabled}
+                title={state.title}
                 onclick={() => void switchProject(p.slug)}
               >
                 {p.name}
               </button>
             {/each}
+          </div>
+          <div class="board-editor-actions">
+            <button type="button" onclick={() => void closeOpenProject()}>Close project</button>
           </div>
         </section>
 
@@ -3801,6 +4041,50 @@
           </FloatingPanel>
         {/each}
       </div>
+    </div>
+  </div>
+{:else}
+  <div class="project-picker-landing">
+    {#if inWebview}
+      <button
+        type="button"
+        class="window-chrome-btn window-chrome-close project-picker-close"
+        title="Close"
+        onclick={() => void flushThen(itemSaveQueue, async () => { await flushWorkspaceSave(); await releaseAllBounded(); await webviewApi()?.close_app?.(); })}
+      >✕</button>
+    {/if}
+    <div class="project-picker-card">
+      <section class="project-section">
+        <div class="project-section-title">No project open</div>
+        <p class="empty-hint" style="padding:4px 0 8px">Choose a project to open it in this window.</p>
+        <div class="project-list">
+          {#each projects as p (p.slug)}
+            {@const state = pickerItemState(liveClaims, clientId, p.slug, project?.slug ?? null)}
+            <button
+              type="button"
+              disabled={state.disabled}
+              title={state.title}
+              onclick={() => void loadProject(p.slug)}
+            >
+              {p.name}
+            </button>
+          {/each}
+        </div>
+      </section>
+      <section class="project-section">
+        <div class="project-section-title">New project</div>
+        <input
+          type="text"
+          placeholder="Name"
+          bind:value={landingNewName}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') void createLandingProject();
+          }}
+        />
+        <div class="board-editor-actions">
+          <button type="button" class="primary" onclick={() => void createLandingProject()}>Create</button>
+        </div>
+      </section>
     </div>
   </div>
 {/if}

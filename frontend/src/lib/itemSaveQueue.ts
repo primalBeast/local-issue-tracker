@@ -17,6 +17,10 @@ export type ItemSaveQueue = {
   release(): void;
   cancel(itemId: string): void;
   hasPending(): boolean;
+  /** True while a save is queued or a PATCH is still in flight. */
+  busy(): boolean;
+  /** Drop every queued edit without sending. In-flight PATCHes are left alone. */
+  cancelAll(): void;
   /** Fields queued for `itemId` that have not been sent yet. */
   pendingFields(itemId: string): Record<string, unknown> | undefined;
 };
@@ -219,13 +223,32 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
     return slots.size > 0;
   }
 
+  function busy(): boolean {
+    return slots.size > 0 || inflight.size > 0;
+  }
+
+  function cancelAll(): void {
+    for (const itemId of [...slots.keys()]) cancel(itemId);
+  }
+
   function pendingFields(itemId: string): Record<string, unknown> | undefined {
     const slot = slots.get(itemId);
     if (!slot) return undefined;
     return { ...slot.fields };
   }
 
-  return { schedule, flush, flushKeepalive, hold, release, cancel, hasPending, pendingFields };
+  return {
+    schedule,
+    flush,
+    flushKeepalive,
+    hold,
+    release,
+    cancel,
+    hasPending,
+    busy,
+    cancelAll,
+    pendingFields,
+  };
 }
 
 /** pagehide, beforeunload, and hidden visibilitychange start a keepalive flush. */

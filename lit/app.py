@@ -11,7 +11,19 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from lit import __version__
-from lit.api import backups, deliverables, desktop, fields, items, notes, projects, settings, templates, workspaces
+from lit.api import (
+    backups,
+    deliverables,
+    desktop,
+    fields,
+    items,
+    notes,
+    projects,
+    session,
+    settings,
+    templates,
+    workspaces,
+)
 from lit.config import get_config
 from lit.middleware import (
     OriginCheckMiddleware,
@@ -72,6 +84,7 @@ def create_app() -> FastAPI:
 
     app.include_router(settings.router)
     app.include_router(desktop.router)
+    app.include_router(session.router)
     app.include_router(projects.router)
     app.include_router(fields.router)
     app.include_router(items.router)
@@ -80,6 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(deliverables.router)
     app.include_router(templates.router)
     app.include_router(backups.router)
+    app.include_router(backups.now_router)
 
     dist = frontend_dist()
     assets = dist / "assets"

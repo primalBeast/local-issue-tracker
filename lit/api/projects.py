@@ -7,10 +7,12 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from lit.api.deps import require_writable
 from lit.paths import project_dir, validate_slug
+from lit.session import registry
 from lit.storage.project_fs import (
     create_project,
     delete_project,
@@ -115,7 +117,7 @@ def open_project_folder(slug: str) -> dict[str, str]:
     return {"status": "opened", "path": str(dest)}
 
 
-@router.patch("/{slug}")
+@router.patch("/{slug}", dependencies=[Depends(require_writable)])
 def patch_project(slug: str, body: ProjectPatch) -> dict[str, Any]:
     try:
         proj = load_project(slug)
@@ -126,12 +128,20 @@ def patch_project(slug: str, body: ProjectPatch) -> dict[str, Any]:
     return save_project(slug, proj)
 
 
-@router.delete("/{slug}")
-def remove_project(slug: str, body: ProjectDelete) -> dict[str, str]:
+@router.delete("/{slug}", dependencies=[Depends(require_writable)])
+def remove_project(
+    slug: str,
+    body: ProjectDelete,
+    x_lit_client: str | None = Header(default=None, alias="X-Lit-Client"),
+) -> dict[str, str]:
     try:
         delete_project(slug, body.confirm_slug)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Project not found") from None
+    # The holder is the only client allowed through require_writable. Drop
+    # the claim after the files are gone so the picker updates immediately.
+    if x_lit_client:
+        registry.release(slug, x_lit_client)
     return {"status": "deleted", "slug": slug}

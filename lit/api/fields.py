@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
-from lit.api.deps import require_project
+from lit.api.deps import require_project, require_writable
 from lit.services.validation import ValidationError, validate_fields_schema
 from lit.storage.project_fs import load_fields, save_fields
 
@@ -17,7 +17,7 @@ def get_fields(slug: str) -> dict[str, Any]:
     return load_fields(slug)
 
 
-@router.put("")
+@router.put("", dependencies=[Depends(require_writable)])
 def put_fields(slug: str, body: dict[str, Any]) -> dict[str, Any]:
     require_project(slug)
     try:

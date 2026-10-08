@@ -354,4 +354,40 @@ describe('item save queue', () => {
     queue.cancel('keep');
     expect(queue.hasPending()).toBe(false);
   });
+
+  it('busy is true while a save is pending or in flight, and cancelAll drops queued edits', async () => {
+    let resolveSend: (item: Item) => void = () => {};
+    const send = vi.fn(
+      () =>
+        new Promise<Item>((resolve) => {
+          resolveSend = resolve;
+        })
+    );
+    const queue = createItemSaveQueue({
+      send,
+      getVersion: () => 1,
+      onSaved: () => {},
+      onError: () => {},
+      delayMs: 10_000,
+    });
+    expect(queue.busy()).toBe(false);
+    queue.schedule('s', 'i1', { title: 'a' });
+    expect(queue.hasPending()).toBe(true);
+    expect(queue.busy()).toBe(true);
+
+    queue.cancelAll();
+    expect(queue.busy()).toBe(false);
+    expect(queue.hasPending()).toBe(false);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(send).not.toHaveBeenCalled();
+
+    queue.schedule('s', 'i2', { title: 'b' });
+    const flushing = queue.flush();
+    expect(queue.hasPending()).toBe(false);
+    expect(queue.busy()).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
+    resolveSend(saved({ version: 2, id: 'i2', fields: { title: 'b' } }));
+    await flushing;
+    expect(queue.busy()).toBe(false);
+  });
 });

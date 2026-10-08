@@ -4,10 +4,10 @@ import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from lit.api.deps import db_path_for, require_project
+from lit.api.deps import db_path_for, require_project, require_writable
 from lit.services.validation import (
     ValidationError,
     apply_defaults,
@@ -83,7 +83,7 @@ async def get_item(slug: str, item_id: str) -> dict[str, Any]:
     return item
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_writable)])
 async def create_item(slug: str, body: ItemCreate) -> dict[str, Any]:
     require_project(slug)
     field_defs = load_fields(slug).get("fields", [])
@@ -118,7 +118,7 @@ async def create_item(slug: str, body: ItemCreate) -> dict[str, Any]:
     return await items_db.run_db_async(db, _create)
 
 
-@router.patch("/{item_id}")
+@router.patch("/{item_id}", dependencies=[Depends(require_writable)])
 async def patch_item(slug: str, item_id: str, body: ItemPatch) -> dict[str, Any]:
     require_project(slug)
     field_defs = load_fields(slug).get("fields", [])
@@ -170,7 +170,7 @@ async def patch_item(slug: str, item_id: str, body: ItemPatch) -> dict[str, Any]
         ) from e
 
 
-@router.delete("/{item_id}")
+@router.delete("/{item_id}", dependencies=[Depends(require_writable)])
 async def delete_item(slug: str, item_id: str) -> dict[str, str]:
     require_project(slug)
     db = db_path_for(slug)

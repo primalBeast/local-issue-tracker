@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from lit.api.deps import require_project
+from lit.api.deps import require_project, require_writable
 from lit.storage.project_fs import load_deliverables, save_deliverables
 
 router = APIRouter(prefix="/api/projects/{slug}/deliverables", tags=["deliverables"])
@@ -16,7 +16,7 @@ def get_deliverables(slug: str) -> dict[str, Any]:
     return load_deliverables(slug)
 
 
-@router.put("")
+@router.put("", dependencies=[Depends(require_writable)])
 def put_deliverables(slug: str, body: dict[str, Any]) -> dict[str, Any]:
     require_project(slug)
     data = {
