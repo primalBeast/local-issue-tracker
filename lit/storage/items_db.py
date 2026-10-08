@@ -237,6 +237,38 @@ def checkpoint(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
 
+@contextmanager
+def project_db_lock(db_path: Path) -> Iterator[None]:
+    """Hold the per-project items database lock.
+
+    Re-entrant for the thread that already holds it. ``backup_to`` takes the
+    same lock through ``_conn``.
+    """
+    key = str(Path(db_path).resolve())
+    with _project_lock(key):
+        yield
+
+
+def backup_to(db_path: Path, dest_path: Path) -> None:
+    """Write a consistent copy of ``db_path`` to ``dest_path``.
+
+    Uses the SQLite backup API under the per-project lock. The destination is
+    one database file: no ``-wal`` or ``-shm`` sidecar is produced.
+    """
+    dest_path = Path(dest_path)
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    with _conn(db_path) as src:
+        src.commit()
+        if dest_path.exists():
+            dest_path.unlink()
+        dest = sqlite3.connect(str(dest_path))
+        try:
+            src.backup(dest, pages=-1)
+            dest.commit()
+        finally:
+            dest.close()
+
+
 class ConflictError(Exception):
     def __init__(self, current_version: int) -> None:
         self.current_version = current_version

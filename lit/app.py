@@ -80,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(deliverables.router)
     app.include_router(templates.router)
     app.include_router(backups.router)
+    app.include_router(backups.now_router)
 
     dist = frontend_dist()
     assets = dist / "assets"
