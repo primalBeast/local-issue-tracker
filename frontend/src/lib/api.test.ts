@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, ApiError, getClientId, setClientId } from './api';
+import { api, ApiError, getClientId, itemPatchBody, setClientId, type Workspace } from './api';
+import { bodyByteLength, resetSharedKeepaliveBudget } from './keepaliveBudget';
 
 afterEach(() => {
   setClientId(null);
+  resetSharedKeepaliveBudget();
   vi.unstubAllGlobals();
 });
 
@@ -44,6 +46,122 @@ describe('patchItem', () => {
       fields: { title: 'b' },
       version: 5,
     });
+  });
+
+  it('omits version when it is null or undefined so the server skips the check', async () => {
+    const fetchMock = vi.fn(async (_input: string, _init: RequestInit) =>
+      jsonResponse(200, { id: 'item-1', version: 2 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(itemPatchBody({ title: 'a' }, undefined)).toBe(JSON.stringify({ fields: { title: 'a' } }));
+    expect(itemPatchBody({ title: 'b' }, null)).toBe(JSON.stringify({ fields: { title: 'b' } }));
+
+    await api.patchItem('demo', 'item-1', { title: 'a' });
+    await api.patchItem('demo', 'item-1', { title: 'b' }, null);
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ fields: { title: 'a' } });
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ fields: { title: 'b' } });
+    expect(String(fetchMock.mock.calls[0][1]?.body)).not.toContain('version');
+    expect(String(fetchMock.mock.calls[1][1]?.body)).not.toContain('version');
+  });
+
+  it('sends an over-budget keepalive body as a normal fetch', async () => {
+    const fetchMock = vi.fn(async (_input: string, _init: RequestInit) =>
+      jsonResponse(200, { id: 'item-1', version: 2 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const notes = 'x'.repeat(70_000);
+
+    await api.patchItem('demo', 'item-1', { notes }, 1, { keepalive: true });
+    await api.putWorkspace(
+      'demo',
+      'ws-1',
+      { id: 'ws-1', name: notes } as unknown as Workspace,
+      { keepalive: true }
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][1]?.keepalive).not.toBe(true);
+    expect(fetchMock.mock.calls[1][1]?.keepalive).not.toBe(true);
+    expect(bodyByteLength(String(fetchMock.mock.calls[0][1]?.body))).toBeGreaterThan(60_000);
+    expect(bodyByteLength(String(fetchMock.mock.calls[1][1]?.body))).toBeGreaterThan(60_000);
+  });
+
+  it('keeps the first of two 40 KB keepalive bodies and sends the second as a normal fetch', async () => {
+    const notes = 'x'.repeat(40_000);
+    let releaseFetch: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      releaseFetch = resolve;
+    });
+    const fetchMock = vi.fn((_url: string, _init?: RequestInit) =>
+      gate.then(() => jsonResponse(200, { id: 'item-1', version: 2, fields: {} }))
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = api.patchItem('demo', 'a', { notes }, 1, { keepalive: true });
+    const second = api.patchItem('demo', 'b', { notes }, 1, { keepalive: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][1]?.keepalive).toBe(true);
+    expect(fetchMock.mock.calls[1][1]?.keepalive).not.toBe(true);
+
+    releaseFetch();
+    await Promise.all([first, second]);
+
+    await api.patchItem('demo', 'c', { notes }, 1, { keepalive: true });
+    expect(fetchMock.mock.calls[2][1]?.keepalive).toBe(true);
+  });
+
+  it('retries a keepalive TypeError once as a normal fetch', async () => {
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      if (init?.keepalive) return Promise.reject(new TypeError('Failed to fetch'));
+      return Promise.resolve(jsonResponse(200, { id: 'item-1', version: 2 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.patchItem('demo', 'item-1', { title: 'a' }, 1, { keepalive: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][1]?.keepalive).toBe(true);
+    expect(fetchMock.mock.calls[1][1]?.keepalive).not.toBe(true);
+  });
+
+  it('retries when keepalive fetch throws synchronously and releases the budget', async () => {
+    const notes = 'x'.repeat(40_000);
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      if (init?.keepalive && String(init.body).includes('first')) {
+        throw new Error('keepalive rejected by browser');
+      }
+      return Promise.resolve(jsonResponse(200, { id: 'item-1', version: 2 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.patchItem('demo', 'item-1', { notes: `first-${notes}` }, 1, { keepalive: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][1]?.keepalive).toBe(true);
+    expect(fetchMock.mock.calls[1][1]?.keepalive).not.toBe(true);
+
+    await api.patchItem('demo', 'item-2', { notes }, 1, { keepalive: true });
+    expect(fetchMock.mock.calls[2][1]?.keepalive).toBe(true);
+  });
+
+  it('does not retry a keepalive rejection that is not a TypeError, and releases the budget', async () => {
+    const notes = 'x'.repeat(40_000);
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      if (init?.keepalive && String(init.body).includes('offline')) {
+        return Promise.reject(new Error('offline'));
+      }
+      return Promise.resolve(jsonResponse(200, { id: 'item-1', version: 2 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      api.patchItem('demo', 'item-1', { notes: `offline-${notes}` }, 1, { keepalive: true })
+    ).rejects.toThrow('offline');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await api.patchItem('demo', 'item-2', { notes }, 1, { keepalive: true });
+    expect(fetchMock.mock.calls[1][1]?.keepalive).toBe(true);
   });
 });
 

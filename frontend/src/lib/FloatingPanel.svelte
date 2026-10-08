@@ -19,6 +19,10 @@
     /** Double-click title bar: zoom/centre this panel (Focus). */
     onfocusview?: () => void;
     onmove: (patch: Partial<Panel>) => void;
+    /** Drag or resize pointer-down, before the matching focus/move updates. */
+    ongesturestart?: () => void;
+    /** Drag or resize ended. `moved` is false for a click that stayed put. */
+    ongestureend?: (moved: boolean) => void;
     onclose: () => void;
     oncontext?: (e: MouseEvent) => void;
     children?: import('svelte').Snippet;
@@ -40,6 +44,8 @@
     onfocus,
     onfocusview,
     onmove,
+    ongesturestart,
+    ongestureend,
     onclose,
     oncontext,
     children,
@@ -97,12 +103,24 @@
   }
 
   function endGesture() {
+    const moved = gesture.moved;
+    const active = gesture.mode !== null;
     gesture.mode = null;
     gesture.pointerId = -1;
     gesture.moved = false;
     gesture.captureClick = false;
     cleanup();
+    if (active) ongestureend?.(moved);
   }
+
+  // App ends every gesture on blur, Escape, and project/board changes.
+  // Also end on blur here so a panel drag cannot outlive the hold reset.
+  function onExternalEndGestures() {
+    if (gesture.mode !== null) endGesture();
+  }
+
+  window.addEventListener('blur', onExternalEndGestures);
+  window.addEventListener('lit-end-gestures', onExternalEndGestures);
 
   function onWindowPointerMove(e: PointerEvent) {
     if (gesture.mode === null) return;
@@ -156,6 +174,7 @@
     e.preventDefault();
     e.stopPropagation();
 
+    const restarting = gesture.mode !== null;
     cleanup();
 
     gesture.mode = mode;
@@ -171,7 +190,14 @@
     gesture.moved = false;
     gesture.captureClick = captureClick;
 
-    if (onfocus() === false) return;
+    if (!restarting) ongesturestart?.();
+
+    if (onfocus() === false) {
+      gesture.mode = null;
+      gesture.pointerId = -1;
+      ongestureend?.(false);
+      return;
+    }
 
     if (mode === 'drag') {
       document.body.classList.add('lit-panel-dragging');
@@ -230,6 +256,8 @@
   }
 
   onDestroy(() => {
+    window.removeEventListener('blur', onExternalEndGestures);
+    window.removeEventListener('lit-end-gestures', onExternalEndGestures);
     clearClickSuppress();
     endGesture();
   });

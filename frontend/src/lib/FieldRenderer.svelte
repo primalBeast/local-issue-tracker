@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { FieldDef } from './api';
   import { isVisible } from './filters';
+  import { parseNumberInput } from './parseNumberInput';
   import RichText from './RichText.svelte';
   import UrlTicketField from './UrlTicketField.svelte';
 
@@ -38,25 +39,22 @@
     numberDraft = value == null || value === '' ? '' : String(value);
   }
 
-  function numberIsValid(raw: string): { ok: true; value: number } | { ok: false } {
-    if (raw.trim() === '') return { ok: false };
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return { ok: false };
-    const min = def.validation?.min;
-    const max = def.validation?.max;
-    if (typeof min === 'number' && n < min) return { ok: false };
-    if (typeof max === 'number' && n > max) return { ok: false };
-    return { ok: true, value: n };
-  }
-
   function finishNumberEdit() {
     if (!numberFocused) return;
-    const parsed = numberIsValid(numberDraft);
+    const parsed = parseNumberInput(numberDraft, {
+      min: def.validation?.min,
+      max: def.validation?.max,
+      required: def.required,
+    });
     numberFocused = false;
-    if (!parsed.ok) return;
-    if (numberOriginal == null || numberOriginal === '' || Number(numberOriginal) !== parsed.value) {
-      onchange(def.id, parsed.value);
+    // Invalid text, or a blank required number, keeps the stored value.
+    if (parsed === undefined) return;
+    const blank = numberOriginal == null || numberOriginal === '';
+    if (parsed === null) {
+      if (!blank) onchange(def.id, null);
+      return;
     }
+    if (blank || Number(numberOriginal) !== parsed) onchange(def.id, parsed);
   }
 </script>
 

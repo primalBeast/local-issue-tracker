@@ -45,7 +45,17 @@ def _tree(root: Path) -> dict[str, bytes]:
 
 
 @contextmanager
-def _client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, host: str = "127.0.0.1", dev_cors: bool = False, seed: bool = True):
+def _client(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    dev_cors: bool = False,
+    vite_port: int = 5173,
+    seed: bool = True,
+    base_url: str | None = None,
+):
     data = tmp_path / "data"
     data.mkdir(exist_ok=True)
     monkeypatch.setenv("LIT_DATA_DIR", str(data))
@@ -53,7 +63,15 @@ def _client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, host: str = "127
     from lit.config import AppConfig, set_config
     from lit.storage.project_fs import ensure_data_layout, maybe_seed_sample
 
-    set_config(AppConfig(data_dir=data, host=host, port=8765, dev_cors=dev_cors))
+    set_config(
+        AppConfig(
+            data_dir=data,
+            host=host,
+            port=port,
+            dev_cors=dev_cors,
+            vite_port=vite_port,
+        )
+    )
     if seed:
         ensure_data_layout()
         maybe_seed_sample()
@@ -62,7 +80,9 @@ def _client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, host: str = "127
 
     app = create_app()
     # Default TestClient host is "testserver", which is not on the allowlist.
-    with TestClient(app, base_url="http://127.0.0.1:8765") as c:
+    # Port 0 is an OS-assigned socket; base_url supplies the port the test scope reports.
+    url = base_url or f"http://127.0.0.1:{port if port != 0 else 8765}"
+    with TestClient(app, base_url=url) as c:
         yield c
 
 
@@ -320,9 +340,14 @@ def test_configured_bind_host_allowlist(tmp_path: Path, monkeypatch: pytest.Monk
         slug = bound.get("/api/projects").json()[0]["slug"]
         ok = bound.post(
             f"/api/projects/{slug}/open-folder",
-            headers={"Origin": "http://192.168.9.9:9090"},
+            headers={"Origin": "http://192.168.9.9:8765"},
         )
         assert ok.status_code == 200, ok.text
+        wrong_port = bound.post(
+            f"/api/projects/{slug}/open-folder",
+            headers={"Origin": "http://192.168.9.9:9090"},
+        )
+        assert wrong_port.status_code == 403, wrong_port.text
         blocked = bound.post(
             f"/api/projects/{slug}/open-folder",
             headers={"Origin": "http://10.1.2.3:8765"},
@@ -413,7 +438,7 @@ def test_missing_and_local_origins_can_open_folder(client: TestClient, monkeypat
     origins = [
         None,
         "http://127.0.0.1:8765",
-        "http://localhost:5173",
+        "http://localhost:8765",
         "http://[::1]:8765",
     ]
     for origin in origins:
@@ -440,13 +465,19 @@ def test_sec_fetch_site_cross_site_without_origin_is_blocked(client: TestClient,
     assert opened == []
 
     # A trusted Origin stays allowed when the browser marks the request cross-site
-    # (Vite page on localhost:5173 calling the API on 127.0.0.1).
+    # (page on localhost, API on 127.0.0.1, same app port). Vite's port is not
+    # trusted unless dev CORS is on.
     allowed = client.post(
         url,
-        headers={"Origin": "http://localhost:5173", "Sec-Fetch-Site": "cross-site"},
+        headers={"Origin": "http://localhost:8765", "Sec-Fetch-Site": "cross-site"},
     )
     assert allowed.status_code == 200, allowed.text
     assert opened
+
+    opened.clear()
+    vite = client.post(url, headers={"Origin": "http://localhost:5173", "Sec-Fetch-Site": "cross-site"})
+    assert vite.status_code == 403, vite.text
+    assert opened == []
 
     opened.clear()
     same = client.post(url, headers={"Sec-Fetch-Site": "same-origin"})
@@ -498,4 +529,182 @@ def test_dev_cors_vite_origins_still_accepted(tmp_path: Path, monkeypatch: pytes
 
 def test_get_ignores_foreign_origin(client: TestClient):
     assert client.get("/health", headers={"Origin": "http://evil.example"}).status_code == 200
+    assert client.get("/health", headers={"Origin": "http://localhost:3000"}).status_code == 200
     assert client.options("/health", headers={"Origin": "http://evil.example"}).status_code != 403
+
+
+def _open_folder(client: TestClient, origin: str | None):
+    slug = client.get("/api/projects").json()[0]["slug"]
+    headers = {} if origin is None else {"Origin": origin}
+    return client.post(f"/api/projects/{slug}/open-folder", headers=headers)
+
+
+def test_origin_must_match_the_bound_port(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    """State-changing requests trust only http on the app port."""
+    opened = _patch_reveal(monkeypatch)
+    slug = client.get("/api/projects").json()[0]["slug"]
+    folder = f"/api/projects/{slug}/open-folder"
+    name = client.get(f"/api/projects/{slug}").json()["name"]
+
+    for method_response in (
+        client.post(folder, headers={"Origin": "http://localhost:3000"}),
+        client.patch(
+            f"/api/projects/{slug}",
+            json={"name": "Hacked"},
+            headers={"Origin": "http://localhost:3000"},
+        ),
+    ):
+        assert method_response.status_code == 403, method_response.text
+    assert client.get(f"/api/projects/{slug}").json()["name"] == name
+    assert opened == []
+
+    for origin in (
+        "http://127.0.0.1:8765",
+        "http://localhost:8765",
+        "http://[::1]:8765",
+    ):
+        opened.clear()
+        response = _open_folder(client, origin)
+        assert response.status_code == 200, (origin, response.status_code, response.text)
+        assert opened
+
+    # No Origin is still a local script / webview call.
+    opened.clear()
+    assert _open_folder(client, None).status_code == 200
+    assert opened
+
+    # A missing port is 80, and this app is not on 80. https is not this server.
+    for origin in (
+        "http://127.0.0.1",
+        "http://localhost",
+        "https://127.0.0.1:8765",
+        "https://localhost:8765",
+        "http://127.0.0.1:8765/path",
+    ):
+        opened.clear()
+        response = _open_folder(client, origin)
+        assert response.status_code == 403, (origin, response.status_code, response.text)
+        assert opened == []
+
+    # Host stays hostname-only: a foreign port in Host is fine, the same port in Origin is not.
+    assert client.get("/health", headers={"Host": "localhost:3000"}).status_code == 200
+
+
+def test_bare_http_origin_matches_only_port_80(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    opened = _patch_reveal(monkeypatch)
+    with _client(tmp_path, monkeypatch, port=80) as client:
+        slug = client.get("/api/projects").json()[0]["slug"]
+        url = f"/api/projects/{slug}/open-folder"
+        bare = client.post(url, headers={"Origin": "http://127.0.0.1"})
+        assert bare.status_code == 200, bare.text
+        explicit = client.post(url, headers={"Origin": "http://localhost:80"})
+        assert explicit.status_code == 200, explicit.text
+        other = client.post(url, headers={"Origin": "http://127.0.0.1:8765"})
+        assert other.status_code == 403, other.text
+        assert opened
+
+
+def test_custom_port_is_the_only_trusted_origin_port(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    opened = _patch_reveal(monkeypatch)
+    with _client(tmp_path, monkeypatch, port=23456) as client:
+        slug = client.get("/api/projects").json()[0]["slug"]
+        url = f"/api/projects/{slug}/open-folder"
+        ok = client.post(url, headers={"Origin": "http://127.0.0.1:23456"})
+        assert ok.status_code == 200, ok.text
+        local = client.post(url, headers={"Origin": "http://localhost:23456"})
+        assert local.status_code == 200, local.text
+        v6 = client.post(url, headers={"Origin": "http://[::1]:23456"})
+        assert v6.status_code == 200, v6.text
+        default_port = client.post(url, headers={"Origin": "http://127.0.0.1:8765"})
+        assert default_port.status_code == 403, default_port.text
+        assert opened
+
+
+def test_port_zero_trusts_the_listening_socket(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """``--port 0`` binds an OS port. The origin check uses that socket port."""
+    opened = _patch_reveal(monkeypatch)
+    with _client(tmp_path, monkeypatch, port=0, base_url="http://127.0.0.1:32111") as client:
+        slug = client.get("/api/projects").json()[0]["slug"]
+        url = f"/api/projects/{slug}/open-folder"
+        ok = client.post(url, headers={"Origin": "http://127.0.0.1:32111"})
+        assert ok.status_code == 200, ok.text
+        also = client.post(url, headers={"Origin": "http://localhost:32111"})
+        assert also.status_code == 200, also.text
+        other = client.post(url, headers={"Origin": "http://127.0.0.1:8765"})
+        assert other.status_code == 403, other.text
+        assert opened
+
+
+def test_vite_origin_requires_dev_cors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    opened = _patch_reveal(monkeypatch)
+    with _client(tmp_path, monkeypatch, dev_cors=False, vite_port=5173) as client:
+        slug = client.get("/api/projects").json()[0]["slug"]
+        url = f"/api/projects/{slug}/open-folder"
+        blocked = client.post(url, headers={"Origin": "http://localhost:5173"})
+        assert blocked.status_code == 403, blocked.text
+        assert opened == []
+        # The app port is still trusted with dev CORS off.
+        opened.clear()
+        allowed = client.post(url, headers={"Origin": "http://127.0.0.1:8765"})
+        assert allowed.status_code == 200, allowed.text
+        assert opened
+
+
+def test_vite_port_override_is_the_dev_origin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    opened = _patch_reveal(monkeypatch)
+    monkeypatch.setenv("LIT_VITE_PORT", "5999")
+    with _client(tmp_path, monkeypatch, dev_cors=True) as client:
+        from lit.config import get_config
+
+        assert get_config().vite_port == 5999
+        slug = client.get("/api/projects").json()[0]["slug"]
+        url = f"/api/projects/{slug}/open-folder"
+        preflight = client.options(
+            url,
+            headers={
+                "Origin": "http://localhost:5999",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+        assert preflight.status_code == 200, preflight.text
+        assert preflight.headers.get("access-control-allow-origin") == "http://localhost:5999"
+        for origin in ("http://localhost:5999", "http://127.0.0.1:5999"):
+            opened.clear()
+            response = client.post(url, headers={"Origin": origin})
+            assert response.status_code == 200, (origin, response.status_code, response.text)
+            assert response.headers.get("access-control-allow-origin") == origin
+            assert opened
+        opened.clear()
+        default_vite = client.post(url, headers={"Origin": "http://localhost:5173"})
+        assert default_vite.status_code == 403, default_vite.text
+        assert opened == []
+
+    monkeypatch.delenv("LIT_VITE_PORT", raising=False)
+    with _client(tmp_path, monkeypatch, dev_cors=True, vite_port=4242, seed=False) as client:
+        from lit.config import get_config
+
+        assert get_config().vite_port == 4242
+        # No project was seeded; a state-changing settings write still carries Origin.
+        saved = client.patch(
+            "/api/settings",
+            json={"backup_retention_days": 14},
+            headers={"Origin": "http://localhost:4242"},
+        )
+        assert saved.status_code == 200, saved.text
+        blocked = client.patch(
+            "/api/settings",
+            json={"backup_retention_days": 14},
+            headers={"Origin": "http://localhost:5173"},
+        )
+        assert blocked.status_code == 403, blocked.text
+
+
+def test_invalid_vite_port_env_is_ignored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("LIT_VITE_PORT", "nope")
+    from lit.config import AppConfig
+
+    cfg = AppConfig(data_dir=tmp_path / "data", vite_port=4242)
+    assert cfg.vite_port == 4242
+    monkeypatch.setenv("LIT_VITE_PORT", "70000")
+    cfg = AppConfig(data_dir=tmp_path / "data", vite_port=4242)
+    assert cfg.vite_port == 4242

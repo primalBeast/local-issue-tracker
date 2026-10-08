@@ -258,12 +258,12 @@
         <p class="lede">
           A fully local personal issue tracker: floating workspaces, configurable fields,
           waiting metrics, and a dark-mode-first UI. History below is from the GitHub
-          <code>main</code> branch, 9 Aug 2026 through 30 Sep 2026.
+          <code>main</code> branch, 9 Aug 2026 through 8 Oct 2026.
         </p>
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 30 Sep 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 8 Oct 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,39 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>8 Oct 2026 — Saves finish when the window closes (PR #5)</h3>
+          <ul>
+            <li>A save still in flight when the window closes finishes cleanly, and a version conflict re-applies your edit instead of dropping it.</li>
+            <li>Very large edits, over the browser’s 64 KB keepalive limit, are still saved on close. The board layout saves once per drag.</li>
+            <li>The app only accepts writes from its own port, plus the Vite port in dev.</li>
+            <li>Dragging next to a ticket with a blank rank no longer invents rank 0. An optional number field (rank) can be cleared. A required one (priority) cannot.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>8 Oct 2026 — Several windows, one project at a time (PR #4)</h3>
+          <ul>
+            <li>Several windows can run at once, and a project can be open in only one of them. A taken project is greyed out in the picker, with “Already open in another window”.</li>
+            <li>It is released instantly when you close the window (✕, <b>Alt+F4</b>, or <b>Close project</b>), and within about 1.5 seconds after a crash.</li>
+            <li>The data lock fails closed on Windows and on macOS/Linux. One shared background server exits about 10 seconds after the last window.</li>
+            <li><code>backup-now</code> and <code>init-project</code> respect the lock, and SQLite backups stay consistent. A Windows CI job covers the lock.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>8 Oct 2026 — Autosave keeps queued edits (PR #3)</h3>
+          <ul>
+            <li>Queued edits merge into one save.</li>
+            <li>Pending saves flush on close, reload, and <b>F5</b>.</li>
+            <li>A drag sends one save, when you let go.</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>8 Oct 2026 — Security hotfix (PR #2)</h3>
+          <ul>
+            <li>Workspace IDs are an allowlist, so a bad id cannot leave the project folder (no path traversal).</li>
+            <li>The Host header and Origin are checked, so another site cannot write into the tracker. Responses keep their security headers.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>28 Sep 2026 — Alpine Hut video</h3>
           <ul>
             <li>The Video group has a looping <b>Alpine Hut</b> clip, with the other full-bleed videos. The still Alpine Hut wallpaper stays in its own group.</li>
@@ -437,6 +470,37 @@
         </div>
         <button type="button" class="toggle" id="rebuilds">Show bundle rebuilds</button>
       </div>
+      <section class="day">
+        <div class="day-head">
+          <h3>Thu, Oct 8, 2026</h3>
+          <span>5</span>
+        </div>
+        <article class="entry">
+          <span class="kind fix">Fix</span>
+          <p class="subject">PR #5. Saves still in flight when a window closes finish cleanly, and a version conflict re-applies your edit instead of dropping it. Very large edits, over the browser’s 64 KB keepalive limit, are still saved on close. The board layout saves once per drag. Writes are accepted only from the app’s own port, plus the Vite port in dev. Dragging next to a ticket with a blank rank no longer invents rank 0. An optional number field (rank) can be cleared; a required one (priority) cannot.</p>
+          <a class="hash" href="https://github.com/primalBeast/local-issue-tracker/pull/5">PR #5</a>
+        </article>
+        <article class="entry">
+          <span class="kind feat">Feature</span>
+          <p class="subject">PR #4. Several windows can run at once, and a project can be open in only one window. Taken projects are greyed out in the picker with “Already open in another window”. Released instantly on close (✕, Alt+F4, Close project), and within about 1.5 s after a crash. The data lock fails closed on Windows and macOS/Linux. One shared background server exits about 10 s after the last window. Backup-now and init-project respect the lock. SQLite backups stay consistent.</p>
+          <a class="hash" href="https://github.com/primalBeast/local-issue-tracker/commit/75ac072">75ac072</a>
+        </article>
+        <article class="entry">
+          <span class="kind ci">CI</span>
+          <p class="subject">Windows CI job runs the data-lock tests.</p>
+          <a class="hash" href="https://github.com/primalBeast/local-issue-tracker/commit/a711722">a711722</a>
+        </article>
+        <article class="entry">
+          <span class="kind fix">Fix</span>
+          <p class="subject">PR #3. Autosave: queued edits merge, pending saves flush on close, reload, and F5, and one save goes out per drag.</p>
+          <a class="hash" href="https://github.com/primalBeast/local-issue-tracker/commit/961e015">961e015</a>
+        </article>
+        <article class="entry">
+          <span class="kind fix">Fix</span>
+          <p class="subject">PR #2. Security hotfix: workspace-ID allowlist (no path traversal), Host header and Origin checks against cross-site writes, and security headers.</p>
+          <a class="hash" href="https://github.com/primalBeast/local-issue-tracker/commit/e76da3b">e76da3b</a>
+        </article>
+      </section>
       <div id="log"></div>
 
       <footer>
@@ -449,7 +513,133 @@
 <script type="application/json" id="commits-json">
 [
   {
-    "hash": "47e931e",
+    "hash": "d4ccab2",
+    "date": "2026-10-08",
+    "subject": "docs: release notes for slices 0-3 (security, autosave, project locks, saves and ranks)",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "4de16a2",
+    "date": "2026-10-08",
+    "subject": "fix(saves): oversized edits skip the debounce only when the item is idle; versionless send limited to the close keepalive flush",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "3a8863a",
+    "date": "2026-10-08",
+    "subject": "build(ui): rebuild frontend/dist for slice 3",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "ecba4bc",
+    "date": "2026-10-08",
+    "subject": "fix(review): required numbers cannot be cleared (UI keeps value, PATCH 422); layout-save holds always released (endAllGestures/resetHolds, lostpointercapture)",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "f601d23",
+    "date": "2026-10-08",
+    "subject": "fix(saves): in-flight close saves go versionless, 409 re-applies pending keys and retries; >60KB keepalive falls back to normal fetch; one layout save per drag",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "dbe0209",
+    "date": "2026-10-08",
+    "subject": "fix(security,ranks): origins bound to the app port (+Vite in dev); drags never invent rank 0; number fields clear to null",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "75ac072",
+    "date": "2026-10-08",
+    "subject": "Merge pull request #4 from primalBeast/fix/slice2-project-locks",
+    "kind": "merge",
+    "rebuild": false
+  },
+  {
+    "hash": "7d0b894",
+    "date": "2026-10-08",
+    "subject": "fix(session): exact idle-exit boundary (avoid float subtraction shortfall on Windows CI)",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "a711722",
+    "date": "2026-10-08",
+    "subject": "ci: run the data-lock tests on windows-latest",
+    "kind": "ci",
+    "rebuild": false
+  },
+  {
+    "hash": "70b2b19",
+    "date": "2026-10-08",
+    "subject": "feat(ui): per-window clientId, live claims picker, flush -> release -> close",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "94ce1cd",
+    "date": "2026-10-08",
+    "subject": "feat(webview): closing hook flushes (<=500 ms), then POSTs release-all, then closes",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "58587f6",
+    "date": "2026-10-08",
+    "subject": "test(ci): backup-under-edit test, harness hardening, multiple-windows docs",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "06c49f8",
+    "date": "2026-10-08",
+    "subject": "feat(lock): project claims, SSE claims stream with 1s heartbeat and 1.5s grace, 423 on foreign writes",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "18b1152",
+    "date": "2026-10-08",
+    "subject": "feat(lock): fail-closed data-root lock, detached shared server, lock-aware backup-now/init-project",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "961e015",
+    "date": "2026-10-08",
+    "subject": "Merge pull request #3 from primalBeast/fix/slice1-autosave",
+    "kind": "merge",
+    "rebuild": false
+  },
+  {
+    "hash": "e76da3b",
+    "date": "2026-10-08",
+    "subject": "Merge pull request #2 from primalBeast/fix/slice0-local-boundary",
+    "kind": "merge",
+    "rebuild": false
+  },
+  {
+    "hash": "3f5e654",
+    "date": "2026-10-08",
+    "subject": "fix(autosave): slice 1 \u2014 merge queued patches, flush on close/reload, one save per drag",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "082b25b",
+    "date": "2026-10-08",
+    "subject": "fix(security): slice 0 \u2014 workspace-ID allowlist, Host and Origin checks",
+    "kind": "other",
+    "rebuild": false
+  },
+  {
+    "hash": "9e095d0",
     "date": "2026-09-30",
     "subject": "docs: point Agents.md at the grok-projects ledger",
     "kind": "docs",

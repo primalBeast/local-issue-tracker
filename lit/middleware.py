@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from lit.config import DEFAULT_VITE_PORT
 
 # Binds that do not name one client-facing host. Adding them would not make
 # Host: 0.0.0.0 useful, and must not widen the allowlist to every name.
@@ -51,27 +53,63 @@ def trusted_host_header_values(hostnames: list[str]) -> list[str]:
     return values
 
 
-def _is_trusted_origin(origin: str, allowed_hosts: set[str]) -> bool:
-    """True when Origin is http(s) and its hostname is in ``allowed_hosts``.
+def _http_origin_port(parts: SplitResult) -> int | None:
+    """Explicit port, or 80 when an http Origin omits it.
 
-    The port is ignored, so the app (``127.0.0.1:8765``) and the Vite dev
-    server (``localhost:5173``) are both accepted. ``Origin: null`` is not.
-    Userinfo, a path, a query, or a fragment is not a browser Origin and is
-    rejected so ``http://evil@127.0.0.1`` cannot borrow the loopback name.
+    ``http://127.0.0.1`` is port 80, so it matches only an app bound to 80.
+    An unparsable port is rejected.
     """
+    try:
+        explicit = parts.port
+    except ValueError:
+        return None
+    if explicit is not None:
+        return explicit
+    if parts.scheme.lower() == "http":
+        return 80
+    return None
+
+
+def _scope_server_port(scope: Scope) -> int:
+    """Listening port from the ASGI server address, or 0 when it is unknown.
+
+    uvicorn fills this after the socket binds, including when ``--port 0``
+    asks the OS for a free port.
+    """
+    server = scope.get("server")
+    if isinstance(server, (tuple, list)) and len(server) >= 2 and isinstance(server[1], int):
+        port = int(server[1])
+        if 0 < port <= 65535:
+            return port
+    return 0
+
+
+def _is_trusted_origin(origin: str, allowed_hosts: set[str], allowed_ports: set[int]) -> bool:
+    """True when Origin is http, the hostname is trusted, and the port is allowed.
+
+    The app serves plain HTTP on its bound port. ``https`` is rejected: this
+    process never terminates TLS, so an https Origin is not this app. A missing
+    port is 80. When dev CORS is on, ``allowed_ports`` also contains the Vite
+    port. ``Origin: null`` is not trusted. Userinfo, a path, a query, or a
+    fragment is not a browser Origin and is rejected so
+    ``http://evil@127.0.0.1`` cannot borrow the loopback name.
+    """
+    if not allowed_ports:
+        return False
     if origin.strip().lower() == "null":
         return False
     parts = urlsplit(origin.strip())
     if parts.username is not None or parts.password is not None:
         return False
-    if parts.scheme not in {"http", "https"}:
+    if parts.scheme.lower() != "http":
         return False
     host = parts.hostname
     if host is None or host.lower() not in allowed_hosts:
         return False
     if parts.path not in {"", "/"} or parts.query or parts.fragment:
         return False
-    return True
+    port = _http_origin_port(parts)
+    return port is not None and port in allowed_ports
 
 
 # Pure ASGI, not BaseHTTPMiddleware. BaseHTTPMiddleware wraps the response
@@ -97,21 +135,50 @@ class OriginCheckMiddleware:
     - ``Origin`` is present and is not a trusted local origin, or
     - ``Sec-Fetch-Site: cross-site`` is set and there is no trusted Origin.
 
-    A trusted origin is an http(s) URL whose hostname is in the trusted host
-    set (``127.0.0.1``, ``localhost``, ``::1``, plus a specific ``cfg.host``).
-    Any port on those hosts is accepted. ``Origin: null`` is foreign.
+    A trusted origin is ``http`` (not ``https``), a hostname in the trusted
+    host set (``127.0.0.1``, ``localhost``, ``::1``, plus a specific
+    ``cfg.host``), and a port equal to the app's bound port. A missing port is
+    80, so ``http://127.0.0.1`` is trusted only when the app listens on 80.
+    ``https`` is not this server. ``Origin: null`` is foreign.
 
-    A trusted Origin is still accepted when ``Sec-Fetch-Site`` is ``cross-site``.
-    That is the Vite dev case: the page is ``http://localhost:5173`` and the
-    API is ``http://127.0.0.1:8765``. Requests with no Origin header are
-    allowed (pywebview, curl, local scripts) unless they are marked cross-site.
+    The bound port is ``cfg.port``. ``lit serve`` and ``--port`` set it before
+    ``create_app``, and the detached ``--webview`` server is spawned with that
+    same ``--port``. Startup copies it to settings ``last_port``; this check
+    does not read settings back. ``--port 0`` is resolved from the listening
+    socket after the OS assigns one.
 
-    GET, HEAD, and OPTIONS skip this check. The Host check still applies.
+    When dev CORS is on, the Vite port (``cfg.vite_port``, default 5173,
+    ``LIT_VITE_PORT``) is allowed on the same hosts. A trusted Origin is still
+    accepted when ``Sec-Fetch-Site`` is ``cross-site`` (a page on
+    ``localhost`` calling an API on ``127.0.0.1``, or Vite calling the API).
+    Requests with no Origin header are allowed (pywebview, curl, local
+    scripts) unless they are marked cross-site.
+
+    GET, HEAD, and OPTIONS skip this check. The Host check stays
+    hostname-only and still applies.
     """
 
-    def __init__(self, app: ASGIApp, allowed_hosts: list[str]) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        allowed_hosts: list[str],
+        *,
+        port: int,
+        extra_ports: list[int] | None = None,
+    ) -> None:
         self.app = app
         self.allowed_hosts = {host.lower() for host in allowed_hosts}
+        self.configured_port = int(port)
+        self.extra_ports = {int(item) for item in (extra_ports or []) if 0 < int(item) <= 65535}
+
+    def _allowed_ports(self, scope: Scope) -> set[int]:
+        ports = set(self.extra_ports)
+        bound = self.configured_port
+        if bound == 0:
+            bound = _scope_server_port(scope)
+        if 0 < bound <= 65535:
+            ports.add(bound)
+        return ports
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -122,7 +189,9 @@ class OriginCheckMiddleware:
             return
         headers = Headers(scope=scope)
         origin = headers.get("origin")
-        trusted = origin is not None and _is_trusted_origin(origin, self.allowed_hosts)
+        trusted = origin is not None and _is_trusted_origin(
+            origin, self.allowed_hosts, self._allowed_ports(scope)
+        )
         if origin is not None and not trusted:
             response = JSONResponse({"detail": "Foreign origin blocked"}, status_code=403)
             await response(scope, receive, send)
@@ -169,7 +238,13 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
-def install_cors(app: ASGIApp, enabled: bool) -> None:
+def dev_cors_origins(vite_port: int) -> list[str]:
+    """Browser origins for the Vite dev server. Same port the origin check allows."""
+    port = int(vite_port)
+    return [f"http://localhost:{port}", f"http://127.0.0.1:{port}"]
+
+
+def install_cors(app: ASGIApp, enabled: bool, *, vite_port: int = DEFAULT_VITE_PORT) -> None:
     if not enabled:
         return
     from fastapi.middleware.cors import CORSMiddleware
@@ -177,10 +252,7 @@ def install_cors(app: ASGIApp, enabled: bool) -> None:
     # app is FastAPI
     app.add_middleware(  # type: ignore[attr-defined]
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ],
+        allow_origins=dev_cors_origins(vite_port),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

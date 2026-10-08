@@ -111,6 +111,21 @@ def validate_item_fields(
 
     for key, value in fields.items():
         fdef = by_id[key]
+        # PATCH leaves require_required off so an omitted key is fine, but an
+        # explicit null/blank must not clear a required number (priority).
+        # Optional numbers (urgency) still store null.
+        # Other required types stay as they were: ticket_key is required text
+        # and the title editor PATCHes "" while that box is empty, and null is
+        # already a type error for every non-number field.
+        if (
+            partial
+            and not require_required
+            and fdef.get("required")
+            and fdef.get("type") == "number"
+            and _is_blank_number(value)
+        ):
+            errors.append({"field": key, "message": "required"})
+            continue
         try:
             fields[key] = _coerce_and_check(fdef, value)
         except ValidationError as e:
@@ -126,6 +141,12 @@ def validate_item_fields(
     if errors:
         raise ValidationError("Validation failed", errors)
     return fields
+
+
+def _is_blank_number(value: Any) -> bool:
+    if value is None:
+        return True
+    return isinstance(value, str) and value.strip() == ""
 
 
 def _is_empty(value: Any, fdef: dict[str, Any]) -> bool:
@@ -197,6 +218,9 @@ def _coerce_and_check(fdef: dict[str, Any], value: Any) -> Any:
         return value
 
     if ftype == "number":
+        # JSON null clears the field. Required checks use _is_empty afterwards.
+        if value is None:
+            return None
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValidationError(f"{fid}: expected number", [{"field": fid, "message": "type"}])
         num = float(value) if not isinstance(value, int) else value

@@ -80,4 +80,91 @@ describe('urgency reorder', () => {
     expect(move?.orderIds).toEqual(['B', 'A', 'C']);
     expect(move?.clearSecondary).toBe(true);
   });
+
+  it('gives both tickets the known rank when one is blank', () => {
+    const rows: UrgencyRow[] = [
+      { id: 'A', urgency: null },
+      { id: 'B', urgency: 5 },
+    ];
+    const down = planUrgencyMove(rows, 0, 1);
+    expect(down?.patches).toEqual([{ id: 'A', urgency: 5 }]);
+    expect(down?.orderIds).toEqual(['B', 'A']);
+    expect(down?.clearSecondary).toBe(true);
+
+    const up = planUrgencyMove(rows, 1, -1);
+    expect(up?.patches).toEqual([{ id: 'A', urgency: 5 }]);
+    expect(up?.patches.every((p) => p.urgency !== 0)).toBe(true);
+  });
+
+  it('copies a blank neighbor up to the dragged rank and does not invent 0', () => {
+    const move = planUrgencyMove(
+      [
+        { id: 'A', urgency: 4 },
+        { id: 'B', urgency: null },
+      ],
+      0,
+      1
+    );
+    expect(move?.patches).toEqual([{ id: 'B', urgency: 4 }]);
+    expect(move?.patches.some((p) => p.urgency === 0)).toBe(false);
+  });
+
+  it('does nothing when both ranks are blank', () => {
+    const move = planUrgencyMove(
+      [
+        { id: 'A', urgency: null },
+        { id: 'B', urgency: '' },
+      ],
+      0,
+      1
+    );
+    expect(move).toBeNull();
+  });
+
+  it('keeps an existing rank of 0 and never invents one', () => {
+    const swapped = planUrgencyMove(
+      [
+        { id: 'A', urgency: 0 },
+        { id: 'B', urgency: 4 },
+      ],
+      0,
+      1
+    );
+    expect(mapOf(swapped?.patches ?? [])).toEqual({ A: 4, B: 0 });
+
+    const adopted = planUrgencyMove(
+      [
+        { id: 'A', urgency: null },
+        { id: 'B', urgency: 0 },
+      ],
+      0,
+      1
+    );
+    expect(adopted?.patches).toEqual([{ id: 'A', urgency: 0 }]);
+
+    const intoZero = planUrgencyMove(
+      [
+        { id: 'A', urgency: 3 },
+        { id: 'B', urgency: 0 },
+        { id: 'C', urgency: 0 },
+      ],
+      0,
+      1
+    );
+    expect(intoZero?.patches).toEqual([{ id: 'A', urgency: 0 }]);
+  });
+
+  it('adopts a block rank when a blank ticket moves into it', () => {
+    const move = planUrgencyMove(
+      [
+        { id: 'A', urgency: 5 },
+        { id: 'B', urgency: 5 },
+        { id: 'C', urgency: null },
+      ],
+      2,
+      -1
+    );
+    expect(mapOf(move?.patches ?? [])).toEqual({ C: 5 });
+    expect(move?.patches.some((p) => p.urgency === 0)).toBe(false);
+  });
 });
