@@ -164,7 +164,7 @@ class StreamRegistry:
             since = self._idle_since if self._idle_since is not None else self._started
             limit = idle_seconds if self._ever else startup_seconds
         moment = time.monotonic() if now is None else now
-        return (moment - since) >= limit
+        return moment >= since + limit
 
     def holder(self, slug: str) -> str | None:
         with self._guard:
