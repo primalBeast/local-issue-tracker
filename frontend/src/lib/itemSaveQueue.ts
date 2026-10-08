@@ -1,4 +1,5 @@
-import type { Item } from './api';
+import { itemPatchBody, type Item } from './api';
+import { bodyByteLength, KEEPALIVE_BUDGET_BYTES } from './keepaliveBudget';
 
 /** One PATCH body plus the routing captured when the edit was scheduled. */
 export type ItemSaveRequest = {
@@ -17,12 +18,14 @@ export type ItemSaveQueue = {
   release(): void;
   cancel(itemId: string): void;
   hasPending(): boolean;
-  /** True while a save is queued or a PATCH is still in flight. */
+  /** True while a save is queued, a PATCH is in flight, or a 409 retry is running. */
   busy(): boolean;
   /** Drop every queued edit without sending. In-flight PATCHes are left alone. */
   cancelAll(): void;
   /** Fields queued for `itemId` that have not been sent yet. */
   pendingFields(itemId: string): Record<string, unknown> | undefined;
+  /** True when a queued or in-flight save is over the keepalive body budget. */
+  hasLargeSave(): boolean;
 };
 
 type Slot = {
@@ -31,6 +34,11 @@ type Slot = {
   timer: ReturnType<typeof setTimeout> | null;
   /** Bumped on every schedule so a waiter can see that the batch changed. */
   gen: number;
+  /**
+   * `flush()` epoch that parked this slot after a failed 409 retry.
+   * The flush that just failed must not immediately send it again.
+   */
+  skipFlushEpoch?: number;
 };
 
 type QueueOptions = {
@@ -39,7 +47,21 @@ type QueueOptions = {
   getVersion(itemId: string): number | undefined;
   onSaved(itemId: string, item: Item, slug: string): void;
   onError(itemId: string, slug: string, err: unknown): void | Promise<void>;
+  /** Load the server copy after a 409 so the edit can be retried once. */
+  fetchLatest?(slug: string, itemId: string): Promise<Item>;
+  /** 409 retry failed. The edit stays queued; show a toast rather than reloading. */
+  onConflictKept?(itemId: string, slug: string): void;
+  /** Defaults to `status === 409`. */
+  isConflict?(err: unknown): boolean;
+  /** Defaults to `status === 423`. Lock errors keep today's drop path. */
+  isLocked?(err: unknown): boolean;
 };
+
+function statusOf(err: unknown): number | undefined {
+  if (!err || typeof err !== 'object' || !('status' in err)) return undefined;
+  const status = (err as { status: unknown }).status;
+  return typeof status === 'number' ? status : undefined;
+}
 
 export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
   const delayMs = opts.delayMs ?? 350;
@@ -47,6 +69,22 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
   /** Per item, resolves after that item's sends (and their onSaved/onError) settle. */
   const inflight = new Map<string, Promise<void>>();
   let held = false;
+  let largeInflight = 0;
+  let flushEpoch = 0;
+
+  function isConflict(err: unknown): boolean {
+    if (opts.isConflict) return opts.isConflict(err);
+    return statusOf(err) === 409;
+  }
+
+  function isLocked(err: unknown): boolean {
+    if (opts.isLocked) return opts.isLocked(err);
+    return statusOf(err) === 423;
+  }
+
+  function oversized(fields: Record<string, unknown>, version: number | undefined): boolean {
+    return bodyByteLength(itemPatchBody(fields, version)) > KEEPALIVE_BUDGET_BYTES;
+  }
 
   function arm(itemId: string): void {
     const slot = slots.get(itemId);
@@ -61,22 +99,130 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
     }, delayMs);
   }
 
+  function consumeSlot(itemId: string): Record<string, unknown> {
+    const slot = slots.get(itemId);
+    if (!slot) return {};
+    const fields = { ...slot.fields };
+    if (slot.timer != null) globalThis.clearTimeout(slot.timer);
+    slots.delete(itemId);
+    return fields;
+  }
+
+  /**
+   * Put a failed edit back. Newer keys already queued win.
+   * A flush that is still looping will not send this slot again; a later
+   * schedule or flush will.
+   */
+  function parkFailedEdit(slug: string, itemId: string, fields: Record<string, unknown>): void {
+    const existed = slots.has(itemId);
+    let slot = slots.get(itemId);
+    if (!slot) {
+      slot = { slug, fields: {}, timer: null, gen: 0 };
+      slots.set(itemId, slot);
+    }
+    slot.slug = slug;
+    slot.fields = { ...fields, ...slot.fields };
+    slot.gen += 1;
+    slot.skipFlushEpoch = flushEpoch;
+    if (slot.timer != null) {
+      globalThis.clearTimeout(slot.timer);
+      slot.timer = null;
+    }
+    if (existed && !held) arm(itemId);
+  }
+
+  async function reportError(itemId: string, slug: string, err: unknown): Promise<void> {
+    try {
+      await opts.onError(itemId, slug, err);
+    } catch (handlerErr) {
+      console.error(handlerErr);
+    }
+  }
+
+  /**
+   * One retry: read the latest item, overlay only our pending keys, send with
+   * that version. A second failure stays queued and does not reload the item.
+   */
+  async function recoverConflict(
+    slug: string,
+    itemId: string,
+    failedFields: Record<string, unknown>
+  ): Promise<void> {
+    if (!opts.fetchLatest) {
+      await reportError(itemId, slug, new Error('version conflict'));
+      return;
+    }
+    let latest: Item;
+    try {
+      latest = await opts.fetchLatest(slug, itemId);
+    } catch (err) {
+      if (isLocked(err)) {
+        await reportError(itemId, slug, err);
+        return;
+      }
+      parkFailedEdit(slug, itemId, failedFields);
+      opts.onConflictKept?.(itemId, slug);
+      return;
+    }
+
+    const newer = consumeSlot(itemId);
+    const retryFields = { ...failedFields, ...newer };
+    try {
+      const saved = await opts.send({
+        slug,
+        itemId,
+        fields: retryFields,
+        version: latest.version,
+        keepalive: false,
+      });
+      try {
+        opts.onSaved(itemId, saved, slug);
+      } catch (err) {
+        console.error(err);
+      }
+    } catch (err) {
+      if (isLocked(err)) {
+        await reportError(itemId, slug, err);
+        return;
+      }
+      parkFailedEdit(slug, itemId, retryFields);
+      opts.onConflictKept?.(itemId, slug);
+    }
+  }
+
+  async function handleFailure(
+    slug: string,
+    itemId: string,
+    fields: Record<string, unknown>,
+    err: unknown
+  ): Promise<void> {
+    if (isConflict(err) && opts.fetchLatest) {
+      await recoverConflict(slug, itemId, fields);
+      return;
+    }
+    await reportError(itemId, slug, err);
+  }
+
   /**
    * Start the PATCH now. `send` is called synchronously so a keepalive flush
    * still reaches fetch while the page is unloading.
+   * A save that is already in flight for this item is sent with no version:
+   * both edits are ours, and the server skips the check so the last write wins.
    */
   function startSend(itemId: string, keepalive: boolean): Promise<void> {
     const slot = slots.get(itemId);
     if (!slot) return Promise.resolve();
+    const ownSaveInFlight = inflight.has(itemId);
     slots.delete(itemId);
     if (slot.timer != null) {
       globalThis.clearTimeout(slot.timer);
       slot.timer = null;
     }
     const { slug, fields } = slot;
-    // One version for the merged patch, read at send time so a response that
-    // just landed can chain into the next request.
-    const version = opts.getVersion(itemId);
+    const version = ownSaveInFlight ? undefined : opts.getVersion(itemId);
+    const large = oversized(fields, version);
+    const useKeepalive = keepalive && !large;
+    if (large) largeInflight += 1;
 
     let resolveGate!: () => void;
     const gate = new Promise<void>((resolve) => {
@@ -90,8 +236,12 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
 
     const finish = (work: Promise<void>) => {
       void work.then(
-        () => resolveGate(),
+        () => {
+          if (large) largeInflight -= 1;
+          resolveGate();
+        },
         (err) => {
+          if (large) largeInflight -= 1;
           console.error(err);
           resolveGate();
         }
@@ -99,7 +249,7 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
     };
 
     try {
-      const sent = opts.send({ slug, itemId, fields, version, keepalive });
+      const sent = opts.send({ slug, itemId, fields, version, keepalive: useKeepalive });
       finish(
         Promise.resolve(sent).then(
           (saved) => {
@@ -109,26 +259,11 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
               console.error(err);
             }
           },
-          async (err: unknown) => {
-            try {
-              await opts.onError(itemId, slug, err);
-            } catch (handlerErr) {
-              console.error(handlerErr);
-            }
-          }
+          (err: unknown) => handleFailure(slug, itemId, fields, err)
         )
       );
     } catch (err) {
-      finish(
-        Promise.resolve()
-          .then(() => opts.onError(itemId, slug, err))
-          .then(
-            () => undefined,
-            (handlerErr) => {
-              console.error(handlerErr);
-            }
-          )
-      );
+      finish(handleFailure(slug, itemId, fields, err));
     }
 
     return tracked;
@@ -158,19 +293,26 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
     slot.slug = slug;
     slot.fields = { ...slot.fields, ...fields };
     slot.gen += 1;
+    slot.skipFlushEpoch = undefined;
     if (slot.timer != null) {
       globalThis.clearTimeout(slot.timer);
       slot.timer = null;
     }
     if (held) return;
+    const version = opts.getVersion(itemId);
+    if (oversized(slot.fields, version)) {
+      startSend(itemId, false);
+      return;
+    }
     arm(itemId);
   }
 
   async function flush(): Promise<void> {
+    const epoch = ++flushEpoch;
     for (let guard = 0; guard < 100; guard += 1) {
       for (const itemId of [...slots.keys()]) {
         const slot = slots.get(itemId);
-        if (!slot) continue;
+        if (!slot || slot.skipFlushEpoch === epoch) continue;
         if (slot.timer != null) {
           globalThis.clearTimeout(slot.timer);
           slot.timer = null;
@@ -179,7 +321,8 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
       }
       if (inflight.size === 0) return;
       await Promise.all([...inflight.values()]);
-      if (slots.size === 0 && inflight.size === 0) return;
+      const more = [...slots.values()].some((slot) => slot.skipFlushEpoch !== epoch);
+      if (!more && inflight.size === 0) return;
     }
   }
 
@@ -237,6 +380,15 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
     return { ...slot.fields };
   }
 
+  function hasLargeSave(): boolean {
+    if (largeInflight > 0) return true;
+    for (const [itemId, slot] of slots) {
+      const version = inflight.has(itemId) ? undefined : opts.getVersion(itemId);
+      if (oversized(slot.fields, version)) return true;
+    }
+    return false;
+  }
+
   return {
     schedule,
     flush,
@@ -248,23 +400,46 @@ export function createItemSaveQueue(opts: QueueOptions): ItemSaveQueue {
     busy,
     cancelAll,
     pendingFields,
+    hasLargeSave,
   };
 }
+
+export type UnloadFlushOptions = {
+  /** Extra work after the item keepalive flush (board layout). */
+  onUnload?: () => void;
+  /**
+   * Return true to show the browser leave-page prompt.
+   * Called after the flush has started. Callers must return false inside
+   * pywebview: beforeunload can fire on destroy and a prompt would block
+   * the X / Alt+F4 close, which uses the bounded flush instead.
+   */
+  shouldPrompt?: () => boolean;
+};
 
 /** pagehide, beforeunload, and hidden visibilitychange start a keepalive flush. */
 export function installUnloadFlush(
   queue: { flushKeepalive(): void },
   win: EventTarget,
-  doc: { visibilityState: string } & EventTarget
+  doc: { visibilityState: string } & EventTarget,
+  options?: UnloadFlushOptions
 ): () => void {
-  const onPageHide = () => {
+  const flush = () => {
     queue.flushKeepalive();
+    options?.onUnload?.();
   };
-  const onBeforeUnload = () => {
-    queue.flushKeepalive();
+  const onPageHide = () => {
+    flush();
+  };
+  const onBeforeUnload = (event: Event) => {
+    flush();
+    if (!options?.shouldPrompt?.()) return;
+    event.preventDefault();
+    // BeforeUnloadEvent.returnValue is what shows the browser prompt. Node's
+    // Event type has no setter, so the cast goes through unknown.
+    (event as unknown as { returnValue: string }).returnValue = '';
   };
   const onVisibility = () => {
-    if (doc.visibilityState === 'hidden') queue.flushKeepalive();
+    if (doc.visibilityState === 'hidden') flush();
   };
   win.addEventListener('pagehide', onPageHide);
   win.addEventListener('beforeunload', onBeforeUnload);

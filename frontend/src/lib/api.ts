@@ -1,3 +1,5 @@
+import { bodyByteLength, reserveSharedKeepalive } from './keepaliveBudget';
+
 export type Project = {
   id: string;
   slug: string;
@@ -191,8 +193,67 @@ async function errorFrom(res: Response): Promise<ApiError> {
   return new ApiError(res.status, message);
 }
 
+/** PATCH body. A missing version tells the server to skip the version check. */
+export function itemPatchBody(
+  fields: Record<string, unknown>,
+  version?: number | null
+): string {
+  if (version == null) return JSON.stringify({ fields });
+  return JSON.stringify({ fields, version });
+}
+
+function keepaliveBodyBytes(body: BodyInit | null | undefined): number {
+  if (typeof body === 'string') return bodyByteLength(body);
+  if (body instanceof Uint8Array) return body.byteLength;
+  return 0;
+}
+
+function withoutKeepalive(init: RequestInit): RequestInit {
+  if (init.keepalive !== true) return init;
+  const next: RequestInit = { ...init };
+  delete next.keepalive;
+  return next;
+}
+
+function isFetchTypeError(err: unknown): boolean {
+  return err instanceof TypeError || (err instanceof Error && err.name === 'TypeError');
+}
+
+/**
+ * `keepalive: true` shares a 64 KiB browser budget. Bodies that do not fit
+ * go out as a normal fetch. A keepalive fetch that throws, or rejects with
+ * TypeError, is retried once without keepalive.
+ */
+async function fetchWithKeepalive(path: string, init: RequestInit): Promise<Response> {
+  if (init.keepalive !== true) return fetch(path, init);
+  const release = reserveSharedKeepalive(keepaliveBodyBytes(init.body));
+  if (!release) return fetch(path, withoutKeepalive(init));
+  const retry = () => fetch(path, withoutKeepalive(init));
+  try {
+    let pending: Promise<Response>;
+    try {
+      pending = fetch(path, init);
+    } catch {
+      release();
+      return retry();
+    }
+    try {
+      const res = await pending;
+      release();
+      return res;
+    } catch (err) {
+      release();
+      if (isFetchTypeError(err)) return retry();
+      throw err;
+    }
+  } catch (err) {
+    release();
+    throw err;
+  }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, withClient(init));
+  const res = await fetchWithKeepalive(path, withClient(init));
   if (!res.ok) throw await errorFrom(res);
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
@@ -271,12 +332,12 @@ export const api = {
     slug: string,
     id: string,
     fields: Record<string, unknown>,
-    version?: number,
+    version?: number | null,
     opts?: { keepalive?: boolean }
   ) =>
     req<Item>(`/api/projects/${slug}/items/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ fields, version }),
+      body: itemPatchBody(fields, version),
       ...(opts?.keepalive ? { keepalive: true } : {}),
     }),
   deleteItem: (slug: string, id: string) =>

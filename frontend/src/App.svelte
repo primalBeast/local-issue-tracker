@@ -11,6 +11,8 @@
   } from './lib/api';
   import { getClientId } from './lib/clientId';
   import { createItemSaveQueue, flushThen, installUnloadFlush } from './lib/itemSaveQueue';
+  import { createLayoutSaveGate } from './lib/layoutSaveGate';
+  import { bodyByteLength, KEEPALIVE_BUDGET_BYTES } from './lib/keepaliveBudget';
   import {
     browserClaimsStream,
     createProjectClaims,
@@ -101,9 +103,8 @@
   let error = $state<string | null>(null);
   let toast = $state<string | null>(null);
   let nowTick = $state(Date.now());
-  let saveTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Workspace PUT that has already been sent and not yet settled. */
-  let workspaceSaveFlight: Promise<void> | null = null;
+  /** Workspace id captured when a layout save was scheduled. */
+  let layoutTarget: { slug: string; id: string } | null = null;
   /** This window's id. Set on mount before bootstrap claims a project. */
   let clientId = $state('');
   let liveClaims = $state<Record<string, string>>({});
@@ -248,6 +249,7 @@
     startY: 0,
     origX: 0,
     origY: 0,
+    moved: false,
     swallowClicks: false,
   };
 
@@ -487,7 +489,13 @@
       if (t?.closest?.('.ws-tab')) return; // tab open/context menu owns the click
       boardEditor = null;
     };
-    const uninstallUnloadFlush = installUnloadFlush(itemSaveQueue, window, document);
+    const uninstallUnloadFlush = installUnloadFlush(itemSaveQueue, window, document, {
+      onUnload: () => {
+        void layoutSave.flush({ keepalive: true });
+      },
+      shouldPrompt: () =>
+        !runningInWebview() && (itemSaveQueue.hasLargeSave() || layoutSave.hasLargeSave()),
+    });
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('pointerdown', onDocPointerDown, true);
     window.addEventListener('blur', onAppWindowBlur);
@@ -508,6 +516,7 @@
       endCanvasPan();
       clearCtrlPanClickSuppress();
       endZoomScrub();
+      if (tabDrag.dragging) layoutSave.release();
       resetTabDrag();
       endUrgencyDrag();
     };
@@ -979,8 +988,8 @@
 
   function runWorkspaceSave(slug: string, id: string, opts?: { keepalive?: boolean }): Promise<void> {
     const toSave = workspaces.find((w) => w.id === id);
-    if (!toSave) return workspaceSaveFlight ?? Promise.resolve();
-    const run = (async () => {
+    if (!toSave) return Promise.resolve();
+    return (async () => {
       try {
         const saved = await api.putWorkspace(slug, id, toSave, opts);
         workspaces = workspaces.map((w) => (w.id === id ? saved : w));
@@ -1000,37 +1009,31 @@
         console.error(e);
       }
     })();
-    const prev = workspaceSaveFlight;
-    const tracked = (prev ? prev.then(() => run, () => run) : run).finally(() => {
-      if (workspaceSaveFlight === tracked) workspaceSaveFlight = null;
-    });
-    workspaceSaveFlight = tracked;
-    return tracked;
   }
+
+  const layoutSave = createLayoutSaveGate({
+    delayMs: 400,
+    send: (req) => {
+      const target = layoutTarget;
+      if (!target) return Promise.resolve();
+      return runWorkspaceSave(target.slug, target.id, { keepalive: req.keepalive });
+    },
+  });
 
   function scheduleWorkspaceSave() {
     if (!project || !workspace) return;
     // Always mirror latest local state into the list immediately
     const id = workspace.id;
     flushCurrentWorkspaceToList();
-
-    if (saveTimer) clearTimeout(saveTimer);
-    const slug = project.slug;
-    saveTimer = setTimeout(() => {
-      saveTimer = null;
-      void runWorkspaceSave(slug, id);
-    }, 400);
+    layoutTarget = { slug: project.slug, id };
+    const snap = workspaces.find((w) => w.id === id);
+    const large = snap ? bodyByteLength(JSON.stringify(snap)) > KEEPALIVE_BUDGET_BYTES : false;
+    layoutSave.schedule({ large });
   }
 
   /** Fire a pending layout save now and wait until the PUT settles. */
   async function flushWorkspaceSave(): Promise<void> {
-    if (saveTimer) {
-      clearTimeout(saveTimer);
-      saveTimer = null;
-      if (project && workspace) void runWorkspaceSave(project.slug, workspace.id);
-    }
-    const flight = workspaceSaveFlight;
-    if (flight) await flight;
+    await layoutSave.flush();
   }
 
   function updateWorkspace(mutator: (ws: Workspace) => void) {
@@ -1162,11 +1165,13 @@
   }
 
   function cancelTabDrag() {
+    const wasDragging = tabDrag.dragging;
     if (tabDrag.origList) {
       workspaces = sortWorkspaces(tabDrag.origList.map(cloneWorkspace));
     }
     resetTabDrag();
     if (workspace) scheduleWorkspaceSave();
+    if (wasDragging) layoutSave.release({ debounce: true });
   }
 
   /** Board select — click opens; a completed drag does not. */
@@ -1211,10 +1216,7 @@
       dragWsId = tabDrag.id;
       tabDrag.suppressClick = true;
       document.body.classList.add('lit-tab-dragging');
-      if (saveTimer) {
-        clearTimeout(saveTimer);
-        saveTimer = null;
-      }
+      layoutSave.hold();
     }
     if (!tabDrag.dragging) return;
     e.preventDefault();
@@ -1228,10 +1230,17 @@
     const snapshot = tabDrag.origList;
     const list = workspaces;
     resetTabDrag();
-    if (wasDrag) {
-      e.preventDefault();
-      if (dirty) void persistWorkspaceOrders(list, snapshot);
+    if (!wasDrag) return;
+    e.preventDefault();
+    if (dirty) {
+      // persistWorkspaceOrders writes every board, including the layout snapshotted
+      // at pointer-down. Drop the held gate save so that drag does not PUT twice.
+      layoutSave.cancel();
+      layoutSave.release();
+      void persistWorkspaceOrders(list, snapshot);
+      return;
     }
+    layoutSave.release();
   }
 
   function wheelShouldZoom(e: WheelEvent): boolean {
@@ -1298,12 +1307,15 @@
   };
 
   function endZoomScrub() {
+    const was = zoomScrub.pointerId !== -1;
+    const moved = zoomScrub.dragging;
     zoomScrub.pointerId = -1;
     zoomScrub.dragging = false;
     document.body.classList.remove('lit-zoom-scrubbing');
     window.removeEventListener('pointermove', onZoomScrubMove, true);
     window.removeEventListener('pointerup', onZoomScrubUp, true);
     window.removeEventListener('pointercancel', onZoomScrubUp, true);
+    if (was) layoutSave.release({ debounce: !moved });
   }
 
   function onZoomReadoutPointerDown(e: PointerEvent) {
@@ -1311,11 +1323,13 @@
     if (e.ctrlKey) return;
     e.preventDefault();
     e.stopPropagation();
+    const already = zoomScrub.pointerId !== -1;
     zoomScrub.pointerId = e.pointerId;
     zoomScrub.startX = e.clientX;
     zoomScrub.startY = e.clientY;
     zoomScrub.startZoom = workspace.ui.zoom || 1;
     zoomScrub.dragging = false;
+    if (!already) layoutSave.hold();
     window.removeEventListener('pointermove', onZoomScrubMove, true);
     window.removeEventListener('pointerup', onZoomScrubUp, true);
     window.removeEventListener('pointercancel', onZoomScrubUp, true);
@@ -1408,9 +1422,13 @@
   }
 
   function endCanvasPan() {
+    const wasPanning = panning;
+    const moved = canvasPan.moved;
     canvasPan.pointerId = -1;
+    canvasPan.moved = false;
     panning = false;
     clearCanvasPanListeners();
+    if (wasPanning) layoutSave.release({ debounce: !moved });
   }
 
   const CTRL_PAN_SKIP_CLICK =
@@ -1452,12 +1470,17 @@
   function beginCanvasPan(e: PointerEvent) {
     if (!workspace) return;
     e.preventDefault();
+    const already = panning;
     const cur = workspace.ui.viewport_scroll ?? defaultPan();
     canvasPan.pointerId = e.pointerId;
     canvasPan.startX = e.clientX;
     canvasPan.startY = e.clientY;
     canvasPan.origX = cur.x;
     canvasPan.origY = cur.y;
+    if (!already) {
+      canvasPan.moved = false;
+      layoutSave.hold();
+    }
     panning = true;
     document.body.classList.add('lit-canvas-panning');
     clearCanvasPanListeners();
@@ -1521,6 +1544,8 @@
     e.preventDefault();
     const dx = e.clientX - canvasPan.startX;
     const dy = e.clientY - canvasPan.startY;
+    if (dx === 0 && dy === 0) return;
+    canvasPan.moved = true;
     updateWorkspace((ws) => {
       ws.ui.viewport_scroll = {
         x: canvasPan.origX + dx,
@@ -2031,6 +2056,9 @@
       console.error(err);
       return reloadItemAfterFailedSave(itemId, slug);
     },
+    fetchLatest: (slug, itemId) => api.item(slug, itemId),
+    onConflictKept: () => showToast('Couldn\'t save — will retry'),
+    isLocked: isProjectLockedError,
   });
 
   function scheduleItemPatch(itemId: string, fields: Record<string, unknown>) {
@@ -2352,11 +2380,13 @@
   }
 
   function endUrgencyDrag() {
+    const dragging = urgencyDrag !== null;
     if (urgencyDragMoved) urgencySuppressClick = true;
     urgencyDrag = null;
     urgencyDragMoved = false;
     clearUrgencyDragListeners();
     document.body.classList.remove('lit-urgency-dragging');
+    if (dragging) layoutSave.release();
     itemSaveQueue.release();
   }
 
@@ -2431,6 +2461,7 @@
     urgencyDragY = e.clientY;
     urgencyDrag = { itemId: item.id, fieldId, pointerId: e.pointerId, body };
     itemSaveQueue.hold();
+    layoutSave.hold();
     document.body.classList.add('lit-urgency-dragging');
     window.addEventListener('pointermove', onUrgencyDragMove, true);
     window.addEventListener('pointerup', endUrgencyDrag, true);
@@ -2663,10 +2694,7 @@
     }
 
     // Drop a pending save of the deleted board so it cannot be written back.
-    if (saveTimer && workspace?.id === id) {
-      clearTimeout(saveTimer);
-      saveTimer = null;
-    }
+    if (workspace?.id === id) layoutSave.cancel();
 
     const wasCurrent = workspace?.id === id;
     workspaces = remaining;
@@ -2714,10 +2742,7 @@
     if (suppressLockDrop) return;
     suppressLockDrop = true;
     showToast(message);
-    if (saveTimer) {
-      clearTimeout(saveTimer);
-      saveTimer = null;
-    }
+    layoutSave.cancel();
     itemSaveQueue.cancelAll();
     projectClaims.setCurrentProject(null);
     project = null;
@@ -2742,15 +2767,11 @@
    */
   function litCloseFlush() {
     itemSaveQueue.flushKeepalive();
-    if (saveTimer) {
-      clearTimeout(saveTimer);
-      saveTimer = null;
-      if (project && workspace) void runWorkspaceSave(project.slug, workspace.id, { keepalive: true });
-    }
+    void layoutSave.flush({ keepalive: true });
   }
 
   function litSavesPending(): boolean {
-    return itemSaveQueue.busy() || saveTimer !== null || workspaceSaveFlight !== null;
+    return itemSaveQueue.busy() || layoutSave.busy();
   }
 
   /** Give up so the window can close if release-all does not return. */
@@ -2785,6 +2806,13 @@
       await flushWorkspaceSave();
       location.reload();
     });
+  }
+
+  /** pywebview sets data-webview and exposes window.pywebview.api. */
+  function runningInWebview(): boolean {
+    if (inWebview) return true;
+    if (document.documentElement.getAttribute('data-webview') === '1') return true;
+    return Boolean(webviewApi());
   }
 
   function webviewApi():
@@ -3618,6 +3646,8 @@
             }}
             onfocusview={() => zoomToPanel(panel)}
             onmove={(patch) => movePanel(panel.id, patch)}
+            ongesturestart={() => layoutSave.hold()}
+            ongestureend={(moved) => layoutSave.release({ debounce: !moved })}
             onclose={() => closePanel(panel.id)}
             oncontext={
               panel.kind === 'item' && item
