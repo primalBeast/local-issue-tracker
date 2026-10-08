@@ -5,6 +5,7 @@
  * move. If that debounce fires mid-drag, the release schedules a second PUT.
  * hold() keeps the dirty flag and sends once on release(), like the item queue.
  * flush() still sends a save that is waiting on a hold (close / reload).
+ * resetHolds() drops a leaked hold so a missed pointerup cannot block autosave.
  */
 
 export type LayoutSaveRequest = {
@@ -23,6 +24,12 @@ export type LayoutSaveGate = {
   release(opts?: { debounce?: boolean }): void;
   /** Send a pending save now, including one held by a drag, and wait for it. */
   flush(opts?: { keepalive?: boolean }): Promise<void>;
+  /**
+   * Drop the hold count to 0. If a save is waiting, arm the debounce
+   * (an oversized body sends immediately). A debounce that is already
+   * running, with nothing held, is left alone.
+   */
+  resetHolds(): void;
   /** Drop a pending save. Does not cancel a PUT that has already started. */
   cancel(): void;
   /** True while a save is waiting or a PUT is still in flight. */
@@ -133,6 +140,18 @@ export function createLayoutSaveGate(opts: GateOptions): LayoutSaveGate {
     if (flight) await flight;
   }
 
+  function resetHolds(): void {
+    const leaked = held > 0;
+    held = 0;
+    if (!dirty) return;
+    if (!leaked && timer != null) return;
+    if (pendingLarge) {
+      void startSend(false);
+      return;
+    }
+    arm();
+  }
+
   function cancel(): void {
     dirty = false;
     pendingLarge = false;
@@ -152,6 +171,7 @@ export function createLayoutSaveGate(opts: GateOptions): LayoutSaveGate {
     hold,
     release,
     flush,
+    resetHolds,
     cancel,
     busy,
     hasLargeSave,

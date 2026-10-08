@@ -113,6 +113,15 @@
     if (active) ongestureend?.(moved);
   }
 
+  // App ends every gesture on blur, Escape, and project/board changes.
+  // Also end on blur here so a panel drag cannot outlive the hold reset.
+  function onExternalEndGestures() {
+    if (gesture.mode !== null) endGesture();
+  }
+
+  window.addEventListener('blur', onExternalEndGestures);
+  window.addEventListener('lit-end-gestures', onExternalEndGestures);
+
   function onWindowPointerMove(e: PointerEvent) {
     if (gesture.mode === null) return;
     if (gesture.pointerId >= 0 && e.pointerId !== gesture.pointerId) return;
@@ -247,6 +256,8 @@
   }
 
   onDestroy(() => {
+    window.removeEventListener('blur', onExternalEndGestures);
+    window.removeEventListener('lit-end-gestures', onExternalEndGestures);
     clearClickSuppress();
     endGesture();
   });

@@ -297,6 +297,10 @@
 
   function onAppWindowBlur() {
     skipFocusExitClick = true;
+    // Alt-tab drops the pointer without pointerup. An unfinished tab reorder
+    // is not a drop; put those tabs back, then end every other gesture.
+    if (tabDrag.dragging) cancelTabDrag();
+    endAllGestures();
   }
 
   function onAppWindowFocus() {
@@ -408,8 +412,10 @@
         if (tabDrag.dragging || tabDrag.id) {
           e.preventDefault();
           cancelTabDrag();
+          endAllGestures();
           return;
         }
+        endAllGestures();
         if (itemDeleteConfirm) {
           itemDeleteConfirm = null;
           return;
@@ -513,12 +519,8 @@
       window.removeEventListener('pointerdown', onDocPointerDown, true);
       window.removeEventListener('blur', onAppWindowBlur);
       window.removeEventListener('focus', onAppWindowFocus);
-      endCanvasPan();
+      endAllGestures();
       clearCtrlPanClickSuppress();
-      endZoomScrub();
-      if (tabDrag.dragging) layoutSave.release();
-      resetTabDrag();
-      endUrgencyDrag();
     };
   });
 
@@ -890,6 +892,10 @@
   }
 
   async function loadProject(slug: string) {
+    // Callers flush while they still hold the lock. Drop anything queued after
+    // that so a late PUT cannot 423, and clear holds so the next board autosaves.
+    itemSaveQueue.cancelAll();
+    endAllGestures({ save: false });
     const claimed = await api.claimProject(slug);
     if (!claimed.ok) {
       showToast(TAKEN_TITLE);
@@ -1054,8 +1060,11 @@
     if (!project) return;
     if (workspace?.id === id) return;
 
-    // Persist current workspace into the list before leaving it
+    // Persist current workspace into the list before leaving it.
+    // End drags first so a held layout save goes out for this board, not the next.
     flushCurrentWorkspaceToList();
+    endAllGestures();
+    void layoutSave.flush();
 
     // Switch immediately from local list so the tab always responds
     const local = workspaces.find((x) => x.id === id);
@@ -1151,6 +1160,7 @@
     window.removeEventListener('pointermove', onTabWindowMove, true);
     window.removeEventListener('pointerup', onTabWindowUp, true);
     window.removeEventListener('pointercancel', onTabWindowUp, true);
+    window.removeEventListener('lostpointercapture', onTabWindowUp, true);
   }
 
   function resetTabDrag() {
@@ -1185,6 +1195,9 @@
 
   function onTabPointerDown(e: PointerEvent, id: string) {
     if (e.button !== 0) return;
+    // A second pointer would clear `dragging` and leak the first hold.
+    // The pointer that is already down owns pointerup / pointercancel.
+    if (tabDrag.id) return;
     flushCurrentWorkspaceToList();
     tabDrag.id = id;
     tabDrag.startX = e.clientX;
@@ -1198,6 +1211,7 @@
     window.addEventListener('pointermove', onTabWindowMove, true);
     window.addEventListener('pointerup', onTabWindowUp, true);
     window.addEventListener('pointercancel', onTabWindowUp, true);
+    window.addEventListener('lostpointercapture', onTabWindowUp, true);
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     } catch {
@@ -1315,6 +1329,7 @@
     window.removeEventListener('pointermove', onZoomScrubMove, true);
     window.removeEventListener('pointerup', onZoomScrubUp, true);
     window.removeEventListener('pointercancel', onZoomScrubUp, true);
+    window.removeEventListener('lostpointercapture', onZoomScrubUp, true);
     if (was) layoutSave.release({ debounce: !moved });
   }
 
@@ -1333,9 +1348,11 @@
     window.removeEventListener('pointermove', onZoomScrubMove, true);
     window.removeEventListener('pointerup', onZoomScrubUp, true);
     window.removeEventListener('pointercancel', onZoomScrubUp, true);
+    window.removeEventListener('lostpointercapture', onZoomScrubUp, true);
     window.addEventListener('pointermove', onZoomScrubMove, true);
     window.addEventListener('pointerup', onZoomScrubUp, true);
     window.addEventListener('pointercancel', onZoomScrubUp, true);
+    window.addEventListener('lostpointercapture', onZoomScrubUp, true);
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     } catch {
@@ -1418,6 +1435,7 @@
     window.removeEventListener('pointermove', onCanvasPanMove, true);
     window.removeEventListener('pointerup', onCanvasPanUp, true);
     window.removeEventListener('pointercancel', onCanvasPanUp, true);
+    window.removeEventListener('lostpointercapture', onCanvasPanUp, true);
     document.body.classList.remove('lit-canvas-panning');
   }
 
@@ -1487,6 +1505,7 @@
     window.addEventListener('pointermove', onCanvasPanMove, true);
     window.addEventListener('pointerup', onCanvasPanUp, true);
     window.addEventListener('pointercancel', onCanvasPanUp, true);
+    window.addEventListener('lostpointercapture', onCanvasPanUp, true);
   }
 
   /** Ctrl+drag pans the canvas from anywhere, including over panels and controls. */
@@ -2390,6 +2409,23 @@
     itemSaveQueue.release();
   }
 
+  /**
+   * Stop pan, zoom, tab, urgency, and panel drags, then drop any hold that
+   * none of those releases matched. A leaked hold blocks layout autosave.
+   * `save: false` clears a pending layout PUT (callers that already flushed,
+   * or that no longer hold the project lock).
+   */
+  function endAllGestures(opts?: { save?: boolean }) {
+    if (opts?.save === false) layoutSave.cancel();
+    endCanvasPan();
+    endZoomScrub();
+    if (tabDrag.dragging) layoutSave.release();
+    if (tabDrag.id || tabDrag.dragging) resetTabDrag();
+    endUrgencyDrag();
+    window.dispatchEvent(new CustomEvent('lit-end-gestures'));
+    layoutSave.resetHolds();
+  }
+
   function stepUrgencyDrag(): boolean {
     const drag = urgencyDrag;
     if (!drag || workspace?.sort?.field !== drag.fieldId) return false;
@@ -2456,13 +2492,18 @@
     if (!body) return;
     e.preventDefault();
     e.stopPropagation();
+    // Restarting mid-drag used to hold again and only release once.
+    const already = urgencyDrag !== null;
     urgencyDragMoved = false;
     urgencyDragStartY = e.clientY;
     urgencyDragY = e.clientY;
     urgencyDrag = { itemId: item.id, fieldId, pointerId: e.pointerId, body };
-    itemSaveQueue.hold();
-    layoutSave.hold();
+    if (!already) {
+      itemSaveQueue.hold();
+      layoutSave.hold();
+    }
     document.body.classList.add('lit-urgency-dragging');
+    clearUrgencyDragListeners();
     window.addEventListener('pointermove', onUrgencyDragMove, true);
     window.addEventListener('pointerup', endUrgencyDrag, true);
     window.addEventListener('pointercancel', endUrgencyDrag, true);
@@ -2694,9 +2735,12 @@
     }
 
     // Drop a pending save of the deleted board so it cannot be written back.
-    if (workspace?.id === id) layoutSave.cancel();
+    const deletingCurrent = workspace?.id === id;
+    if (deletingCurrent) layoutSave.cancel();
+    endAllGestures();
+    if (!deletingCurrent) void layoutSave.flush();
 
-    const wasCurrent = workspace?.id === id;
+    const wasCurrent = deletingCurrent;
     workspaces = remaining;
     boardRemoveConfirm = null;
     boardEditor = null;
@@ -2744,6 +2788,7 @@
     showToast(message);
     layoutSave.cancel();
     itemSaveQueue.cancelAll();
+    endAllGestures();
     projectClaims.setCurrentProject(null);
     project = null;
     workspace = null;
@@ -2952,6 +2997,7 @@
   async function closeOpenProject() {
     if (!project) return;
     const slug = project.slug;
+    endAllGestures();
     await itemSaveQueue.flush();
     await flushWorkspaceSave();
     projectClaims.setCurrentProject(null);
@@ -2975,6 +3021,9 @@
       return;
     }
     const previousSlug = project.slug;
+    // End drags before the flush so the last positions are saved while this
+    // project still holds the lock. releaseProject runs after the flush.
+    endAllGestures();
     await itemSaveQueue.flush();
     await flushWorkspaceSave();
     if (!project || project.slug !== previousSlug) return;
@@ -2983,6 +3032,9 @@
       showToast(TAKEN_TITLE);
       return;
     }
+    endAllGestures();
+    await itemSaveQueue.flush();
+    await flushWorkspaceSave();
     projectClaims.setCurrentProject(slug);
     try {
       await api.releaseProject(previousSlug);
@@ -3017,6 +3069,9 @@
       });
       projects = [...projects, created];
       projectEditor = null;
+      endAllGestures();
+      await itemSaveQueue.flush();
+      await flushWorkspaceSave();
       await loadProject(created.slug);
       if (previousSlug && previousSlug !== created.slug && project?.slug === created.slug) {
         try {

@@ -27,4 +27,15 @@ describe('parseNumberInput', () => {
     expect(parseNumberInput('3', { min: 3, max: 9 })).toBe(3);
     expect(parseNumberInput('', { min: 3 })).toBeNull();
   });
+
+  it('keeps a blank required number unchanged and still clears an optional one', () => {
+    expect(parseNumberInput('', { required: true })).toBeUndefined();
+    expect(parseNumberInput('  ', { required: true })).toBeUndefined();
+    expect(parseNumberInput('\t', { required: true, min: 3 })).toBeUndefined();
+    expect(parseNumberInput('0', { required: true })).toBe(0);
+    expect(parseNumberInput('4', { required: true, min: 3, max: 9 })).toBe(4);
+    expect(parseNumberInput('2', { required: true, min: 3 })).toBeUndefined();
+    expect(parseNumberInput('', { required: false })).toBeNull();
+    expect(parseNumberInput('  ', { required: false, max: 9 })).toBeNull();
+  });
 });

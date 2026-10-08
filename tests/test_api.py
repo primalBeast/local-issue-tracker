@@ -141,7 +141,7 @@ def test_ticket_key_accepts_full_url(client: TestClient):
 
 
 def test_patch_number_field_to_null(client: TestClient):
-    """A number field can be cleared. Empty string and non-numbers stay invalid."""
+    """Optional numbers clear to null. A required number rejects null and stays stored."""
     slug = client.get("/api/projects").json()[0]["slug"]
     created = client.post(
         f"/api/projects/{slug}/items",
@@ -165,26 +165,38 @@ def test_patch_number_field_to_null(client: TestClient):
     assert cleared.json()["fields"]["urgency"] is None
     assert cleared.json()["fields"]["priority"] == 4
 
+    version = cleared.json()["version"]
     priority = client.patch(
         f"/api/projects/{slug}/items/{item['id']}",
-        json={"fields": {"priority": None}, "version": cleared.json()["version"]},
+        json={"fields": {"priority": None}, "version": version},
     )
-    assert priority.status_code == 200, priority.text
-    assert priority.json()["fields"]["priority"] is None
+    assert priority.status_code == 422, priority.text
+    assert {"field": "priority", "message": "required"} in priority.json()["detail"]
 
-    again = client.get(f"/api/projects/{slug}/items/{item['id']}")
-    assert again.status_code == 200
-    assert again.json()["fields"]["urgency"] is None
-    assert again.json()["fields"]["priority"] is None
+    stored = client.get(f"/api/projects/{slug}/items/{item['id']}")
+    assert stored.status_code == 200
+    assert stored.json()["fields"]["urgency"] is None
+    assert stored.json()["fields"]["priority"] == 4
+    assert stored.json()["version"] == version
+
+    blank_priority = client.patch(
+        f"/api/projects/{slug}/items/{item['id']}",
+        json={"fields": {"priority": ""}, "version": version},
+    )
+    assert blank_priority.status_code == 422, blank_priority.text
+    assert {"field": "priority", "message": "required"} in blank_priority.json()["detail"]
+    after_blank = client.get(f"/api/projects/{slug}/items/{item['id']}")
+    assert after_blank.json()["fields"]["priority"] == 4
+    assert after_blank.json()["version"] == version
 
     bad = client.patch(
         f"/api/projects/{slug}/items/{item['id']}",
-        json={"fields": {"urgency": "nope"}, "version": priority.json()["version"]},
+        json={"fields": {"urgency": "nope"}, "version": version},
     )
     assert bad.status_code == 422, bad.text
     empty = client.patch(
         f"/api/projects/{slug}/items/{item['id']}",
-        json={"fields": {"urgency": ""}, "version": priority.json()["version"]},
+        json={"fields": {"urgency": ""}, "version": version},
     )
     assert empty.status_code == 422, empty.text
 

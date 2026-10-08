@@ -145,8 +145,10 @@
       const parsed = parseNumberInput(raw, {
         min: def.validation?.min,
         max: def.validation?.max,
+        required: def.required,
       });
-      // undefined: invalid text, leave the stored value. null: cleared field.
+      // undefined: invalid text, or a blank required number. Keep the stored value.
+      // null: an optional number was cleared.
       if (parsed === undefined) return { ok: false, value: null };
       return { ok: true, value: parsed };
     }

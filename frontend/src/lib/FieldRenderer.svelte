@@ -44,9 +44,10 @@
     const parsed = parseNumberInput(numberDraft, {
       min: def.validation?.min,
       max: def.validation?.max,
+      required: def.required,
     });
     numberFocused = false;
-    // Invalid text (not a blank) keeps the stored number.
+    // Invalid text, or a blank required number, keeps the stored value.
     if (parsed === undefined) return;
     const blank = numberOriginal == null || numberOriginal === '';
     if (parsed === null) {

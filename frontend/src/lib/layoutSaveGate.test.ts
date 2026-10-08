@@ -121,4 +121,70 @@ describe('layout save gate', () => {
     expect(send.mock.calls[1][0]).toEqual({ keepalive: false });
     await done;
   });
+
+  it('resetHolds clears a leaked hold and saves once', async () => {
+    const send = vi.fn(async (_req: LayoutSaveRequest) => {});
+    const gate = createLayoutSaveGate({ delayMs: 400, send });
+
+    gate.hold();
+    gate.schedule();
+    gate.hold();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(send).not.toHaveBeenCalled();
+    expect(gate.busy()).toBe(true);
+
+    gate.resetHolds();
+    expect(send).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(399);
+    expect(send).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(send).toHaveBeenCalledTimes(1);
+
+    // The pointerup that never came, arriving late, must not send again.
+    gate.release();
+    gate.release();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(send).toHaveBeenCalledTimes(1);
+
+    gate.schedule();
+    await vi.advanceTimersByTimeAsync(400);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(gate.busy()).toBe(false);
+  });
+
+  it('resetHolds with nothing pending does not save', async () => {
+    const send = vi.fn(async (_req: LayoutSaveRequest) => {});
+    const gate = createLayoutSaveGate({ delayMs: 400, send });
+
+    gate.hold();
+    gate.resetHolds();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(send).not.toHaveBeenCalled();
+    expect(gate.busy()).toBe(false);
+  });
+
+  it('resetHolds does not restart a debounce that is already running', async () => {
+    const send = vi.fn(async (_req: LayoutSaveRequest) => {});
+    const gate = createLayoutSaveGate({ delayMs: 400, send });
+
+    gate.schedule();
+    await vi.advanceTimersByTimeAsync(200);
+    gate.resetHolds();
+    await vi.advanceTimersByTimeAsync(200);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('resetHolds sends a held oversized save immediately', async () => {
+    const send = vi.fn(async (_req: LayoutSaveRequest) => {});
+    const gate = createLayoutSaveGate({ delayMs: 400, send });
+
+    gate.hold();
+    gate.schedule({ large: true });
+    expect(send).not.toHaveBeenCalled();
+    gate.resetHolds();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0][0]).toEqual({ keepalive: false });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
 });
