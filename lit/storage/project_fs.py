@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import uuid
 from copy import deepcopy
@@ -556,6 +557,24 @@ def save_deliverables(slug: str, data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+# Ids the app creates are "ws-main" and "ws-" plus 8 lowercase hex chars.
+# A short token after "ws-" is allowed. Path characters are not: the check
+# runs before any filesystem access so a Windows id cannot escape the folder.
+WORKSPACE_ID_RE = re.compile(r"^ws-[A-Za-z0-9_-]{1,64}$")
+
+
+def _workspace_json_path(slug: str, workspace_id: str) -> Path:
+    """Validate the id before any filesystem access, then return its JSON path."""
+    if not isinstance(workspace_id, str) or WORKSPACE_ID_RE.fullmatch(workspace_id) is None:
+        raise ValueError("Invalid workspace id")
+    directory = (project_dir(slug) / "workspaces").resolve()
+    path = directory / f"{workspace_id}.json"
+    resolved = path.resolve()
+    if not resolved.is_relative_to(directory) or resolved.parent != directory:
+        raise ValueError("Workspace path escapes the workspaces directory")
+    return path
+
+
 def list_workspaces(slug: str) -> list[dict[str, Any]]:
     ws_dir = project_dir(slug) / "workspaces"
     if not ws_dir.exists():
@@ -571,7 +590,7 @@ def list_workspaces(slug: str) -> list[dict[str, Any]]:
 
 
 def load_workspace(slug: str, workspace_id: str) -> dict[str, Any]:
-    path = project_dir(slug) / "workspaces" / f"{workspace_id}.json"
+    path = _workspace_json_path(slug, workspace_id)
     if not path.exists():
         raise FileNotFoundError(workspace_id)
     data = read_json(path)
@@ -581,12 +600,13 @@ def load_workspace(slug: str, workspace_id: str) -> dict[str, Any]:
 
 
 def save_workspace(slug: str, workspace_id: str, data: dict[str, Any]) -> dict[str, Any]:
+    path = _workspace_json_path(slug, workspace_id)
     data = deepcopy(data)
     data["id"] = workspace_id
     data["updated_at"] = _now()
     if "schema_version" not in data:
         data["schema_version"] = 1
-    write_json(project_dir(slug) / "workspaces" / f"{workspace_id}.json", data)
+    write_json(path, data)
     return data
 
 
@@ -602,11 +622,16 @@ def strip_item_from_workspaces(slug: str, item_id: str) -> None:
         if len(kept) == len(panels):
             continue
         ws["panels"] = kept
-        save_workspace(slug, str(ws.get("id") or ""), ws)
+        # The id stored in the file is not the filename. A bad id must not
+        # write outside the folder or stop the other boards from updating.
+        try:
+            save_workspace(slug, str(ws.get("id") or ""), ws)
+        except ValueError:
+            continue
 
 
 def delete_workspace(slug: str, workspace_id: str) -> bool:
-    path = project_dir(slug) / "workspaces" / f"{workspace_id}.json"
+    path = _workspace_json_path(slug, workspace_id)
     if not path.exists():
         return False
     path.unlink()

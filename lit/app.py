@@ -8,11 +8,18 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from lit import __version__
 from lit.api import backups, deliverables, desktop, fields, items, notes, projects, settings, templates, workspaces
 from lit.config import get_config
-from lit.middleware import SecurityHeadersMiddleware, install_cors
+from lit.middleware import (
+    OriginCheckMiddleware,
+    SecurityHeadersMiddleware,
+    install_cors,
+    trusted_host_header_values,
+    trusted_hostnames,
+)
 
 logger = logging.getLogger("lit.app")
 
@@ -40,8 +47,17 @@ def create_app() -> FastAPI:
         redoc_url=None,
     )
 
+    # add_middleware wraps, so the last addition runs first. The Host check
+    # must be outermost, before CORS and the origin check.
+    hostnames = trusted_hostnames(cfg.host)
+    app.add_middleware(OriginCheckMiddleware, allowed_hosts=hostnames)
     install_cors(app, enabled=cfg.dev_cors)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=trusted_host_header_values(hostnames),
+        www_redirect=False,
+    )
 
     @app.get("/health")
     def health() -> dict:
