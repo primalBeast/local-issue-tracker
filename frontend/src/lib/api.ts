@@ -142,25 +142,65 @@ function formatApiError(detail: unknown): string {
   return String(detail ?? 'Request failed');
 }
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
-    ...init,
-  });
-  if (!res.ok) {
-    let detail: unknown = res.statusText;
-    try {
-      detail = await res.json();
-    } catch {
-      /* ignore */
-    }
-    throw new Error(formatApiError(detail));
+/** HTTP failure from the local API. `status` 423 means another window holds the project. */
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
   }
+}
+
+export function isProjectLockedError(err: unknown): boolean {
+  if (err instanceof ApiError && err.status === 423) return true;
+  return err instanceof Error && /open in another window/i.test(err.message);
+}
+
+/** Window id sent as X-Lit-Client. Empty until `setClientId`. */
+let litClientId: string | null = null;
+
+export function setClientId(id: string | null): void {
+  litClientId = id ? id : null;
+}
+
+export function getClientId(): string | null {
+  return litClientId;
+}
+
+export type ClaimResult = { ok: true } | { ok: false; heldByOther: true };
+
+function withClient(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (litClientId) headers.set('X-Lit-Client', litClientId);
+  return { ...init, headers };
+}
+
+async function errorFrom(res: Response): Promise<ApiError> {
+  let detail: unknown = res.statusText;
+  try {
+    detail = await res.json();
+  } catch {
+    /* ignore */
+  }
+  let message = formatApiError(detail);
+  if (res.status === 423 && !/open in another window/i.test(message)) {
+    message = 'Project is open in another window';
+  }
+  return new ApiError(res.status, message);
+}
+
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, withClient(init));
+  if (!res.ok) throw await errorFrom(res);
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
 export const api = {
+  setClientId,
+  getClientId,
   health: () => req<{ status: string; version?: string }>('/health'),
   settings: () => req<Record<string, unknown>>('/api/settings'),
   patchSettings: (body: Record<string, unknown>) =>
@@ -244,10 +284,11 @@ export const api = {
   workspaces: (slug: string) => req<Workspace[]>(`/api/projects/${slug}/workspaces`),
   workspace: (slug: string, id: string) =>
     req<Workspace>(`/api/projects/${slug}/workspaces/${id}`),
-  putWorkspace: (slug: string, id: string, body: Workspace) =>
+  putWorkspace: (slug: string, id: string, body: Workspace, opts?: { keepalive?: boolean }) =>
     req<Workspace>(`/api/projects/${slug}/workspaces/${id}`, {
       method: 'PUT',
       body: JSON.stringify(body),
+      ...(opts?.keepalive ? { keepalive: true } : {}),
     }),
   createWorkspace: (slug: string, name: string, order?: number) =>
     req<Workspace>(`/api/projects/${slug}/workspaces`, {
@@ -269,4 +310,39 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ schema_version: 1, items }),
     }),
+  /** 200 if free or already ours. 409 is heldByOther and does not throw. */
+  claimProject: async (slug: string): Promise<ClaimResult> => {
+    const res = await fetch(`/api/projects/${slug}/claim`, withClient({ method: 'POST' }));
+    if (res.status === 409) {
+      try {
+        await res.json();
+      } catch {
+        /* ignore */
+      }
+      return { ok: false, heldByOther: true };
+    }
+    if (!res.ok) throw await errorFrom(res);
+    try {
+      await res.json();
+    } catch {
+      /* empty body */
+    }
+    return { ok: true };
+  },
+  releaseProject: (slug: string, opts?: { keepalive?: boolean }) =>
+    req<{ released: boolean }>(`/api/projects/${slug}/release`, {
+      method: 'POST',
+      ...(opts?.keepalive ? { keepalive: true } : {}),
+    }),
+  /** Releases every project this client holds. Used on window close. */
+  releaseAll: (opts?: { keepalive?: boolean; signal?: AbortSignal }) =>
+    req<{ released: string[] }>(
+      `/api/session/release-all?client=${encodeURIComponent(litClientId ?? '')}`,
+      {
+        method: 'POST',
+        ...(opts?.keepalive ? { keepalive: true } : {}),
+        ...(opts?.signal ? { signal: opts.signal } : {}),
+      }
+    ),
+  claims: () => req<{ claims: Record<string, string> }>('/api/session/claims'),
 };
