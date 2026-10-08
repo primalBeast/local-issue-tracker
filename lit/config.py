@@ -12,6 +12,7 @@ from pathlib import Path
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
+DEFAULT_VITE_PORT = 5173
 APP_NAME = "LocalIssueTracker"
 # Explorer-friendly folder in OneDrive for every file this app writes.
 WINDOWS_ONEDRIVE_FOLDER = "Local Issue Tracker"
@@ -111,6 +112,20 @@ def prepare_data_dir(dest: Path) -> None:
     migrate_windows_appdata_to_onedrive(dest)
 
 
+def _env_vite_port() -> int | None:
+    """``LIT_VITE_PORT`` when it is an integer from 1 to 65535, else None."""
+    raw = os.environ.get("LIT_VITE_PORT")
+    if raw is None or not str(raw).strip():
+        return None
+    try:
+        port = int(str(raw).strip())
+    except ValueError:
+        return None
+    if port < 1 or port > 65535:
+        return None
+    return port
+
+
 def default_data_dir() -> Path:
     env = os.environ.get("LIT_DATA_DIR")
     if env:
@@ -138,6 +153,8 @@ class AppConfig:
     open_browser: bool = False
     reload: bool = False
     dev_cors: bool = False
+    # Vite's port. Honored only while dev_cors is on. LIT_VITE_PORT overrides it.
+    vite_port: int = DEFAULT_VITE_PORT
 
     def __post_init__(self) -> None:
         self.data_dir = Path(self.data_dir).expanduser().resolve()
@@ -146,6 +163,9 @@ class AppConfig:
             self.dev_cors = True
         if self.reload:
             self.dev_cors = True
+        env_vite = _env_vite_port()
+        if env_vite is not None:
+            self.vite_port = env_vite
 
 
 # Process-wide config set at startup

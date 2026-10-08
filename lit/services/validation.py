@@ -197,6 +197,9 @@ def _coerce_and_check(fdef: dict[str, Any], value: Any) -> Any:
         return value
 
     if ftype == "number":
+        # JSON null clears the field. Required checks use _is_empty afterwards.
+        if value is None:
+            return None
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValidationError(f"{fid}: expected number", [{"field": fid, "message": "type"}])
         num = float(value) if not isinstance(value, int) else value

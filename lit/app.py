@@ -62,8 +62,15 @@ def create_app() -> FastAPI:
     # add_middleware wraps, so the last addition runs first. The Host check
     # must be outermost, before CORS and the origin check.
     hostnames = trusted_hostnames(cfg.host)
-    app.add_middleware(OriginCheckMiddleware, allowed_hosts=hostnames)
-    install_cors(app, enabled=cfg.dev_cors)
+    # dev_cors also trusts the Vite port. The Host check stays hostname-only.
+    extra_ports = [cfg.vite_port] if cfg.dev_cors else []
+    app.add_middleware(
+        OriginCheckMiddleware,
+        allowed_hosts=hostnames,
+        port=cfg.port,
+        extra_ports=extra_ports,
+    )
+    install_cors(app, enabled=cfg.dev_cors, vite_port=cfg.vite_port)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         TrustedHostMiddleware,

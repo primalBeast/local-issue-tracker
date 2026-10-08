@@ -140,6 +140,62 @@ def test_ticket_key_accepts_full_url(client: TestClient):
     assert created.json()["fields"]["ticket_key"] == "https://jira.example/browse/SHOP-12"
 
 
+def test_patch_number_field_to_null(client: TestClient):
+    """A number field can be cleared. Empty string and non-numbers stay invalid."""
+    slug = client.get("/api/projects").json()[0]["slug"]
+    created = client.post(
+        f"/api/projects/{slug}/items",
+        json={
+            "fields": {
+                "ticket_key": "NULL-1",
+                "title": "Rank",
+                "priority": 4,
+                "urgency": 7,
+                "state": "Submitted",
+            }
+        },
+    )
+    assert created.status_code == 201, created.text
+    item = created.json()
+    cleared = client.patch(
+        f"/api/projects/{slug}/items/{item['id']}",
+        json={"fields": {"urgency": None}, "version": item["version"]},
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["fields"]["urgency"] is None
+    assert cleared.json()["fields"]["priority"] == 4
+
+    priority = client.patch(
+        f"/api/projects/{slug}/items/{item['id']}",
+        json={"fields": {"priority": None}, "version": cleared.json()["version"]},
+    )
+    assert priority.status_code == 200, priority.text
+    assert priority.json()["fields"]["priority"] is None
+
+    again = client.get(f"/api/projects/{slug}/items/{item['id']}")
+    assert again.status_code == 200
+    assert again.json()["fields"]["urgency"] is None
+    assert again.json()["fields"]["priority"] is None
+
+    bad = client.patch(
+        f"/api/projects/{slug}/items/{item['id']}",
+        json={"fields": {"urgency": "nope"}, "version": priority.json()["version"]},
+    )
+    assert bad.status_code == 422, bad.text
+    empty = client.patch(
+        f"/api/projects/{slug}/items/{item['id']}",
+        json={"fields": {"urgency": ""}, "version": priority.json()["version"]},
+    )
+    assert empty.status_code == 422, empty.text
+
+    # Create still requires priority. An explicit null does not become 0.
+    missing = client.post(
+        f"/api/projects/{slug}/items",
+        json={"fields": {"ticket_key": "NULL-2", "title": "Need priority", "priority": None, "state": "Submitted"}},
+    )
+    assert missing.status_code == 422, missing.text
+
+
 def test_item_crud_and_lean_list(client: TestClient):
     slug = client.get("/api/projects").json()[0]["slug"]
     created = client.post(

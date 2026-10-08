@@ -34,6 +34,8 @@ function sameRankRunLength(order: UrgencyRow[], index: number): number {
  * Move the ticket at `index` one visual slot (`delta` -1 up, +1 down).
  * A different urgency swaps. Moving into a block of the same urgency adopts
  * that value and leaves the ticket it replaces unchanged.
+ * A blank rank adopts the other ticket's rank. Two blanks do not move.
+ * Rank 0 is emitted only when a ticket already has rank 0.
  */
 export function planUrgencyMove(
   order: UrgencyRow[],
@@ -46,24 +48,36 @@ export function planUrgencyMove(
   const neighbor = order[target];
   const draggedRank = urgencyRank(dragged.urgency);
   const neighborRank = urgencyRank(neighbor.urgency);
+  // Nothing to swap and no rank to copy. Do not invent 0.
+  if (draggedRank === null && neighborRank === null) return null;
+
   const intoBlock = neighborRank !== null && sameRankRunLength(order, target) >= 2;
   const next = order.map((item) => ({ id: item.id, urgency: item.urgency }));
   const [row] = next.splice(index, 1);
   next.splice(target, 0, row);
+  const orderIds = next.map((item) => item.id);
   const patches: UrgencyPatch[] = [];
   if (intoBlock || draggedRank === neighborRank) {
+    // neighborRank is a real rank whenever it differs from the dragged rank.
     if (neighborRank !== null && draggedRank !== neighborRank) {
       patches.push({ id: dragged.id, urgency: neighborRank });
     }
-    return { patches, orderIds: next.map((item) => item.id), clearSecondary: true };
+    return { patches, orderIds, clearSecondary: true };
   }
-  if (draggedRank !== neighborRank) {
-    patches.push({ id: dragged.id, urgency: neighborRank ?? 0 });
-    patches.push({ id: neighbor.id, urgency: draggedRank ?? 0 });
+  // Exactly one rank is blank. Both tickets take the known rank, and only the
+  // blank ticket is patched. They are now a tie, so pin visual order.
+  if (draggedRank === null && neighborRank !== null) {
+    patches.push({ id: dragged.id, urgency: neighborRank });
+    return { patches, orderIds, clearSecondary: true };
   }
-  return patches.length
-    ? { patches, orderIds: next.map((item) => item.id), clearSecondary: false }
-    : null;
+  if (neighborRank === null && draggedRank !== null) {
+    patches.push({ id: neighbor.id, urgency: draggedRank });
+    return { patches, orderIds, clearSecondary: true };
+  }
+  if (draggedRank === null || neighborRank === null) return null;
+  patches.push({ id: dragged.id, urgency: neighborRank });
+  patches.push({ id: neighbor.id, urgency: draggedRank });
+  return { patches, orderIds, clearSecondary: false };
 }
 
 export type RowBand = { top: number; height: number };

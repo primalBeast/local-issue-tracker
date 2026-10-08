@@ -2,6 +2,7 @@
   import { tick, untrack } from 'svelte';
   import type { FieldDef } from './api';
   import { calendarMonth, monthLabel, parseIsoDate } from './listCalendar';
+  import { parseNumberInput } from './parseNumberInput';
   import { todayLocalDate, waitingNameChoices } from './waiting';
 
   interface Props {
@@ -141,16 +142,13 @@
   function parsedDraft(): { ok: boolean; value: unknown } {
     const raw = draft;
     if (def.type === 'number') {
-      if (raw.trim() === '') {
-        return def.required ? { ok: false, value: null } : { ok: true, value: null };
-      }
-      const n = Number(raw);
-      if (!Number.isFinite(n)) return { ok: false, value: null };
-      const min = def.validation?.min;
-      const max = def.validation?.max;
-      if (typeof min === 'number' && n < min) return { ok: false, value: n };
-      if (typeof max === 'number' && n > max) return { ok: false, value: n };
-      return { ok: true, value: n };
+      const parsed = parseNumberInput(raw, {
+        min: def.validation?.min,
+        max: def.validation?.max,
+      });
+      // undefined: invalid text, leave the stored value. null: cleared field.
+      if (parsed === undefined) return { ok: false, value: null };
+      return { ok: true, value: parsed };
     }
     if (def.required && raw.trim() === '') return { ok: false, value: raw };
     return { ok: true, value: raw };
