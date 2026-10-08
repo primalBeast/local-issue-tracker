@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from urllib.parse import urlsplit
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
-from starlette.types import ASGIApp
+from starlette.datastructures import Headers, MutableHeaders
+from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 # Binds that do not name one client-facing host. Adding them would not make
 # Host: 0.0.0.0 useful, and must not widen the allowlist to every name.
@@ -75,7 +74,22 @@ def _is_trusted_origin(origin: str, allowed_hosts: set[str]) -> bool:
     return True
 
 
-class OriginCheckMiddleware(BaseHTTPMiddleware):
+# Pure ASGI, not BaseHTTPMiddleware. BaseHTTPMiddleware wraps the response
+# body in a memory stream and hides client disconnects from SSE handlers.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: blob:; "
+    "font-src 'self' data:; "
+    "connect-src 'self'; "
+    "frame-ancestors 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'"
+)
+
+
+class OriginCheckMiddleware:
     """Block cross-site state changes against the local API.
 
     POST, PUT, PATCH, and DELETE are rejected with 403 when:
@@ -96,53 +110,63 @@ class OriginCheckMiddleware(BaseHTTPMiddleware):
     """
 
     def __init__(self, app: ASGIApp, allowed_hosts: list[str]) -> None:
-        super().__init__(app)
+        self.app = app
         self.allowed_hosts = {host.lower() for host in allowed_hosts}
 
-    async def dispatch(self, request: Request, call_next) -> Response:
-        if request.method.upper() not in _STATE_CHANGING:
-            return await call_next(request)
-        origin = request.headers.get("origin")
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        if scope.get("method", "GET").upper() not in _STATE_CHANGING:
+            await self.app(scope, receive, send)
+            return
+        headers = Headers(scope=scope)
+        origin = headers.get("origin")
         trusted = origin is not None and _is_trusted_origin(origin, self.allowed_hosts)
         if origin is not None and not trusted:
-            return JSONResponse({"detail": "Foreign origin blocked"}, status_code=403)
-        sec_fetch = (request.headers.get("sec-fetch-site") or "").strip().lower()
+            response = JSONResponse({"detail": "Foreign origin blocked"}, status_code=403)
+            await response(scope, receive, send)
+            return
+        sec_fetch = (headers.get("sec-fetch-site") or "").strip().lower()
         if sec_fetch == "cross-site" and not trusted:
-            return JSONResponse({"detail": "Cross-site request blocked"}, status_code=403)
-        return await call_next(request)
+            response = JSONResponse({"detail": "Cross-site request blocked"}, status_code=403)
+            await response(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
 
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
-        response = await call_next(request)
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault("Referrer-Policy", "no-referrer")
-        # CSP: local app — allow self, inline styles for Svelte, data images
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            "default-src 'self'; "
-            "script-src 'self'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: blob:; "
-            "font-src 'self' data:; "
-            "connect-src 'self'; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self'",
-        )
-        path = request.url.path
-        if path.startswith("/assets/"):
-            # Hashed filenames — safe to cache forever once fetched
-            response.headers.setdefault(
-                "Cache-Control", "public, max-age=31536000, immutable"
-            )
-        elif path in ("/", "/index.html") or path.endswith(".html") or path == "":
-            # Always revalidate the shell so clients pick up new asset hashes
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-            response.headers["Pragma"] = "no-cache"
-            response.headers["Expires"] = "0"
-        return response
+class SecurityHeadersMiddleware:
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path") or ""
+
+        async def send_with_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                message.setdefault("headers", [])
+                headers = MutableHeaders(scope=message)
+                headers.setdefault("X-Content-Type-Options", "nosniff")
+                headers.setdefault("X-Frame-Options", "DENY")
+                headers.setdefault("Referrer-Policy", "no-referrer")
+                # CSP: local app — allow self, inline styles for Svelte, data images
+                headers.setdefault("Content-Security-Policy", _CSP)
+                if path.startswith("/assets/"):
+                    # Hashed filenames — safe to cache forever once fetched
+                    headers.setdefault(
+                        "Cache-Control", "public, max-age=31536000, immutable"
+                    )
+                elif path in ("/", "/index.html") or path.endswith(".html") or path == "":
+                    # Always revalidate the shell so clients pick up new asset hashes
+                    headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+                    headers["Pragma"] = "no-cache"
+                    headers["Expires"] = "0"
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
 
 
 def install_cors(app: ASGIApp, enabled: bool) -> None:
