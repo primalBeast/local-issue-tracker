@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import json
 import uuid
-from typing import Any
+from typing import Any, NoReturn
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -58,6 +59,13 @@ def create_workspace(slug: str, body: WorkspaceCreate) -> dict[str, Any]:
     return save_workspace(slug, ws_id, data)
 
 
+def _reject_bad_workspace_id(exc: ValueError) -> NoReturn:
+    # json.JSONDecodeError is a ValueError; corrupt files stay a server error.
+    if isinstance(exc, json.JSONDecodeError):
+        raise exc
+    raise HTTPException(status_code=400, detail="Invalid workspace id") from None
+
+
 @router.get("/{workspace_id}")
 def get_workspace(slug: str, workspace_id: str) -> dict[str, Any]:
     require_project(slug)
@@ -65,6 +73,8 @@ def get_workspace(slug: str, workspace_id: str) -> dict[str, Any]:
         return load_workspace(slug, workspace_id)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Workspace not found") from None
+    except ValueError as exc:
+        _reject_bad_workspace_id(exc)
 
 
 @router.put("/{workspace_id}")
@@ -73,12 +83,19 @@ def put_workspace(slug: str, workspace_id: str, body: dict[str, Any]) -> dict[st
     # LWW full replace
     body = dict(body)
     body["id"] = workspace_id
-    return save_workspace(slug, workspace_id, body)
+    try:
+        return save_workspace(slug, workspace_id, body)
+    except ValueError as exc:
+        _reject_bad_workspace_id(exc)
 
 
 @router.delete("/{workspace_id}")
 def remove_workspace(slug: str, workspace_id: str) -> dict[str, str]:
     require_project(slug)
-    if not delete_workspace(slug, workspace_id):
+    try:
+        deleted = delete_workspace(slug, workspace_id)
+    except ValueError as exc:
+        _reject_bad_workspace_id(exc)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Workspace not found")
     return {"status": "deleted", "id": workspace_id}
