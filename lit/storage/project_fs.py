@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from lit.paths import project_dir, projects_dir, validate_slug
+from lit.security import normalize_url_prefix, sanitize_tab_color
 from lit.services.waiting import (
     LEGACY_WAITING_STATE,
     apply_waiting_flag,
@@ -71,7 +72,7 @@ def save_project(slug: str, data: dict[str, Any]) -> dict[str, Any]:
     data.pop("data_path", None)
     data["slug"] = slug
     data["updated_at"] = _now()
-    data["url_prefix"] = str(data.get("url_prefix") or "").strip()
+    data["url_prefix"] = normalize_url_prefix(data.get("url_prefix"))
     dest = project_dir(slug)
     write_json(dest / "project.json", data)
     prefix = data.get("ticket_prefix")
@@ -217,6 +218,65 @@ EXTERNAL_TICKET_FIELDS: list[dict[str, Any]] = [
         "show_in_list": False,
     },
 ]
+
+
+PINNED_FIELD: dict[str, Any] = {
+    "id": "pinned",
+    "label": "Pinned",
+    "type": "checkbox",
+    "required": False,
+    "order": 22,
+    "default": False,
+    "filterable": True,
+    "show_in_list": True,
+}
+
+DUE_ON_FIELD: dict[str, Any] = {
+    "id": "due_on",
+    "label": "Due",
+    "type": "date",
+    "required": False,
+    "order": 46,
+    "default": "",
+    "show_in_list": True,
+}
+
+
+def ensure_pinned_field(data: dict[str, Any]) -> bool:
+    """Add a Pinned checkbox when the project schema does not have one."""
+    return _ensure_field(data, PINNED_FIELD, after_id="alternate_ticket")
+
+
+def ensure_due_on_field(data: dict[str, Any]) -> bool:
+    """Add a Due date when the project schema does not have one."""
+    return _ensure_field(data, DUE_ON_FIELD, before_ids=("waiting", "waiting_for", "notes"))
+
+
+def _ensure_field(
+    data: dict[str, Any],
+    spec: dict[str, Any],
+    *,
+    after_id: str | None = None,
+    before_ids: tuple[str, ...] = (),
+) -> bool:
+    fields = data.get("fields")
+    if not isinstance(fields, list):
+        return False
+    if any(isinstance(f, dict) and f.get("id") == spec["id"] for f in fields):
+        return False
+    if after_id:
+        idx = next(
+            (i for i, f in enumerate(fields) if isinstance(f, dict) and f.get("id") == after_id),
+            None,
+        )
+        if idx is None:
+            fields.append(dict(spec))
+        else:
+            fields.insert(idx + 1, dict(spec))
+    else:
+        _insert_field_before(fields, spec, before_ids)
+    data["fields"] = fields
+    return True
 
 
 ALTERNATE_TICKET_FIELD: dict[str, Any] = {
@@ -517,6 +577,10 @@ def load_fields(slug: str) -> dict[str, Any]:
         changed = True
     if ensure_alternate_ticket_field(data):
         changed = True
+    if ensure_pinned_field(data):
+        changed = True
+    if ensure_due_on_field(data):
+        changed = True
     if ensure_unbounded_int_fields(data):
         changed = True
     if changed:
@@ -604,6 +668,11 @@ def save_workspace(slug: str, workspace_id: str, data: dict[str, Any]) -> dict[s
     data = deepcopy(data)
     data["id"] = workspace_id
     data["updated_at"] = _now()
+    if "tab_color" in data:
+        data["tab_color"] = sanitize_tab_color(data.get("tab_color"))
+    name = data.get("name")
+    if isinstance(name, str) and len(name) > 200:
+        data["name"] = name[:200]
     if "schema_version" not in data:
         data["schema_version"] = 1
     write_json(path, data)

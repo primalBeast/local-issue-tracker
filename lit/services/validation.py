@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -21,6 +22,9 @@ CONTROL_TYPES = frozenset(
 )
 
 RICHTEXT_SOFT_LIMIT = 1_000_000  # bytes of JSON-ish size
+ABSOLUTE_STRING_MAX = 200_000
+FIELD_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+_DATETIME_RE = re.compile(r"^[0-9T:\-+Zz. ]{0,40}$")
 
 
 class ValidationError(Exception):
@@ -42,6 +46,8 @@ def validate_fields_schema(data: dict[str, Any]) -> dict[str, Any]:
         fid = f.get("id")
         if not fid or not isinstance(fid, str):
             raise ValidationError("field.id is required")
+        if FIELD_ID_RE.fullmatch(fid) is None:
+            raise ValidationError(f"field id is not allowed: {fid}")
         if fid in seen:
             raise ValidationError(f"duplicate field id: {fid}")
         seen.add(fid)
@@ -224,6 +230,8 @@ def _coerce_and_check(fdef: dict[str, Any], value: Any) -> Any:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValidationError(f"{fid}: expected number", [{"field": fid, "message": "type"}])
         num = float(value) if not isinstance(value, int) else value
+        if not math.isfinite(float(num)) or abs(float(num)) > 1e15:
+            raise ValidationError(f"{fid}: out of range", [{"field": fid, "message": "range"}])
         if "min" in val and num < val["min"]:
             raise ValidationError(f"{fid}: min", [{"field": fid, "message": "min"}])
         if "max" in val and num > val["max"]:
@@ -240,6 +248,8 @@ def _coerce_and_check(fdef: dict[str, Any], value: Any) -> Any:
     if ftype == "datetime":
         if not isinstance(value, str):
             raise ValidationError(f"{fid}: expected string", [{"field": fid, "message": "type"}])
+        if not _DATETIME_RE.fullmatch(value):
+            raise ValidationError(f"{fid}: date format", [{"field": fid, "message": "format"}])
         return value
 
     raise ValidationError(f"{fid}: unsupported type")
@@ -248,8 +258,18 @@ def _coerce_and_check(fdef: dict[str, Any], value: Any) -> Any:
 def _check_string_rules(fid: str, value: str, val: dict[str, Any]) -> None:
     if "min_length" in val and len(value) < val["min_length"]:
         raise ValidationError(f"{fid}: min_length", [{"field": fid, "message": "min_length"}])
-    if "max_length" in val and len(value) > val["max_length"]:
+    declared = val.get("max_length")
+    if isinstance(declared, int) and not isinstance(declared, bool) and len(value) > declared:
         raise ValidationError(f"{fid}: max_length", [{"field": fid, "message": "max_length"}])
+    if len(value) > ABSOLUTE_STRING_MAX:
+        raise ValidationError(f"{fid}: too large", [{"field": fid, "message": "size"}])
     if "pattern" in val and value:
-        if not re.fullmatch(val["pattern"], value):
+        pattern = val["pattern"]
+        if not isinstance(pattern, str) or len(pattern) > 128:
+            raise ValidationError(f"{fid}: pattern", [{"field": fid, "message": "pattern"}])
+        try:
+            compiled = re.compile(pattern)
+        except re.error as exc:
+            raise ValidationError(f"{fid}: pattern", [{"field": fid, "message": "pattern"}]) from exc
+        if not compiled.fullmatch(value):
             raise ValidationError(f"{fid}: pattern", [{"field": fid, "message": "pattern"}])

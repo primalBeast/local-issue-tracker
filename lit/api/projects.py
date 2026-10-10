@@ -125,7 +125,10 @@ def patch_project(slug: str, body: ProjectPatch) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="Project not found") from None
     updates = body.model_dump(exclude_unset=True)
     proj.update(updates)
-    return save_project(slug, proj)
+    try:
+        return save_project(slug, proj)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete("/{slug}", dependencies=[Depends(require_writable)])

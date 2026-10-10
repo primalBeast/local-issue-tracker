@@ -14,6 +14,7 @@ from lit import __version__
 from lit.api import (
     backups,
     deliverables,
+    desk,
     desktop,
     fields,
     items,
@@ -26,12 +27,14 @@ from lit.api import (
 )
 from lit.config import get_config
 from lit.middleware import (
+    BodyLimitMiddleware,
     OriginCheckMiddleware,
     SecurityHeadersMiddleware,
     install_cors,
     trusted_host_header_values,
     trusted_hostnames,
 )
+from lit.security import safe_dist_file
 
 logger = logging.getLogger("lit.app")
 
@@ -55,8 +58,9 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Local Issue Tracker",
         version=__version__,
-        docs_url="/api/docs",
+        docs_url=None,
         redoc_url=None,
+        openapi_url=None,
     )
 
     # add_middleware wraps, so the last addition runs first. The Host check
@@ -72,6 +76,7 @@ def create_app() -> FastAPI:
     )
     install_cors(app, enabled=cfg.dev_cors, vite_port=cfg.vite_port)
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(BodyLimitMiddleware)
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=trusted_host_header_values(hostnames),
@@ -93,6 +98,7 @@ def create_app() -> FastAPI:
     app.include_router(desktop.router)
     app.include_router(session.router)
     app.include_router(projects.router)
+    app.include_router(desk.router)
     app.include_router(fields.router)
     app.include_router(items.router)
     app.include_router(workspaces.router)
@@ -118,9 +124,8 @@ def create_app() -> FastAPI:
     def spa_fallback(full_path: str, request: Request):
         if full_path.startswith("api"):
             return JSONResponse({"detail": "Not Found"}, status_code=404)
-        # known static root files
-        candidate = dist / full_path
-        if full_path and candidate.is_file() and dist in candidate.resolve().parents:
+        candidate = safe_dist_file(dist, full_path)
+        if candidate is not None:
             return FileResponse(candidate)
         index = dist / "index.html"
         if not index.exists():

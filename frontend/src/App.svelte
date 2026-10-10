@@ -68,6 +68,7 @@
     waitingNameChoices,
   } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
+import { isOverdue, isStale, itemSummaryText } from './lib/ticketDesk';
   import { launchableHref, splitTicketUrls, ticketHref, ticketNumberLabel } from './lib/ticketUrl';
   import { filledTicketSlots, isExternalTicketId, removeExternalTicketSlot, slotsToShow } from './lib/urlTicket';
   import { isAssignedField, nameAlreadyListed } from './lib/assigned';
@@ -141,6 +142,9 @@
   let listEditAnchor = $state<Item | null>(null);
   let listFlash = $state<Record<string, number>>({});
   let listSearch = $state('');
+  let quickFindOpen = $state(false);
+  let quickFindQuery = $state('');
+  let quickFindIndex = $state(0);
   let notesHover = $state<{
     itemId: string;
     top: number;
@@ -268,6 +272,7 @@
   let filteredItems = $derived.by(() => {
     if (!workspace) return items;
     const filtered = items.filter((it) => {
+      if (workspace!.ui.hide_done && String(it.fields.state ?? '') === 'Done') return false;
       if (!itemMatchesFilters(it, workspace!.filters.active, fieldDefs)) return false;
       const full = detailCache[it.id];
       const forSearch = full ? { ...it, fields: { ...it.fields, ...full.fields } } : it;
@@ -280,6 +285,30 @@
         ? filtered.map((it) => (it.id === listEdit.itemId ? listEditAnchor! : it))
         : filtered;
     return sortItems(source, workspace.sort, fieldDefs).map((it) => liveById.get(it.id) ?? it);
+  });
+  let deskCounts = $derived.by(() => {
+    const today = todayLocalDate();
+    let overdue = 0;
+    let stale = 0;
+    let waiting = 0;
+    for (const it of items) {
+      if (String(it.fields.state ?? '') === 'Done') continue;
+      if (isOverdue(it, today)) overdue += 1;
+      if (isStale(it)) stale += 1;
+      if (isItemWaiting(it)) waiting += 1;
+    }
+    return { overdue, stale, waiting };
+  });
+  let quickFindMatches = $derived.by(() => {
+    const ranked = [...items].sort((a, b) => {
+      const ad = String(a.fields.state ?? '') === 'Done' ? 1 : 0;
+      const bd = String(b.fields.state ?? '') === 'Done' ? 1 : 0;
+      if (ad !== bd) return ad - bd;
+      return String(b.updated_at ?? '').localeCompare(String(a.updated_at ?? ''));
+    });
+    const q = quickFindQuery.trim();
+    const matched = q ? ranked.filter((it) => itemMatchesSearch(it, q)) : ranked;
+    return matched.slice(0, 12);
   });
   let allItemsColumns = $derived(listFields);
   let waitingSinceField = $derived(fieldDefs.find((f) => f.id === 'waiting_since') ?? null);
@@ -399,6 +428,41 @@
         e.preventDefault();
         toggleSidebar();
       }
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        e.stopPropagation();
+        quickFindOpen = !quickFindOpen;
+        if (quickFindOpen) {
+          quickFindQuery = '';
+          quickFindIndex = 0;
+        }
+        return;
+      }
+      if (quickFindOpen) {
+        const matches = quickFindMatches;
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          quickFindOpen = false;
+          return;
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          quickFindIndex = Math.min(Math.max(matches.length - 1, 0), quickFindIndex + 1);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          quickFindIndex = Math.max(0, quickFindIndex - 1);
+          return;
+        }
+        if (e.key === 'Enter' && matches[quickFindIndex]) {
+          e.preventDefault();
+          const id = matches[quickFindIndex].id;
+          quickFindOpen = false;
+          openItemPanel(id);
+          return;
+        }
+      }
       if (e.key === 'F5' && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
         e.stopPropagation();
@@ -470,6 +534,9 @@
       }
       if (themeMenuOpen && !t?.closest?.('.theme-dialog, .theme-select')) {
         void setTheme(highlightedThemeId);
+      }
+      if (quickFindOpen && !t?.closest?.('.quick-find')) {
+        quickFindOpen = false;
       }
       if (itemDeleteConfirm) {
         if (!t?.closest?.('.confirm-dialog')) itemDeleteConfirm = null;
@@ -1935,6 +2002,74 @@
     }
   }
 
+  async function duplicateItemById(id: string) {
+    itemContextMenu = null;
+    if (!project) return;
+    try {
+      const item = await api.duplicateItem(project.slug, id);
+      items = [...items, item];
+      detailCache = { ...detailCache, [item.id]: item };
+      openItemPanel(item.id);
+      showToast('Ticket duplicated');
+    } catch (e) {
+      if (isProjectLockedError(e)) {
+        dropToPicker('This project is open in another window');
+        return;
+      }
+      showToast(e instanceof Error ? e.message : 'Duplicate failed');
+    }
+  }
+
+  function togglePin(id: string) {
+    itemContextMenu = null;
+    const item = items.find((it) => it.id === id);
+    if (!item) return;
+    const next = item.fields.pinned !== true;
+    patchItemFields(id, 'pinned', next);
+    showToast(next ? 'Pinned' : 'Unpinned');
+  }
+
+  async function copyItemSummary(id: string) {
+    itemContextMenu = null;
+    const item = detailCache[id] ?? items.find((it) => it.id === id);
+    if (!item) return;
+    try {
+      await navigator.clipboard.writeText(itemSummaryText(item));
+      showToast('Summary copied');
+    } catch {
+      showToast('Could not copy');
+    }
+  }
+
+  async function copyStandup() {
+    if (!project) return;
+    try {
+      const { text } = await api.standup(project.slug);
+      await navigator.clipboard.writeText(text);
+      showToast('Standup copied');
+    } catch (e) {
+      if (isProjectLockedError(e)) {
+        dropToPicker('This project is open in another window');
+        return;
+      }
+      showToast(e instanceof Error ? e.message : 'Could not copy standup');
+    }
+  }
+
+  function downloadExport() {
+    if (!project) return;
+    const link = document.createElement('a');
+    link.href = api.exportUrl(project.slug);
+    link.download = `${project.slug}-export.json`;
+    link.click();
+  }
+
+  function toggleHideDone() {
+    updateWorkspace((ws) => {
+      ws.ui.hide_done = !ws.ui.hide_done;
+    });
+  }
+
   function visibleBodyFields(
     defs: FieldDef[],
     fields: Record<string, unknown>,
@@ -2235,6 +2370,11 @@
   function listCellDisplay(f: FieldDef, item: Item): string {
     if (f.id === 'waiting_for' && !isItemWaiting(item)) return '';
     if (f.type === 'checkbox') return item.fields[f.id] ? 'Yes' : '';
+    if (f.id === 'due_on') {
+      const due = String(item.fields.due_on ?? '');
+      if (due && isOverdue(item, todayLocalDate())) return `${due} overdue`;
+      return due;
+    }
     if (f.id === 'ticket_key' || f.id === keyField()) {
       return ticketNumberLabel(String(item.fields[f.id] ?? '')) || String(item.fields[f.id] ?? '');
     }
@@ -3113,7 +3253,7 @@
 
   function tabStyle(w: Workspace): string {
     const c = w.tab_color;
-    if (!c) return '';
+    if (!c || !/^#[0-9a-fA-F]{6}$/.test(c)) return '';
     if (w.id === workspace?.id) {
       return `background:${c}33;border-color:${c};color:var(--text)`;
     }
@@ -3143,6 +3283,21 @@
       </button>
       <button type="button" class="primary" onclick={createItem}>+ Item</button>
       <button type="button" onclick={() => openSpecial('all_items')}>All Items</button>
+      <button type="button" title="Find a ticket (Ctrl+K)" onclick={() => {
+        quickFindOpen = true;
+        quickFindQuery = '';
+        quickFindIndex = 0;
+      }}>Find</button>
+      <button type="button" class="ghost" title="Copy a plain-text standup" onclick={() => void copyStandup()}>Standup</button>
+      {#if deskCounts.overdue}
+        <span class="desk-chip desk-chip-overdue">{deskCounts.overdue} overdue</span>
+      {/if}
+      {#if deskCounts.stale}
+        <span class="desk-chip">{deskCounts.stale} stale</span>
+      {/if}
+      {#if deskCounts.waiting}
+        <span class="desk-chip">{deskCounts.waiting} waiting</span>
+      {/if}
       <button type="button" onclick={() => openSpecial('notes')}>Notes</button>
       <button type="button" onclick={() => openSpecial('deliverables')}>Deliverables</button>
       <div class="sort-controls">
@@ -3372,6 +3527,7 @@
           <div class="board-editor-actions">
             <button type="button" class="ghost" onclick={() => void closeProjectEditor(false)}>Cancel</button>
             <button type="button" onclick={openTemplateEditor}>Templates</button>
+            <button type="button" onclick={downloadExport}>Download backup</button>
             <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
           </div>
         </section>
@@ -3518,6 +3674,47 @@
       </div>
     {/if}
 
+    {#if quickFindOpen}
+      <div
+        class="quick-find"
+        role="dialog"
+        aria-label="Find a ticket"
+        onclick={(e) => e.stopPropagation()}
+        onpointerdown={(e) => e.stopPropagation()}
+      >
+        <input
+          class="quick-find-input"
+          type="text"
+          placeholder="Find a ticket"
+          aria-label="Find a ticket"
+          autofocus
+          value={quickFindQuery}
+          oninput={(e) => {
+            quickFindQuery = e.currentTarget.value;
+            quickFindIndex = 0;
+          }}
+          onkeydown={(e) => e.stopPropagation()}
+        />
+        <div class="quick-find-list">
+          {#each quickFindMatches as match, i (match.id)}
+            <button
+              type="button"
+              class:selected={i === quickFindIndex}
+              onclick={() => {
+                quickFindOpen = false;
+                openItemPanel(match.id);
+              }}
+            >
+              <span class="quick-find-key">{String(match.fields[keyField()] ?? 'Untitled')}</span>
+              <span class="quick-find-title">{String(match.fields.title ?? '')}</span>
+            </button>
+          {:else}
+            <div class="empty-hint">No matching tickets</div>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
     {#if itemContextMenu}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
@@ -3532,6 +3729,20 @@
           onclick={() => applyContextFocus()}
         >Focus</button>
         {#if itemContextMenu.itemId}
+          <button type="button" onclick={() => {
+            const id = itemContextMenu?.itemId;
+            if (id) void duplicateItemById(id);
+          }}>Duplicate</button>
+          <button type="button" onclick={() => {
+            const id = itemContextMenu?.itemId;
+            if (id) togglePin(id);
+          }}>
+            {items.find((it) => it.id === itemContextMenu?.itemId)?.fields.pinned === true ? 'Unpin' : 'Pin'}
+          </button>
+          <button type="button" onclick={() => {
+            const id = itemContextMenu?.itemId;
+            if (id) void copyItemSummary(id);
+          }}>Copy summary</button>
           <button
             type="button"
             class="danger"
@@ -3874,6 +4085,12 @@
             {:else if panel.kind === 'all_items'}
               <div class="toolbar-row">
                 <button type="button" class="primary" onclick={createItem}>New item</button>
+                <button
+                  type="button"
+                  class:primary={workspace.ui.hide_done}
+                  title="Hide tickets in Done"
+                  onclick={toggleHideDone}
+                >{workspace.ui.hide_done ? 'Showing open' : 'Hide done'}</button>
                 <button type="button" class="ghost" onclick={clearFilters}>Clear filters</button>
                 {#each workspace.filters.presets as preset}
                   <button type="button" onclick={() => applyPreset(preset.id)}>{preset.name}</button>
@@ -3980,6 +4197,9 @@
                   {#each filteredItems as it (it.id)}
                     <tr
                       class="clickable"
+                      class:row-pinned={it.fields.pinned === true}
+                      class:row-overdue={isOverdue(it, todayLocalDate())}
+                      class:row-stale={isStale(it)}
                       class:urgency-dragging={urgencyDrag?.itemId === it.id}
                       data-list-item={it.id}
                       ondblclick={(e) => onAllItemsRowDblClick(e, it.id)}
@@ -4070,7 +4290,10 @@
                           />
                         </td>
                       {/if}
-                      <td class="updated-date">{formatItemUpdatedDate(it.updated_at)}</td>
+                      <td class="updated-date">
+                        {formatItemUpdatedDate(it.updated_at)}
+                        {#if isStale(it)}<span class="stale-mark">stale</span>{/if}
+                      </td>
                     </tr>
                   {/each}
                 </tbody>

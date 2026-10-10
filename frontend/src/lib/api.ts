@@ -112,6 +112,8 @@ export type Workspace = {
     viewport_scroll: { x: number; y: number };
     theme?: string;
     transparent_panels?: boolean;
+    /** When true, All Items hides tickets whose state is Done. */
+    hide_done?: boolean;
   };
   filters: {
     active: Record<string, unknown>;
@@ -342,6 +344,10 @@ export const api = {
     }),
   deleteItem: (slug: string, id: string) =>
     req(`/api/projects/${slug}/items/${id}`, { method: 'DELETE' }),
+  duplicateItem: (slug: string, id: string) =>
+    req<Item>(`/api/projects/${slug}/items/${id}/duplicate`, { method: 'POST' }),
+  standup: (slug: string) => req<{ text: string }>(`/api/projects/${slug}/standup`),
+  exportUrl: (slug: string) => `/api/projects/${encodeURIComponent(slug)}/export`,
   workspaces: (slug: string) => req<Workspace[]>(`/api/projects/${slug}/workspaces`),
   workspace: (slug: string, id: string) =>
     req<Workspace>(`/api/projects/${slug}/workspaces/${id}`),

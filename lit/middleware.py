@@ -9,6 +9,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from lit.config import DEFAULT_VITE_PORT
+from lit.security import MAX_BODY_BYTES
 
 # Binds that do not name one client-facing host. Adding them would not make
 # Host: 0.0.0.0 useful, and must not widen the allowlist to every name.
@@ -119,12 +120,96 @@ _CSP = (
     "script-src 'self'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob:; "
+    "media-src 'self' blob:; "
     "font-src 'self' data:; "
     "connect-src 'self'; "
+    "object-src 'none'; "
+    "frame-src 'none'; "
     "frame-ancestors 'none'; "
     "base-uri 'self'; "
     "form-action 'self'"
 )
+
+
+def _json_body_or_empty(headers: Headers) -> bool:
+    """True when there is no body, or the body is declared as JSON."""
+    raw_len = headers.get("content-length")
+    if raw_len is None or raw_len.strip() in {"", "0"}:
+        return True
+    ctype = (headers.get("content-type") or "").split(";", 1)[0].strip().lower()
+    return ctype == "application/json"
+
+
+class BodyLimitMiddleware:
+    """Reject a body larger than ``max_bytes`` before the route reads it.
+
+    A declared ``Content-Length`` over the cap is refused immediately. A
+    request that omits the length (chunked transfer) is counted as it arrives
+    and refused the same way, so leaving the header off is not a bypass.
+    """
+
+    def __init__(self, app: ASGIApp, max_bytes: int = MAX_BODY_BYTES) -> None:
+        self.app = app
+        self.max_bytes = int(max_bytes)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        raw_len = Headers(scope=scope).get("content-length")
+        if raw_len is not None and raw_len.strip() != "":
+            try:
+                size = int(raw_len)
+            except ValueError:
+                response = JSONResponse({"detail": "Bad content length"}, status_code=400)
+                await response(scope, receive, send)
+                return
+            if size < 0 or size > self.max_bytes:
+                response = JSONResponse({"detail": "Request body is too large"}, status_code=413)
+                await response(scope, receive, send)
+                return
+            await self.app(scope, receive, send)
+            return
+
+        chunks: list[bytes] = []
+        total = 0
+        pending: Message | None = None
+        # A client can omit Content-Length and drip empty chunks. Cap the
+        # number of messages so that cannot spin the process.
+        for _ in range(10_000):
+            message = await receive()
+            if message["type"] != "http.request":
+                pending = message
+                break
+            chunk = message.get("body") or b""
+            total += len(chunk)
+            if total > self.max_bytes:
+                response = JSONResponse({"detail": "Request body is too large"}, status_code=413)
+                await response(scope, receive, send)
+                return
+            if chunk:
+                chunks.append(chunk)
+            if not message.get("more_body", False):
+                break
+        else:
+            response = JSONResponse({"detail": "Request body is too large"}, status_code=413)
+            await response(scope, receive, send)
+            return
+        body = b"".join(chunks)
+        sent_body = False
+
+        async def replay() -> Message:
+            nonlocal sent_body, pending
+            if not sent_body:
+                sent_body = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            if pending is not None:
+                message = pending
+                pending = None
+                return message
+            return await receive()
+
+        await self.app(scope, replay, send)
 
 
 class OriginCheckMiddleware:
@@ -201,6 +286,16 @@ class OriginCheckMiddleware:
             response = JSONResponse({"detail": "Cross-site request blocked"}, status_code=403)
             await response(scope, receive, send)
             return
+        # HTML forms and "simple" fetches cannot set application/json. Requiring
+        # it whenever a body is present blocks those without breaking curl,
+        # the CLI, or the SPA, which already send JSON.
+        if not _json_body_or_empty(headers):
+            response = JSONResponse(
+                {"detail": "State-changing requests must send application/json"},
+                status_code=415,
+            )
+            await response(scope, receive, send)
+            return
         await self.app(scope, receive, send)
 
 
@@ -221,6 +316,13 @@ class SecurityHeadersMiddleware:
                 headers.setdefault("X-Content-Type-Options", "nosniff")
                 headers.setdefault("X-Frame-Options", "DENY")
                 headers.setdefault("Referrer-Policy", "no-referrer")
+                headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+                headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+                headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+                headers.setdefault(
+                    "Permissions-Policy",
+                    "camera=(), microphone=(), geolocation=(), payment=()",
+                )
                 # CSP: local app — allow self, inline styles for Svelte, data images
                 headers.setdefault("Content-Security-Policy", _CSP)
                 if path.startswith("/assets/"):

@@ -14,6 +14,8 @@ def test_launchable_http_url_rejects_junk():
     assert launchable_http_url("javascript:alert(1)") is None
     assert launchable_http_url("file:///c:/secret") is None
     assert launchable_http_url("https://user:pass@evil.example/") is None
+    assert launchable_http_url("https://evil.example/a\\b") is None
+    assert launchable_http_url("https://evil.example/a\nb") is None
 
 
 def test_split_rects_halves_the_work_area():
