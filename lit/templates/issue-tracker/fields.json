@@ -37,6 +37,16 @@
       "show_in_compact": false
     },
     {
+      "id": "pinned",
+      "label": "Pinned",
+      "type": "checkbox",
+      "required": false,
+      "order": 22,
+      "default": false,
+      "filterable": true,
+      "show_in_list": true
+    },
+    {
       "id": "priority",
       "label": "Priority",
       "type": "number",
@@ -144,6 +154,15 @@
         "starts_with": "External Fixing"
       },
       "show_in_list": false
+    },
+    {
+      "id": "due_on",
+      "label": "Due",
+      "type": "date",
+      "required": false,
+      "order": 46,
+      "default": "",
+      "show_in_list": true
     },
     {
       "id": "waiting",

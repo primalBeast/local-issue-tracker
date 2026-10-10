@@ -19,7 +19,9 @@ SWP_SHOWWINDOW = 0x0040
 
 def launchable_http_url(raw: str | None) -> str | None:
     s = str(raw or "").strip()
-    if not s or len(s) > 2048 or '"' in s:
+    if not s or len(s) > 2048 or '"' in s or "\\" in s:
+        return None
+    if any(ord(ch) < 32 for ch in s):
         return None
     try:
         parsed = urlparse(s)

@@ -19,6 +19,8 @@ needs, not only issues.
 - **Color coding** by state with intensity from priority
 - **All Items list**, project notes, and deliverables panels
 - **Filters & presets** saved per workspace
+- **Pin, due date, overdue and stale marks**, hide Done, and Ctrl+K find
+- **Duplicate**, copy summary, standup text, and a JSON download of the project
 - Dark-mode-first UI
 
 ## How to run (full install guides)

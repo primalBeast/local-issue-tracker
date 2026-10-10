@@ -271,6 +271,15 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>10 Oct 2026 — Security pass and a working desk</h3>
+          <ul>
+            <li>Writes must be JSON and stay under 4 MB, including chunked requests that omit a length. The API schema is no longer published. URL prefixes are http(s) only, board colours are hex only, and backups skip symlinks.</li>
+            <li>Settings no longer accept a seed flag, a path-like theme, or a bad window host. Ticket text is capped. Item ids are a safe token.</li>
+            <li>Pin a ticket, set a Due date, and see overdue, stale, and waiting counts. Hide Done. Ctrl+K finds a ticket.</li>
+            <li>Right-click to duplicate, pin, or copy a summary. Standup copies a plain-text status. Download backup saves the project as JSON, without the folder path.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>8 Oct 2026 — Saves finish when the window closes (PR #5)</h3>
           <ul>
             <li>A save still in flight when the window closes finishes cleanly, and a version conflict re-applies your edit instead of dropping it.</li>
@@ -470,6 +479,22 @@
         </div>
         <button type="button" class="toggle" id="rebuilds">Show bundle rebuilds</button>
       </div>
+      <section class="day">
+        <div class="day-head">
+          <h3>Sat, Oct 10, 2026</h3>
+          <span>2</span>
+        </div>
+        <article class="entry">
+          <span class="kind fix">Fix</span>
+          <p class="subject">Security pass: JSON-only writes, a 4 MB cap that also covers chunked bodies, unpublished API schema, http(s) URL prefixes, hex-only board colours, symlink-safe backups, stricter settings, and a hard cap on ticket text.</p>
+          <span class="hash">branch</span>
+        </article>
+        <article class="entry">
+          <span class="kind feat">Feature</span>
+          <p class="subject">Desk: pin, due date, overdue and stale marks, hide Done, Ctrl+K find, duplicate, copy summary, standup text, and a JSON download that leaves the folder path out.</p>
+          <span class="hash">branch</span>
+        </article>
+      </section>
       <section class="day">
         <div class="day-head">
           <h3>Thu, Oct 8, 2026</h3>

@@ -25,6 +25,30 @@ INCLUDE_FILES = (
 )
 
 
+def _copy_tree_no_symlinks(src: Path, dest: Path) -> None:
+    """Copy a folder and skip symlinks so a link cannot pull in outside files."""
+    dest.mkdir(parents=True, exist_ok=True)
+    for child in src.iterdir():
+        try:
+            if child.is_symlink():
+                logger.warning("Skipping symlink in backup: %s", child)
+                continue
+        except OSError:
+            continue
+        target = dest / child.name
+        if child.is_dir():
+            _copy_tree_no_symlinks(child, target)
+        elif child.is_file():
+            shutil.copy2(child, target, follow_symlinks=False)
+
+
+def _copy_regular_file(src: Path, dest: Path) -> None:
+    if src.is_symlink() or not src.is_file():
+        logger.warning("Skipping non-regular file in backup: %s", src)
+        return
+    shutil.copy2(src, dest, follow_symlinks=False)
+
+
 def local_today() -> str:
     return datetime.now().astimezone().date().isoformat()
 
@@ -53,13 +77,13 @@ def backup_project(slug: str, *, force: bool = False) -> dict[str, Any] | None:
         with items_db.project_db_lock(db_path):
             for name in INCLUDE_FILES:
                 src = proj / name
-                if src.is_file():
-                    shutil.copy2(src, partial / name)
-            if db_path.is_file():
+                if src.exists():
+                    _copy_regular_file(src, partial / name)
+            if db_path.is_file() and not db_path.is_symlink():
                 items_db.backup_to(db_path, partial / "items.sqlite")
             ws_src = proj / "workspaces"
-            if ws_src.is_dir():
-                shutil.copytree(ws_src, partial / "workspaces")
+            if ws_src.is_dir() and not ws_src.is_symlink():
+                _copy_tree_no_symlinks(ws_src, partial / "workspaces")
             manifest = {
                 "created_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
                 "local_date": day,
