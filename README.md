@@ -20,6 +20,7 @@ needs, not only issues.
 - **All Items list**, project notes, and deliverables panels
 - **Filters & presets** saved per workspace
 - Dark-mode-first UI
+- **Server lost** — the title bar, and the focused panel, pulse transparent red until the server answers again
 
 ## How to run (full install guides)
 

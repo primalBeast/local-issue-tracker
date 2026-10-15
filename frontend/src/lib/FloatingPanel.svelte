@@ -29,6 +29,8 @@
     compactChildren?: import('svelte').Snippet;
     /** Replaces the plain title text (e.g. ticket number + description editor). */
     titleSlot?: import('svelte').Snippet;
+    /** Server is down and this panel is the one in front. */
+    serverAlert?: boolean;
   }
 
   let {
@@ -51,6 +53,7 @@
     children,
     compactChildren,
     titleSlot,
+    serverAlert = false,
   }: Props = $props();
 
   const CONTROL_SELECTOR =
@@ -267,6 +270,7 @@
 <div
   class="panel"
   class:active
+  class:server-alert={serverAlert}
   class:panel-compact={compact}
   class:panel-focus-target={stage === 'focus'}
   class:panel-dimmed={stage === 'dim'}

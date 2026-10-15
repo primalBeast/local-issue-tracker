@@ -243,6 +243,16 @@
   let canvasWrapEl = $state<HTMLElement | null>(null);
   let appShellEl = $state<HTMLElement | null>(null);
   let serverOk = $state(true);
+  /** Front panel (highest z). That is the one the red pulse follows. */
+  let focusedPanelId = $derived.by(() => {
+    const panels = workspace?.panels;
+    if (!panels?.length) return null;
+    let best = panels[0];
+    for (const panel of panels) {
+      if ((panel.z_index || 0) >= (best.z_index || 0)) best = panel;
+    }
+    return best.id;
+  });
   const canvasPan = {
     pointerId: -1,
     startX: 0,
@@ -523,6 +533,15 @@
       clearCtrlPanClickSuppress();
     };
   });
+
+  function isOfflineError(err: unknown): boolean {
+    if (err instanceof TypeError) return true;
+    return err instanceof Error && /failed to fetch|networkerror|load failed|network request failed/i.test(err.message);
+  }
+
+  function noteOffline(err: unknown) {
+    if (isOfflineError(err)) serverOk = false;
+  }
 
   async function pingServer() {
     try {
@@ -2067,6 +2086,7 @@
       }
     },
     onError: (itemId, slug, err) => {
+      noteOffline(err);
       if (isProjectLockedError(err)) {
         if (project?.slug === slug) dropToPicker('This project is open in another window');
         return;
@@ -2797,6 +2817,7 @@
   }
 
   function onWriteError(err: unknown, fallback: string) {
+    noteOffline(err);
     if (isProjectLockedError(err)) {
       dropToPicker('This project is open in another window');
       return;
@@ -3126,7 +3147,7 @@
 {:else if error}
   <div class="empty-hint" style="padding-top:20vh;color:var(--danger)">{error}</div>
 {:else if project && workspace}
-  <div class="app-shell" bind:this={appShellEl}>
+  <div class="app-shell" class:server-down={!serverOk} bind:this={appShellEl}>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <header class="topbar" onpointerdown={onTopbarPointerDown} ondblclick={onTopbarDblClick}>
       <button
@@ -3676,6 +3697,7 @@
             {panel}
             {zoom}
             active={false}
+            serverAlert={!serverOk && panel.id === focusedPanelId}
             title={
               panel.kind === 'item'
                 ? item
