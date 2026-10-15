@@ -3801,19 +3801,28 @@
                         {#if waitingOn}
                           <div class="waiting-details">
                             {#if person}
-                              <label class="waiting-inline">
-                                <span>{person.label || 'Name'}:</span>
-                                <select
-                                  value={String(detailCache[item.id].fields.waiting_for ?? '')}
-                                  onchange={(e) =>
-                                    scheduleItemPatch(item.id, { waiting_for: e.currentTarget.value })}
-                                >
-                                  <option value=""></option>
-                                  {#each waitingNameChoices(person.options, detailCache[item.id].fields.waiting_for) as opt}
-                                    <option value={opt}>{opt}</option>
-                                  {/each}
-                                </select>
-                              </label>
+                              <div class="waiting-name-with-add">
+                                <label class="waiting-inline">
+                                  <span>{person.label || 'Name'}:</span>
+                                  <select
+                                    value={String(detailCache[item.id].fields.waiting_for ?? '')}
+                                    onchange={(e) =>
+                                      scheduleItemPatch(item.id, { waiting_for: e.currentTarget.value })}
+                                  >
+                                    <option value=""></option>
+                                    {#each waitingNameChoices(person.options, detailCache[item.id].fields.waiting_for) as opt}
+                                      <option value={opt}>{opt}</option>
+                                    {/each}
+                                  </select>
+                                </label>
+                                <button
+                                  type="button"
+                                  class="ghost url-ticket-add name-option-add"
+                                  title="Add a name"
+                                  onpointerdown={(e) => e.stopPropagation()}
+                                  onclick={(e) => void openAssignedNameAdd(item.id, person.id, e.currentTarget)}
+                                >+</button>
+                              </div>
                             {/if}
                             {#if since}
                               <label class="waiting-inline">
@@ -3894,12 +3903,7 @@
                 {/key}
               {/if}
             {:else if panel.kind === 'all_items'}
-              <div class="toolbar-row">
-                <button type="button" class="primary" onclick={createItem}>New item</button>
-                <button type="button" class="ghost" onclick={clearFilters}>Clear filters</button>
-                {#each workspace.filters.presets as preset}
-                  <button type="button" onclick={() => applyPreset(preset.id)}>{preset.name}</button>
-                {/each}
+              {#snippet listSearchBox()}
                 <div class="list-search">
                   <input
                     type="text"
@@ -3923,6 +3927,16 @@
                     >x</button>
                   {/if}
                 </div>
+              {/snippet}
+              <div class="toolbar-row">
+                <button type="button" class="primary" onclick={createItem}>New item</button>
+                <button type="button" class="ghost" onclick={clearFilters}>Clear filters</button>
+                {#each workspace.filters.presets as preset}
+                  <button type="button" onclick={() => applyPreset(preset.id)}>{preset.name}</button>
+                {/each}
+                {#if !otherFilterFields.some((f) => f.id === 'waiting')}
+                  {@render listSearchBox()}
+                {/if}
               </div>
 
               {#if filterableFields.length}
@@ -3961,7 +3975,24 @@
                     </div>
                   {/if}
                   {#each otherFilterFields as ff}
-                    {@render filterGroup(ff)}
+                    {#if ff.id === 'waiting'}
+                      <div class="filter-group">
+                        <div class="filter-group-title">{ff.label}</div>
+                        <div class="filter-waiting-line">
+                          <label class="check-row">
+                            <input
+                              type="checkbox"
+                              checked={((workspace.filters.active[ff.id] as boolean[]) || []).includes(true)}
+                              onchange={(e) => setFilterOption(ff.id, true, e.currentTarget.checked)}
+                            />
+                            Yes
+                          </label>
+                          {@render listSearchBox()}
+                        </div>
+                      </div>
+                    {:else}
+                      {@render filterGroup(ff)}
+                    {/if}
                   {/each}
                 </div>
               {/if}

@@ -297,6 +297,19 @@ label.field-label {
   gap: 10px 16px;
   margin-top: 8px;
 }
+.waiting-name-with-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.waiting-name-with-add .waiting-inline {
+  flex: 1 1 auto;
+}
+.waiting-name-with-add .name-option-add {
+  flex: 0 0 auto;
+}
 .waiting-inline {
   display: flex;
   align-items: center;
@@ -2067,6 +2080,18 @@ body.lit-urgency-dragging * {
   text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: 4px;
+}
+.filter-waiting-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.filter-waiting-line .check-row {
+  flex: 0 0 auto;
+  margin: 0;
+}
+.filter-waiting-line .list-search {
+  margin-left: auto;
 }
 .check-row {
   display: flex;
