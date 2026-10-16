@@ -262,7 +262,8 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   setClientId,
   getClientId,
-  health: () => req<{ status: string; version?: string }>('/health'),
+  health: (signal?: AbortSignal) =>
+    req<{ status: string; version?: string }>('/health', signal ? { signal } : undefined),
   settings: () => req<Record<string, unknown>>('/api/settings'),
   patchSettings: (body: Record<string, unknown>) =>
     req('/api/settings', { method: 'PATCH', body: JSON.stringify(body) }),

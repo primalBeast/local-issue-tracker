@@ -147,4 +147,26 @@ describe('project claims', () => {
     expect(claimProject).toHaveBeenCalledWith('alpha');
     expect(onLost).not.toHaveBeenCalled();
   });
+
+  it('reconnect closes the dead stream and re-claims on the next open', async () => {
+    const claimProject = vi.fn(async (): Promise<ClaimOutcome> => ({ ok: true }));
+    const claims = createProjectClaims({
+      openEventSource: (url) => new FakeStream(url),
+      claimProject,
+    });
+    claims.connect('client-a');
+    claims.setCurrentProject('alpha');
+    const first = FakeStream.latest;
+    first?.emit('open');
+    expect(claimProject).not.toHaveBeenCalled();
+
+    claims.reconnect();
+    expect(first?.closed).toBe(true);
+    const second = FakeStream.latest;
+    expect(second).not.toBe(first);
+    expect(second?.url).toBe('/api/session/events?client=client-a');
+    second?.emit('open');
+    await Promise.resolve();
+    expect(claimProject).toHaveBeenCalledWith('alpha');
+  });
 });

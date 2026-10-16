@@ -703,6 +703,25 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
     window.events.shown += on_shown
     window.events.loaded += on_loaded
     window.events.closing += on_window_closing
+    stop_keeper = threading.Event()
+    try:
+        from lit.config import get_config
+        from lit.server_launch import maintain_server
+
+        parsed = urllib.parse.urlsplit(url)
+        threading.Thread(
+            target=maintain_server,
+            args=(
+                stop_keeper,
+                parsed.hostname or "127.0.0.1",
+                parsed.port or 8765,
+                get_config().data_dir,
+            ),
+            name="lit-server-keeper",
+            daemon=True,
+        ).start()
+    except Exception:
+        logger.exception("Could not watch the shared server")
     start_kwargs: dict[str, Any] = {}
     if sys.platform == "win32":
         start_kwargs["gui"] = "edgechromium"
@@ -717,6 +736,7 @@ def open_webview(url: str, title: str = "Local Issue Tracker") -> None:
             retry_kwargs["icon"] = str(ico)
         webview.start(**retry_kwargs)
     finally:
+        stop_keeper.set()
         try:
             close_splash()
         except Exception:

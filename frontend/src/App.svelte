@@ -71,6 +71,7 @@
   import { launchableHref, splitTicketUrls, ticketHref, ticketNumberLabel } from './lib/ticketUrl';
   import { filledTicketSlots, isExternalTicketId, removeExternalTicketSlot, slotsToShow } from './lib/urlTicket';
   import { isAssignedField, nameAlreadyListed } from './lib/assigned';
+  import { wokeFromSleep } from './lib/wake';
   import { lastNoteLines, notesFieldText } from './lib/notePreview';
   import {
     appearanceFromWorkspace,
@@ -243,6 +244,8 @@
   let canvasWrapEl = $state<HTMLElement | null>(null);
   let appShellEl = $state<HTMLElement | null>(null);
   let serverOk = $state(true);
+  let lastHealthAt = Date.now();
+  let healthRun = 0;
   /** Front panel (highest z). That is the one the red pulse follows. */
   let focusedPanelId = $derived.by(() => {
     const panels = workspace?.panels;
@@ -314,6 +317,12 @@
   }
 
   function onAppWindowFocus() {
+    const now = Date.now();
+    if (wokeFromSleep(lastHealthAt, now)) {
+      lastHealthAt = now;
+      projectClaims.reconnect();
+      void pingServer();
+    }
     const epoch = ++activationEpoch;
     // Alt+Tab back has no pointer. Drop the skip after two frames so a later
     // click still ends focus. A click that reactivates the window lands first.
@@ -371,7 +380,12 @@
       if (inWebview) clearInterval(webviewTick);
     }, 200);
     const tick = setInterval(() => (nowTick = Date.now()), 1000);
-    const healthTick = setInterval(() => void pingServer(), 4000);
+    const healthTick = setInterval(() => {
+      const now = Date.now();
+      if (wokeFromSleep(lastHealthAt, now)) projectClaims.reconnect();
+      lastHealthAt = now;
+      void pingServer();
+    }, 4000);
     void pingServer();
     window.setTimeout(() => revealApp(), 5000);
     void bootstrap();
@@ -544,11 +558,20 @@
   }
 
   async function pingServer() {
+    const run = ++healthRun;
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => ctrl.abort(), 2000);
     try {
-      const h = await api.health();
+      const h = await api.health(ctrl.signal);
+      if (run !== healthRun) return;
+      const back = !serverOk && h.status === 'ok';
       serverOk = h.status === 'ok';
+      if (back) projectClaims.reconnect();
     } catch {
+      if (run !== healthRun) return;
       serverOk = false;
+    } finally {
+      window.clearTimeout(timer);
     }
   }
 

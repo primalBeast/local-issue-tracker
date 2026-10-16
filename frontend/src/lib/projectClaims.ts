@@ -24,6 +24,8 @@ export type ProjectClaimsController = {
   takenByOther(slug: string): boolean;
   pickerItemState(slug: string, currentSlug?: string | null): PickerItemState;
   setCurrentProject(slug: string | null): void;
+  /** Drop the dead stream and open a new one. The next open re-claims. */
+  reconnect(): void;
 };
 
 /**
@@ -160,6 +162,13 @@ export function createProjectClaims(deps: {
     pickerItemState: (slug, current) => pickerItemState(claims, clientId, slug, current),
     setCurrentProject: (slug) => {
       currentSlug = slug;
+    },
+    reconnect: () => {
+      if (!clientId) return;
+      connect(clientId);
+      // connect() clears the error flag. Set it again so the next open
+      // re-claims the project this window already had.
+      sawError = true;
     },
   };
 }

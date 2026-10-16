@@ -100,3 +100,39 @@ def ensure_server(host: str, port: int, data_dir: Path, *, timeout: float = 20.0
     cmd = build_server_cmd(Path(data_dir), host, int(port))
     spawn_detached_server(cmd, Path(data_dir))
     return wait_for_http(host, port, timeout=timeout)
+
+
+def maintain_server(
+    stop: threading.Event,
+    host: str,
+    port: int,
+    data_dir: Path,
+    *,
+    interval: float = 5.0,
+    healthy: Any = None,
+    revive: Any = None,
+) -> None:
+    """While the window is open, start the shared server again if it has exited.
+
+    Sleep drops the browser socket. The server then looks idle and exits.
+    The window is still open, so this brings ``/health`` back.
+    """
+    from lit.webview_host import wait_for_http
+
+    check = healthy if healthy is not None else (lambda: wait_for_http(host, port, timeout=1.0))
+    start = revive if revive is not None else (lambda: ensure_server(host, port, Path(data_dir)))
+    while not stop.wait(interval):
+        if stop.is_set():
+            return
+        try:
+            ok = bool(check())
+        except Exception:
+            logger.exception("Server health check failed")
+            ok = False
+        if ok or stop.is_set():
+            continue
+        try:
+            start()
+        except Exception:
+            logger.exception("Could not bring the server back")
+

@@ -174,6 +174,35 @@ def test_ensure_server_spawns_then_waits(tmp_path: Path, monkeypatch: pytest.Mon
     assert calls["n"] == 2
 
 
+def test_maintain_server_revives_once_then_stops() -> None:
+    from lit.server_launch import maintain_server
+
+    stop = threading.Event()
+    calls = {"check": 0, "revive": 0}
+
+    def healthy() -> bool:
+        calls["check"] += 1
+        if calls["check"] >= 3:
+            stop.set()
+        return calls["check"] != 2
+
+    def revive() -> bool:
+        calls["revive"] += 1
+        return True
+
+    maintain_server(
+        stop,
+        "127.0.0.1",
+        1,
+        Path("."),
+        interval=0.01,
+        healthy=healthy,
+        revive=revive,
+    )
+    assert calls["revive"] == 1
+    assert calls["check"] >= 3
+
+
 def test_idle_registry_startup_window_and_last_disconnect() -> None:
     from lit.session import registry
 
