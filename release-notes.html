@@ -271,6 +271,12 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>16 Oct 2026 — Start no longer dies with code 1</h3>
+          <ul>
+            <li>Starting the app could exit before the window opened. A stuck server on the port is cleared, and the error box shows the real reason if it still fails.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>16 Oct 2026 — Favourite themes</h3>
           <ul>
             <li>Each theme has a star. Click it to favourite that theme. The star glows gold and pulses, a little faster or slower than the others.</li>
@@ -514,8 +520,13 @@
       <section class="day">
         <div class="day-head">
           <h3>Fri, Oct 16, 2026</h3>
-          <span>4</span>
+          <span>5</span>
         </div>
+        <article class="entry">
+          <span class="kind fix">Fix</span>
+          <p class="subject">The app could quit at startup with “code 1”. It now clears a stuck server, and the message shows the real error instead of only telling you to reinstall.</p>
+          <span class="hash">branch</span>
+        </article>
         <article class="entry">
           <span class="kind new">New</span>
           <p class="subject">Theme menu stars mark favourites. A favourite star pulses gold, and those themes are listed at the top.</p>

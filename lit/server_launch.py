@@ -19,10 +19,22 @@ from typing import Any
 logger = logging.getLogger("lit.server")
 
 # CREATE_NO_WINDOW is ignored if DETACHED_PROCESS is also set, and a console
-# Python then opens its own terminal. Do not combine them.
+# Python then opens its own terminal. CREATE_NEW_PROCESS_GROUP combined with
+# CREATE_NO_WINDOW can make CreateProcess fail, so the app exits before the
+# window opens. pythonw.exe has no console and must be started with no flags.
 CREATE_NO_WINDOW = 0x08000000
-CREATE_NEW_PROCESS_GROUP = 0x00000200
-WIN_DETACHED_FLAGS = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+
+
+def windows_spawn_flags(executable: str) -> int:
+    """Flags that start the server without a terminal window.
+
+    ``pythonw.exe`` has no console. Extra flags on it can make CreateProcess
+    fail, and the app then quits before the window opens.
+    """
+    name = str(executable).replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if name == "pythonw.exe":
+        return 0
+    return CREATE_NO_WINDOW
 
 
 def server_interpreter() -> str:
@@ -77,7 +89,7 @@ def spawn_detached_server(cmd: list[str], data_dir: Path) -> subprocess.Popen[An
         "close_fds": True,
     }
     if sys.platform == "win32":
-        kwargs["creationflags"] = WIN_DETACHED_FLAGS
+        kwargs["creationflags"] = windows_spawn_flags(str(cmd[0]) if cmd else "")
     else:
         kwargs["start_new_session"] = True
     try:
@@ -219,6 +231,7 @@ def restart_server(
     healthy: Any = None,
     stop_port: Any = None,
     start: Any = None,
+    probe: float = 0.6,
 ) -> bool:
     """Bring the shared server back. A stuck listener is stopped first.
 
@@ -226,7 +239,7 @@ def restart_server(
     """
     from lit.webview_host import wait_for_http
 
-    check = healthy if healthy is not None else (lambda: wait_for_http(host, port, timeout=0.6))
+    check = healthy if healthy is not None else (lambda: wait_for_http(host, port, timeout=probe))
     stopper = stop_port if stop_port is not None else (lambda: stop_listeners(int(port)))
     starter = start if start is not None else (lambda: ensure_server(host, port, Path(data_dir)))
     try:

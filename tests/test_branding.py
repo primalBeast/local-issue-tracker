@@ -61,6 +61,8 @@ def test_webview_launchers_start_splash_and_minimize_console():
     assert "mshta.exe" in cmd
     assert "LIT_SPLASH" in cmd
     assert "LIT_HIDE_CONSOLE" in cmd
+    assert "lit-webview-start.log" in cmd
+    assert "lit-webview-start.log" in vbs
     assert "pythonw" not in cmd
     assert "minimize-console.ps1" in cmd
     assert "-Action hide" in cmd

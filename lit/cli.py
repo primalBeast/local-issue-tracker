@@ -198,29 +198,23 @@ def cmd_serve(args: argparse.Namespace) -> int:
         start_splash()
         minimize_console()
         url = f"http://{cfg.host}:{cfg.port}"
-        from lit.webview_host import open_webview, port_listening, wait_for_http
+        from lit.server_launch import restart_server
+        from lit.webview_host import open_webview
 
-        # The window is only a client. A detached server holds the data lock.
-        if port_listening(cfg.host, cfg.port):
-            if not wait_for_http(cfg.host, cfg.port, timeout=3.0):
-                log.error("Port %s is in use but /health did not respond", url)
-                close_splash()
-                return 1
-            log.info("Server already running — opening WebView2 at %s", url)
-        else:
-            from lit.server_launch import ensure_server
-
-            log.info("Starting shared server at %s", url)
-            try:
-                started = ensure_server(cfg.host, cfg.port, cfg.data_dir)
-            except Exception:
-                log.exception("Could not spawn the shared server")
-                close_splash()
-                return 1
-            if not started:
-                log.error("Server did not start on %s", url)
-                close_splash()
-                return 1
+        # A stuck listener (sleep, a crashed server) holds the port and does
+        # not answer /health. Restart it instead of exiting. The window is
+        # only a client.
+        log.info("Starting shared server at %s", url)
+        try:
+            started = restart_server(cfg.host, cfg.port, cfg.data_dir, probe=3.0)
+        except Exception:
+            log.exception("Could not spawn the shared server")
+            close_splash()
+            return 1
+        if not started:
+            log.error("Server did not start on %s", url)
+            close_splash()
+            return 1
         if cfg.open_browser:
             log.info("Ignoring --open because --webview was set")
         try:

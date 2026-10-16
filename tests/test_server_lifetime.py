@@ -82,7 +82,7 @@ def test_spawn_detached_uses_windows_creation_flags(
 ) -> None:
     import subprocess
 
-    from lit.server_launch import WIN_DETACHED_FLAGS, spawn_detached_server
+    from lit.server_launch import CREATE_NO_WINDOW, spawn_detached_server, windows_spawn_flags
 
     monkeypatch.setattr(sys, "platform", "win32")
     captured: dict[str, object] = {}
@@ -98,10 +98,13 @@ def test_spawn_detached_uses_windows_creation_flags(
     spawn_detached_server(["lit", "serve"], tmp_path)
     kwargs = captured["kwargs"]
     assert isinstance(kwargs, dict)
-    assert kwargs["creationflags"] == WIN_DETACHED_FLAGS
-    # DETACHED_PROCESS (0x8) makes Windows ignore CREATE_NO_WINDOW (0x08000000).
-    assert WIN_DETACHED_FLAGS & 0x08000000
-    assert not WIN_DETACHED_FLAGS & 0x00000008
+    assert kwargs["creationflags"] == CREATE_NO_WINDOW
+    assert windows_spawn_flags(r"C:\app\.venv\Scripts\python.exe") == CREATE_NO_WINDOW
+    assert windows_spawn_flags(r"C:\app\.venv\Scripts\pythonw.exe") == 0
+    # DETACHED_PROCESS (0x8) makes Windows ignore CREATE_NO_WINDOW.
+    # CREATE_NEW_PROCESS_GROUP (0x200) with CREATE_NO_WINDOW can fail CreateProcess.
+    assert not CREATE_NO_WINDOW & 0x00000008
+    assert not CREATE_NO_WINDOW & 0x00000200
     assert "start_new_session" not in kwargs
     assert kwargs["stdin"] is subprocess.DEVNULL
     assert kwargs["stderr"] is subprocess.STDOUT

@@ -6,6 +6,7 @@ Set fso = CreateObject("Scripting.FileSystemObject")
 Set sh = CreateObject("WScript.Shell")
 dir = fso.GetParentFolderName(WScript.ScriptFullName)
 sh.CurrentDirectory = dir
+sh.Environment("PROCESS")("LIT_FROM_VBS") = "1"
 splash = dir & "\lit\assets\splash.hta"
 If fso.FileExists(splash) Then
   ' Drop a leftover close marker so the new splash does not shut itself immediately.
@@ -20,6 +21,17 @@ cmd = "cmd.exe /c """ & dir & "\start-webview.cmd"""
 rc = sh.Run(cmd, 0, True)
 ' Only our explicit start failures return 1. Crash/kill codes are not install problems.
 If rc = 1 Then
-  MsgBox "Local Issue Tracker failed to start (code " & rc & ")." & vbCrLf & _
-    "Double-click install.cmd, then try again.", 16, "Local Issue Tracker"
+  Dim logPath, detail, logFile
+  logPath = sh.ExpandEnvironmentStrings("%TEMP%\lit-webview-start.log")
+  detail = ""
+  On Error Resume Next
+  If fso.FileExists(logPath) Then
+    Set logFile = fso.OpenTextFile(logPath, 1)
+    detail = logFile.ReadAll
+    logFile.Close
+  End If
+  On Error GoTo 0
+  If Len(detail) > 900 Then detail = Right(detail, 900)
+  If Len(detail) = 0 Then detail = "No details were written. Double-click install.cmd, then try again."
+  MsgBox "Local Issue Tracker failed to start." & vbCrLf & vbCrLf & detail, 16, "Local Issue Tracker"
 End If
