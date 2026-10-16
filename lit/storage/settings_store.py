@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any
 
@@ -16,6 +17,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "theme": "dark",
     "transparent_panels": False,
     "transparency_by_theme": {},
+    "favorite_themes": [],
     "ticket_prefix_by_project": {},
     "backup_retention_days": 30,
     "seeded_sample": False,
@@ -41,6 +43,36 @@ def save_settings(data: dict[str, Any]) -> dict[str, Any]:
     path = settings_path()
     write_json(path, data)
     return data
+
+
+_THEME_ID_RE = re.compile(r"^[a-z0-9_-]{1,40}$")
+
+
+def clean_favorite_themes(raw: Any) -> list[dict[str, Any]]:
+    """Keep a short list of {id, pulse}. Pulse is the full glow cycle in seconds."""
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        theme_id = item.get("id")
+        if not isinstance(theme_id, str) or _THEME_ID_RE.fullmatch(theme_id) is None:
+            continue
+        if theme_id in seen:
+            continue
+        try:
+            pulse = float(item.get("pulse", 4))
+        except (TypeError, ValueError):
+            pulse = 4.0
+        if pulse < 2 or pulse > 8:
+            pulse = 4.0
+        seen.add(theme_id)
+        out.append({"id": theme_id, "pulse": pulse})
+        if len(out) >= 80:
+            break
+    return out
 
 
 def patch_settings(updates: dict[str, Any]) -> dict[str, Any]:
@@ -70,6 +102,8 @@ def patch_settings(updates: dict[str, Any]) -> dict[str, Any]:
                     continue
                 merged[str(theme_id)] = max(0.0, min(1.0, n))
             data["transparency_by_theme"] = merged
+        elif k == "favorite_themes":
+            data["favorite_themes"] = clean_favorite_themes(v)
         else:
             data[k] = v
     return save_settings(data)

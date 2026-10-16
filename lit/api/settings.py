@@ -40,6 +40,7 @@ async def update_settings(request: Request) -> dict[str, Any]:
         "theme",
         "transparent_panels",
         "transparency_by_theme",
+        "favorite_themes",
         "ticket_prefix_by_project",
         "backup_retention_days",
         "default_template",

@@ -463,6 +463,22 @@ def test_theme_setting_round_trip(client: TestClient):
     assert by_theme.status_code == 200
     assert by_theme.json()["transparency_by_theme"]["aurora"] == 0.35
     assert by_theme.json()["transparency_by_theme"]["ember"] == 1.0
+    favs = client.patch(
+        "/api/settings",
+        json={
+            "favorite_themes": [
+                {"id": "aurora", "pulse": 4.2},
+                {"id": "aurora", "pulse": 3},
+                {"id": "../nope", "pulse": 4},
+                {"id": "ember", "pulse": 99},
+            ]
+        },
+    )
+    assert favs.status_code == 200
+    assert favs.json()["favorite_themes"] == [
+        {"id": "aurora", "pulse": 4.2},
+        {"id": "ember", "pulse": 4.0},
+    ]
 
 
 def test_open_project_folder(client: TestClient, monkeypatch: pytest.MonkeyPatch):

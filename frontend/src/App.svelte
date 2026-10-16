@@ -89,6 +89,13 @@
     TRANSPARENT_PANELS_KEY,
     transparencyForTheme,
   } from './lib/themes';
+  import {
+    parseFavorites,
+    themeMenuRows,
+    themeNavIds,
+    toggleFavorite,
+    type ThemeFavorite,
+  } from './lib/themeFavorites';
 
   let projects = $state<Project[]>([]);
   let project = $state<Project | null>(null);
@@ -233,6 +240,9 @@
   let committedThemeId = $state(initialTheme.id);
   let highlightedThemeId = $state(initialTheme.id);
   let themeMenuOpen = $state(false);
+  let favoriteThemes = $state<ThemeFavorite[]>([]);
+  const themeMenuView = $derived(themeMenuRows(THEME_MENU, favoriteThemes));
+  const themeNav = $derived(themeNavIds(THEME_MENU, favoriteThemes));
   let transparentPanels = $state(initialTransparent);
   let transparencyByTheme = $state<Record<string, number>>(initialTransparencyMap);
   const initialPanelTransparency = transparencyForTheme(initialTheme.id, initialTransparencyMap);
@@ -621,6 +631,19 @@
       transparencyByTheme = mergedMap;
       writeStoredTransparencyMap(mergedMap);
       adoptTransparencyForTheme(themeId, mergedMap);
+      const savedFavorites = parseFavorites(settings.favorite_themes);
+      const localFavorites = readStoredFavorites();
+      if (savedFavorites.length) {
+        favoriteThemes = savedFavorites;
+      } else if (localFavorites.length) {
+        favoriteThemes = localFavorites;
+        void api.patchSettings({ favorite_themes: localFavorites }).catch((e) => {
+          console.error('Failed to persist theme favourites', e);
+        });
+      } else {
+        favoriteThemes = [];
+      }
+      writeStoredFavorites(favoriteThemes);
       const slug =
         (settings.last_project_slug as string) || projects[0].slug;
       await loadProject(slug);
@@ -688,6 +711,38 @@
         window.setTimeout(() => veil.remove(), 280);
       });
     });
+  }
+
+  const FAVORITE_THEMES_KEY = 'lit:theme-favorites';
+
+  function readStoredFavorites(): ThemeFavorite[] {
+    try {
+      return parseFavorites(JSON.parse(localStorage.getItem(FAVORITE_THEMES_KEY) || 'null'));
+    } catch {
+      return [];
+    }
+  }
+
+  function writeStoredFavorites(list: ThemeFavorite[]) {
+    try {
+      localStorage.setItem(FAVORITE_THEMES_KEY, JSON.stringify(list));
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
+
+  function favoritePulse(id: string): number | null {
+    return favoriteThemes.find((fav) => fav.id === id)?.pulse ?? null;
+  }
+
+  async function toggleThemeFavorite(id: string) {
+    favoriteThemes = toggleFavorite(favoriteThemes, id);
+    writeStoredFavorites(favoriteThemes);
+    try {
+      await api.patchSettings({ favorite_themes: favoriteThemes });
+    } catch (e) {
+      console.error('Failed to persist theme favourites', e);
+    }
   }
 
   function readStoredTheme(): string | null {
@@ -829,10 +884,12 @@
 
   function moveThemeHighlight(delta: number) {
     if (!themeMenuOpen) openThemeMenu();
-    const idx = THEME_MENU.findIndex((e) => e.theme.id === highlightedThemeId);
-    const next = THEME_MENU[(Math.max(idx, 0) + delta + THEME_MENU.length) % THEME_MENU.length];
-    previewTheme(next.theme.id);
-    scrollThemeHighlightIntoView(next.theme.id);
+    const ids = themeNav;
+    if (!ids.length) return;
+    const idx = ids.indexOf(highlightedThemeId);
+    const next = ids[(Math.max(idx, 0) + delta + ids.length) % ids.length];
+    previewTheme(next);
+    scrollThemeHighlightIntoView(next);
   }
 
   function onThemePickerKey(e: KeyboardEvent) {
@@ -849,16 +906,19 @@
     if (e.key === 'Home') {
       e.preventDefault();
       if (!themeMenuOpen) openThemeMenu();
-      previewTheme(THEME_MENU[0].theme.id);
-      scrollThemeHighlightIntoView(THEME_MENU[0].theme.id);
+      const first = themeNav[0];
+      if (!first) return;
+      previewTheme(first);
+      scrollThemeHighlightIntoView(first);
       return;
     }
     if (e.key === 'End') {
       e.preventDefault();
       if (!themeMenuOpen) openThemeMenu();
-      const last = THEME_MENU[THEME_MENU.length - 1];
-      previewTheme(last.theme.id);
-      scrollThemeHighlightIntoView(last.theme.id);
+      const last = themeNav[themeNav.length - 1];
+      if (!last) return;
+      previewTheme(last);
+      scrollThemeHighlightIntoView(last);
       return;
     }
     if (e.key === 'Enter') {
@@ -3309,8 +3369,9 @@
               </label>
             {/if}
             <ul class="theme-menu" role="listbox" aria-label="Theme">
-              {#each THEME_MENU as entry, i (entry.theme.id)}
-                {#if i === 0 || THEME_MENU[i - 1].group !== entry.group}
+              {#each themeMenuView as entry, i (entry.key)}
+                {@const pulse = favoritePulse(entry.theme.id)}
+                {#if i === 0 || themeMenuView[i - 1].group !== entry.group}
                   <li class="theme-group" role="presentation">{entry.group}</li>
                 {/if}
                 <li
@@ -3322,7 +3383,22 @@
                   ondblclick={() => void setTheme(entry.theme.id)}
                 >
                   <span class="theme-num">{entry.num}</span>
-                  {entry.theme.name}
+                  <span class="theme-name">{entry.theme.name}</span>
+                  <button
+                    type="button"
+                    class="theme-star"
+                    class:on={pulse != null}
+                    style={pulse != null ? `--star-pulse:${pulse}s` : undefined}
+                    title={pulse != null ? 'Remove favourite' : 'Favourite'}
+                    aria-label={pulse != null ? 'Remove favourite' : 'Favourite'}
+                    aria-pressed={pulse != null}
+                    onpointerdown={(e) => e.stopPropagation()}
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      void toggleThemeFavorite(entry.theme.id);
+                    }}
+                    ondblclick={(e) => e.stopPropagation()}
+                  >★</button>
                 </li>
               {/each}
             </ul>
