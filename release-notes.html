@@ -271,6 +271,12 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>16 Oct 2026 — Server process that never answered</h3>
+          <ul>
+            <li>The server was starting and then sitting there with no port open. It now uses the same Python as the window, and a stuck copy is stopped first. If it still fails, the message includes the server log.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>16 Oct 2026 — Start no longer dies with code 1</h3>
           <ul>
             <li>Starting the app could exit before the window opened. A stuck server on the port is cleared, and the error box shows the real reason if it still fails.</li>
@@ -520,8 +526,13 @@
       <section class="day">
         <div class="day-head">
           <h3>Fri, Oct 16, 2026</h3>
-          <span>5</span>
+          <span>6</span>
         </div>
+        <article class="entry">
+          <span class="kind fix">Fix</span>
+          <p class="subject">The spawned server got a process id and never opened the port. Startup uses the working Python, stops a stuck copy, and shows the server log if it still fails.</p>
+          <span class="hash">branch</span>
+        </article>
         <article class="entry">
           <span class="kind fix">Fix</span>
           <p class="subject">The app could quit at startup with “code 1”. It now clears a stuck server, and the message shows the real error instead of only telling you to reinstall.</p>

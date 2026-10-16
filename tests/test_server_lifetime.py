@@ -41,15 +41,19 @@ class _FakeProc:
     def wait(self, timeout: float | None = None) -> int:
         return 0
 
+    def poll(self) -> None:
+        return None
+
 
 def test_build_server_cmd_includes_headless_idle_and_data_dir(tmp_path: Path) -> None:
     from lit.server_launch import build_server_cmd, server_interpreter
 
     data = tmp_path / "data"
     cmd = build_server_cmd(data, "127.0.0.1", 23456)
-    # On Windows this is pythonw.exe when it sits next to the interpreter.
+    # Same interpreter the window is already running. pythonw was spawning and never answering.
     assert cmd[0] == server_interpreter()
-    assert cmd[1:3] == ["-m", "lit"]
+    assert "-u" in cmd
+    assert cmd[1:4] == ["-u", "-m", "lit"]
     assert "--data-dir" in cmd
     assert str(data) in cmd
     assert "serve" in cmd
@@ -59,20 +63,12 @@ def test_build_server_cmd_includes_headless_idle_and_data_dir(tmp_path: Path) ->
     assert cmd[cmd.index("--port") + 1] == "23456"
 
 
-def test_build_server_cmd_prefers_pythonw_on_windows(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_build_server_cmd_does_not_use_pythonw(tmp_path: Path) -> None:
     from lit.server_launch import build_server_cmd
 
-    monkeypatch.setattr(sys, "platform", "win32")
-    target = Path(sys.executable).with_name("pythonw.exe")
-
-    def is_file(self: Path) -> bool:
-        return self == target
-
-    monkeypatch.setattr(Path, "is_file", is_file)
     cmd = build_server_cmd(tmp_path, "127.0.0.1", 25011)
-    assert Path(cmd[0]) == target
+    assert "pythonw" not in Path(cmd[0]).name.lower()
+    assert "-u" in cmd
     assert "--headless" in cmd
     assert "--exit-when-idle" in cmd
 
@@ -100,7 +96,7 @@ def test_spawn_detached_uses_windows_creation_flags(
     assert isinstance(kwargs, dict)
     assert kwargs["creationflags"] == CREATE_NO_WINDOW
     assert windows_spawn_flags(r"C:\app\.venv\Scripts\python.exe") == CREATE_NO_WINDOW
-    assert windows_spawn_flags(r"C:\app\.venv\Scripts\pythonw.exe") == 0
+    assert windows_spawn_flags(r"C:\app\.venv\Scripts\pythonw.exe") == CREATE_NO_WINDOW
     # DETACHED_PROCESS (0x8) makes Windows ignore CREATE_NO_WINDOW.
     # CREATE_NEW_PROCESS_GROUP (0x200) with CREATE_NO_WINDOW can fail CreateProcess.
     assert not CREATE_NO_WINDOW & 0x00000008
@@ -178,6 +174,26 @@ def test_ensure_server_spawns_then_waits(tmp_path: Path, monkeypatch: pytest.Mon
     assert "--data-dir" in cmd
     assert str(data) in cmd
     assert calls["n"] == 2
+
+
+def test_ensure_server_stops_when_the_child_exits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from lit.server_launch import ensure_server
+
+    monkeypatch.setattr("lit.webview_host.wait_for_http", lambda *args, **kwargs: False)
+
+    class Dead:
+        pid = 5
+
+        def poll(self) -> int:
+            return 3
+
+    monkeypatch.setattr("lit.server_launch.spawn_detached_server", lambda *args, **kwargs: Dead())
+    log = tmp_path / "logs" / "server.log"
+    log.parent.mkdir()
+    log.write_text("ImportError: boom\n", encoding="utf-8")
+    assert ensure_server("127.0.0.1", 9, tmp_path, timeout=30) is False
 
 
 def test_maintain_server_revives_once_then_stops() -> None:

@@ -13,43 +13,36 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("lit.server")
 
-# CREATE_NO_WINDOW is ignored if DETACHED_PROCESS is also set, and a console
-# Python then opens its own terminal. CREATE_NEW_PROCESS_GROUP combined with
-# CREATE_NO_WINDOW can make CreateProcess fail, so the app exits before the
-# window opens. pythonw.exe has no console and must be started with no flags.
+# CREATE_NO_WINDOW hides python.exe. Do not add DETACHED_PROCESS (it cancels
+# the hide) or CREATE_NEW_PROCESS_GROUP (CreateProcess can reject the pair).
+# Do not launch pythonw.exe: it was given a pid and then never answered.
 CREATE_NO_WINDOW = 0x08000000
 
 
 def windows_spawn_flags(executable: str) -> int:
-    """Flags that start the server without a terminal window.
-
-    ``pythonw.exe`` has no console. Extra flags on it can make CreateProcess
-    fail, and the app then quits before the window opens.
-    """
-    name = str(executable).replace("\\", "/").rsplit("/", 1)[-1].lower()
-    if name == "pythonw.exe":
-        return 0
+    """Hide a console Python. ``pythonw.exe`` is not used: it was spawning and never answering."""
     return CREATE_NO_WINDOW
 
 
 def server_interpreter() -> str:
-    """Prefer pythonw.exe next to the current interpreter on Windows."""
-    if sys.platform == "win32":
-        candidate = Path(sys.executable).with_name("pythonw.exe")
-        if candidate.is_file():
-            return str(candidate)
+    """The interpreter that is already running. ``pythonw.exe`` started and then never served."""
     return sys.executable
 
 
 def build_server_cmd(data_dir: Path, host: str, port: int) -> list[str]:
-    """Command line for the detached ``lit serve --headless --exit-when-idle``."""
+    """Command line for the detached ``lit serve --headless --exit-when-idle``.
+
+    ``-u`` flushes the log immediately so a crash is visible.
+    """
     return [
         server_interpreter(),
+        "-u",
         "-m",
         "lit",
         "--data-dir",
@@ -101,6 +94,38 @@ def spawn_detached_server(cmd: list[str], data_dir: Path) -> subprocess.Popen[An
     return proc
 
 
+def _log_tail(path: Path, limit: int = 1200) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    return text[-limit:]
+
+
+def _wait_for_spawned(proc: Any, host: str, port: int, timeout: float, log_path: Path) -> bool:
+    from lit.webview_host import wait_for_http
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if wait_for_http(host, port, timeout=0.4):
+            return True
+        if proc.poll() is not None:
+            break
+        time.sleep(0.15)
+    code = proc.poll()
+    tail = _log_tail(log_path)
+    logger.error(
+        "Shared server pid=%s exit=%s did not answer /health.\n%s",
+        getattr(proc, "pid", None),
+        code if code is not None else "still running",
+        tail or "(server log is empty)",
+    )
+    return False
+
+
 def ensure_server(host: str, port: int, data_dir: Path, *, timeout: float = 20.0) -> bool:
     """If ``/health`` is down, spawn the shared server and wait for it.
 
@@ -112,8 +137,9 @@ def ensure_server(host: str, port: int, data_dir: Path, *, timeout: float = 20.0
     if wait_for_http(host, port, timeout=0.4):
         return True
     cmd = build_server_cmd(Path(data_dir), host, int(port))
-    spawn_detached_server(cmd, Path(data_dir))
-    return wait_for_http(host, port, timeout=timeout)
+    proc = spawn_detached_server(cmd, Path(data_dir))
+    log_path = Path(data_dir) / "logs" / "server.log"
+    return _wait_for_spawned(proc, host, int(port), timeout, log_path)
 
 
 def maintain_server(
@@ -203,6 +229,33 @@ def listening_pids(port: int) -> list[int]:
     return [pid for pid in parse_listening_pids(out, port) if pid != me]
 
 
+def stop_headless_servers() -> None:
+    """Stop a previous ``lit serve --headless`` that is holding the data lock but not listening.
+
+    ``pythonw`` did this: the process stayed up and the next start could not take the lock.
+    """
+    if sys.platform != "win32":
+        return
+    script = (
+        "Get-CimInstance Win32_Process | "
+        "Where-Object { $_.CommandLine -and $_.CommandLine -match 'headless' "
+        "-and $_.CommandLine -match 'serve' } | "
+        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+    )
+    try:
+        subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=15,
+            creationflags=CREATE_NO_WINDOW,
+        )
+    except (OSError, subprocess.SubprocessError):
+        logger.exception("Could not stop a stuck headless server")
+
+
 def stop_listeners(port: int) -> None:
     """End processes that are still holding ``port`` after /health has failed."""
     for pid in listening_pids(port):
@@ -223,6 +276,12 @@ def stop_listeners(port: int) -> None:
             logger.debug("Could not stop pid %s", pid, exc_info=True)
 
 
+def release_stuck_server(port: int) -> None:
+    stop_listeners(port)
+    stop_headless_servers()
+    time.sleep(0.4)
+
+
 def restart_server(
     host: str,
     port: int,
@@ -240,7 +299,7 @@ def restart_server(
     from lit.webview_host import wait_for_http
 
     check = healthy if healthy is not None else (lambda: wait_for_http(host, port, timeout=probe))
-    stopper = stop_port if stop_port is not None else (lambda: stop_listeners(int(port)))
+    stopper = stop_port if stop_port is not None else (lambda: release_stuck_server(int(port)))
     starter = start if start is not None else (lambda: ensure_server(host, port, Path(data_dir)))
     try:
         if bool(check()):
