@@ -64,6 +64,7 @@ def test_js_api_does_not_hold_a_window_attribute():
     assert callable(bridge.start_resize)
     assert callable(bridge.start_drag)
     assert callable(bridge.main_ready)
+    assert callable(bridge.restart_server)
 
 
 def test_scale_window_to_monitor_is_three_quarters():

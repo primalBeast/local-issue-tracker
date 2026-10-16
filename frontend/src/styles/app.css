@@ -966,21 +966,41 @@ body.lit-tab-dragging .ws-tab { cursor: grabbing !important; }
   white-space: nowrap;
 }
 
-.server-dot {
+button.server-dot {
   width: 9px;
   height: 9px;
+  min-width: 9px;
   border-radius: 50%;
   flex: 0 0 auto;
-}
-
-.server-dot.ok {
+  border: 0;
+  padding: 0;
   background: #4ade80;
   box-shadow: 0 0 8px rgba(74, 222, 128, 0.9);
 }
 
-.server-dot.down {
+button.server-dot:hover,
+button.server-dot:active {
+  transform: none;
+  border: 0;
+  background: #4ade80;
+}
+
+button.server-dot:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+button.server-dot.down,
+button.server-dot.down:hover,
+button.server-dot.down:active {
   background: #f87171;
   box-shadow: 0 0 8px rgba(248, 113, 113, 0.9);
+  cursor: pointer;
+}
+
+button.server-dot:disabled,
+button.server-dot.down:disabled {
+  cursor: default;
 }
 
 /* Lost the local server: the title bar, and the focused panel, pulse

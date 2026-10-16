@@ -116,6 +116,18 @@ def make_view_menu(on_reload: Callable[[], Any]) -> list[Any]:
     return [Menu("View", [MenuAction("Reload\tF5", on_reload)])]
 
 
+def _restart_shared_server() -> None:
+    """Start the shared server again. Runs off the WebView UI thread."""
+    try:
+        from lit.config import get_config
+        from lit.server_launch import restart_server
+
+        cfg = get_config()
+        restart_server(cfg.host, cfg.port, cfg.data_dir)
+    except Exception:
+        logger.exception("Could not restart the server")
+
+
 class WebviewBridge:
     """JS API only. No Window/Form attributes — those crash pywebview's JS bridge."""
 
@@ -218,6 +230,14 @@ class WebviewBridge:
         from lit.branding import close_splash
 
         close_splash()
+
+    def restart_server(self) -> None:
+        """The red status dot asked for the server back. Do not block the page."""
+        threading.Thread(
+            target=_restart_shared_server,
+            name="lit-server-restart",
+            daemon=True,
+        ).start()
 
 
 class CloseIO:

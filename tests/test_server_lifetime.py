@@ -206,6 +206,71 @@ def test_maintain_server_revives_once_then_stops() -> None:
     assert calls["check"] >= 3
 
 
+def test_parse_listening_pids_keeps_local_listeners_only() -> None:
+    from lit.server_launch import parse_listening_pids
+
+    text = """
+      TCP    127.0.0.1:8765    0.0.0.0:0    LISTENING    4242
+      TCP    192.168.1.5:8765  0.0.0.0:0    LISTENING    99
+      TCP    127.0.0.1:80      0.0.0.0:0    LISTENING    7
+      TCP    127.0.0.1:8765    127.0.0.1:1  ESTABLISHED  11
+      TCP    0.0.0.0:8765      0.0.0.0:0    LISTENING    4242
+    """
+    assert parse_listening_pids(text, 8765) == [4242]
+
+
+def test_restart_server_stops_a_stuck_listener_then_starts(tmp_path: Path) -> None:
+    from lit.server_launch import restart_server
+
+    events: list[str] = []
+
+    def healthy() -> bool:
+        events.append("health")
+        return False
+
+    def stop() -> None:
+        events.append("stop")
+
+    def start() -> bool:
+        events.append("start")
+        return True
+
+    assert (
+        restart_server(
+            "127.0.0.1",
+            8765,
+            tmp_path,
+            healthy=healthy,
+            stop_port=stop,
+            start=start,
+        )
+        is True
+    )
+    assert events == ["health", "stop", "start"]
+
+
+def test_restart_server_leaves_a_healthy_server_alone(tmp_path: Path) -> None:
+    from lit.server_launch import restart_server
+
+    def stop() -> None:
+        raise AssertionError("should not stop a server that answers")
+
+    def start() -> bool:
+        raise AssertionError("should not start a server that answers")
+
+    assert (
+        restart_server(
+            "127.0.0.1",
+            8765,
+            tmp_path,
+            healthy=lambda: True,
+            stop_port=stop,
+            start=start,
+        )
+        is True
+    )
+
+
 def test_idle_registry_startup_window_and_last_disconnect() -> None:
     from lit.session import registry
 

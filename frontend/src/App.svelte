@@ -244,6 +244,7 @@
   let canvasWrapEl = $state<HTMLElement | null>(null);
   let appShellEl = $state<HTMLElement | null>(null);
   let serverOk = $state(true);
+  let restarting = $state(false);
   let lastHealthAt = Date.now();
   let healthRun = 0;
   /** Front panel (highest z). That is the one the red pulse follows. */
@@ -572,6 +573,31 @@
       serverOk = false;
     } finally {
       window.clearTimeout(timer);
+    }
+  }
+
+  function serverStatusTitle(): string {
+    if (serverOk) return 'Connected to server';
+    if (restarting) return 'Restarting the server…';
+    if (webviewApi()?.restart_server) return 'Server disconnected. Click to restart the server.';
+    return 'Server disconnected';
+  }
+
+  async function restartServer() {
+    if (serverOk || restarting) return;
+    const restart = webviewApi()?.restart_server;
+    if (!restart) return;
+    restarting = true;
+    try {
+      await restart();
+      const deadline = Date.now() + 20_000;
+      while (!serverOk && Date.now() < deadline) {
+        await pingServer();
+        if (serverOk) break;
+        await new Promise((resolve) => window.setTimeout(resolve, 400));
+      }
+    } finally {
+      restarting = false;
     }
   }
 
@@ -2913,6 +2939,7 @@
         start_resize?: (edge: string) => Promise<unknown>;
         start_drag?: () => Promise<unknown>;
         main_ready?: (clientId?: string) => Promise<unknown>;
+        restart_server?: () => Promise<unknown>;
       }
     | undefined {
     return (
@@ -2926,6 +2953,7 @@
             start_resize?: (edge: string) => Promise<unknown>;
             start_drag?: () => Promise<unknown>;
             main_ready?: (clientId?: string) => Promise<unknown>;
+            restart_server?: () => Promise<unknown>;
           };
         };
       }
@@ -3312,13 +3340,16 @@
         >zoom {(zoom * 100).toFixed(0)}%</span>
         {#if compact}<span class="chip">compact</span>{/if}
         <span class="build-stamp" title="UI build id — if this is missing, hard-refresh">ui:2026-09-14c</span>
-        <span
+        <button
+          type="button"
           class="server-dot"
           class:ok={serverOk}
           class:down={!serverOk}
-          title={serverOk ? 'Connected to server' : 'Server disconnected'}
-          aria-label={serverOk ? 'Connected to server' : 'Server disconnected'}
-        ></span>
+          disabled={serverOk || restarting}
+          title={serverStatusTitle()}
+          aria-label={serverStatusTitle()}
+          onclick={() => void restartServer()}
+        ></button>
       </div>
       {#if inWebview}
         <div class="window-chrome" role="group" aria-label="Window">

@@ -8,6 +8,8 @@ exits; its parent keeps waiting until ``/health`` answers.
 from __future__ import annotations
 
 import logging
+import os
+import signal
 import subprocess
 import sys
 import threading
@@ -135,4 +137,111 @@ def maintain_server(
             start()
         except Exception:
             logger.exception("Could not bring the server back")
+
+
+def parse_listening_pids(text: str, port: int) -> list[int]:
+    """PIDs from ``netstat -ano`` that are listening on ``port`` locally.
+
+    Other addresses are left alone. Established connections are not listeners.
+    """
+    wanted = int(port)
+    found: list[int] = []
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) < 5 or parts[0].upper() != "TCP":
+            continue
+        if parts[3].upper() != "LISTENING":
+            continue
+        local = parts[1]
+        host, sep, raw_port = local.rpartition(":")
+        if not sep:
+            continue
+        try:
+            if int(raw_port) != wanted:
+                continue
+        except ValueError:
+            continue
+        if host not in ("127.0.0.1", "localhost", "[::1]", "0.0.0.0", "[::]"):
+            continue
+        try:
+            pid = int(parts[4])
+        except ValueError:
+            continue
+        if pid > 0 and pid not in found:
+            found.append(pid)
+    return found
+
+
+def listening_pids(port: int) -> list[int]:
+    """PIDs listening on ``port`` on this machine. Empty when we cannot tell."""
+    if sys.platform != "win32":
+        return []
+    try:
+        out = subprocess.check_output(
+            ["netstat", "-ano", "-p", "tcp"],
+            text=True,
+            errors="replace",
+            stdin=subprocess.DEVNULL,
+            creationflags=CREATE_NO_WINDOW,
+        )
+    except (OSError, subprocess.SubprocessError):
+        logger.exception("Could not list listeners on port %s", port)
+        return []
+    me = os.getpid()
+    return [pid for pid in parse_listening_pids(out, port) if pid != me]
+
+
+def stop_listeners(port: int) -> None:
+    """End processes that are still holding ``port`` after /health has failed."""
+    for pid in listening_pids(port):
+        logger.info("Stopping process %s holding port %s", pid, port)
+        if sys.platform == "win32":
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/F"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                creationflags=CREATE_NO_WINDOW,
+            )
+            continue
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            logger.debug("Could not stop pid %s", pid, exc_info=True)
+
+
+def restart_server(
+    host: str,
+    port: int,
+    data_dir: Path,
+    *,
+    healthy: Any = None,
+    stop_port: Any = None,
+    start: Any = None,
+) -> bool:
+    """Bring the shared server back. A stuck listener is stopped first.
+
+    Returns True when ``/health`` answers. Already-up does not kill anything.
+    """
+    from lit.webview_host import wait_for_http
+
+    check = healthy if healthy is not None else (lambda: wait_for_http(host, port, timeout=0.6))
+    stopper = stop_port if stop_port is not None else (lambda: stop_listeners(int(port)))
+    starter = start if start is not None else (lambda: ensure_server(host, port, Path(data_dir)))
+    try:
+        if bool(check()):
+            return True
+    except Exception:
+        logger.exception("Server health check failed before restart")
+    try:
+        stopper()
+    except Exception:
+        logger.exception("Could not stop the stuck server")
+    try:
+        return bool(starter())
+    except Exception:
+        logger.exception("Could not restart the server")
+        return False
+
 
