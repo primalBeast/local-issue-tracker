@@ -1,5 +1,5 @@
-' Start splash immediately with mshta, then start-webview.cmd already minimized.
-' 1 = SW_SHOWNORMAL (HTA splash), 7 = SW_SHOWMINNOACTIVE (helper console)
+' Start splash immediately with mshta. The helper console stays hidden.
+' 1 = SW_SHOWNORMAL (HTA splash), 0 = SW_HIDE (no taskbar button)
 Option Explicit
 Dim fso, sh, dir, cmd, rc, splash
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -17,7 +17,7 @@ If fso.FileExists(splash) Then
   sh.Run "mshta.exe """ & splash & """", 1, False
 End If
 cmd = "cmd.exe /c """ & dir & "\start-webview.cmd"""
-rc = sh.Run(cmd, 7, True)
+rc = sh.Run(cmd, 0, True)
 ' Only our explicit start failures return 1. Crash/kill codes are not install problems.
 If rc = 1 Then
   MsgBox "Local Issue Tracker failed to start (code " & rc & ")." & vbCrLf & _

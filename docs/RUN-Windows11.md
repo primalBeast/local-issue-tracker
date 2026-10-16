@@ -133,7 +133,7 @@ uv run lit doctor
 
 Easiest: double-click **`start.cmd`**. It starts the server and opens the browser. Leave that window open. If the app is already running, it just opens http://127.0.0.1:8765.
 
-**WebView2 window (no browser tab):** double-click **`start-webview.vbs`** (splash first, no console flash) or **`start-webview.cmd`**. The helper console is **minimized** to the taskbar; restore **Local Issue Tracker** there to read logs. A splash window shows while the server starts (`mshta`, same as Local HTML Reader). Or:
+**WebView2 window (no browser tab):** double-click **`start-webview.vbs`** (splash first, no console) or **`start-webview.cmd`**. There is no server terminal and nothing on the taskbar for it. A splash window shows while the server starts (`mshta`, same as Local HTML Reader). Or:
 
 ```powershell
 uv run lit serve --webview
@@ -162,7 +162,7 @@ Leave the PowerShell window open while you use the app in browser mode, and stop
 
 ### Daily start (after the first setup)
 
-Double-click **`start.cmd`** (browser) or **`start-webview.cmd`** / **`start-webview.vbs`** (WebView2, console minimized), or:
+Double-click **`start.cmd`** (browser) or **`start-webview.cmd`** / **`start-webview.vbs`** (WebView2, no console), or:
 
 ```powershell
 cd D:\dev\local-issue-tracker   # your clone path

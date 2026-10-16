@@ -16,11 +16,11 @@ from typing import Any
 
 logger = logging.getLogger("lit.server")
 
-# Windows process-creation flags. Hard-coded so tests can assert them on POSIX.
+# CREATE_NO_WINDOW is ignored if DETACHED_PROCESS is also set, and a console
+# Python then opens its own terminal. Do not combine them.
 CREATE_NO_WINDOW = 0x08000000
-DETACHED_PROCESS = 0x00000008
 CREATE_NEW_PROCESS_GROUP = 0x00000200
-WIN_DETACHED_FLAGS = CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+WIN_DETACHED_FLAGS = CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
 
 
 def server_interpreter() -> str:

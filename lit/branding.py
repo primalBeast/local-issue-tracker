@@ -46,15 +46,21 @@ def apply_app_user_model_id() -> None:
 
 
 def minimize_console() -> None:
-    """Keep the helper console off-screen; restore from the taskbar for logs."""
+    """Hide the launcher console. A terminal the user opened themselves stays put.
+
+    ``start-webview.cmd`` sets ``LIT_HIDE_CONSOLE=1``. SW_HIDE (0) removes the
+    taskbar button. SW_MINIMIZE left that button, which is what people saw.
+    """
     if sys.platform != "win32":
+        return
+    if os.environ.get("LIT_HIDE_CONSOLE") != "1":
         return
     try:
         hwnd = ctypes.windll.kernel32.GetConsoleWindow()
         if hwnd:
-            ctypes.windll.user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+            ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
     except Exception:
-        logger.exception("Could not minimize console")
+        logger.exception("Could not hide console")
 
 
 def _find_splash_hwnd() -> int:

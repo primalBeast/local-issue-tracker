@@ -271,6 +271,12 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>16 Oct 2026 — No server terminal</h3>
+          <ul>
+            <li>The WebView launcher no longer leaves a console on the taskbar. The background server does not open one either.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>16 Oct 2026 — Reconnects after sleep</h3>
           <ul>
             <li>Waking the computer used to drop the connection, and the server then shut itself down. The window now starts it again.</li>
@@ -495,8 +501,13 @@
       <section class="day">
         <div class="day-head">
           <h3>Fri, Oct 16, 2026</h3>
-          <span>1</span>
+          <span>2</span>
         </div>
+        <article class="entry">
+          <span class="kind fix">Fix</span>
+          <p class="subject">The WebView launcher console stays hidden, including off the taskbar. The background server no longer opens a terminal of its own.</p>
+          <span class="hash">branch</span>
+        </article>
         <article class="entry">
           <span class="kind fix">Fix</span>
           <p class="subject">After sleep, the window starts the server again if it exited, and the app reconnects. The red pulse clears when the server answers.</p>

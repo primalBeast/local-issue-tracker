@@ -99,6 +99,9 @@ def test_spawn_detached_uses_windows_creation_flags(
     kwargs = captured["kwargs"]
     assert isinstance(kwargs, dict)
     assert kwargs["creationflags"] == WIN_DETACHED_FLAGS
+    # DETACHED_PROCESS (0x8) makes Windows ignore CREATE_NO_WINDOW (0x08000000).
+    assert WIN_DETACHED_FLAGS & 0x08000000
+    assert not WIN_DETACHED_FLAGS & 0x00000008
     assert "start_new_session" not in kwargs
     assert kwargs["stdin"] is subprocess.DEVNULL
     assert kwargs["stderr"] is subprocess.STDOUT

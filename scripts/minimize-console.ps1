@@ -1,5 +1,6 @@
-# Minimize the console that launched this script (same window keeps its log text).
-# 6 = SW_MINIMIZE
+# Hide the launcher console, or show it again when startup fails.
+# 0 = SW_HIDE (no taskbar button). 9 = SW_RESTORE.
+param([ValidateSet("hide", "show")][string]$Action = "hide")
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -10,5 +11,7 @@ public static class LitConsole {
 "@
 $hwnd = [LitConsole]::GetConsoleWindow()
 if ($hwnd -ne [IntPtr]::Zero) {
-  [void][LitConsole]::ShowWindow($hwnd, 6)
+  $cmd = 0
+  if ($Action -eq "show") { $cmd = 9 }
+  [void][LitConsole]::ShowWindow($hwnd, $cmd)
 }

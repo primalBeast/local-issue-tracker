@@ -55,10 +55,12 @@ def test_webview_launchers_start_splash_and_minimize_console():
     assert "LIT_SPLASH" in vbs
     assert "lit-splash.close" in vbs
     assert "pythonw" not in vbs
-    assert ", 7, True" in vbs
+    assert ", 0, True" in vbs
     assert "If rc = 1 Then" in vbs
     assert "splash.hta" in cmd
     assert "mshta.exe" in cmd
     assert "LIT_SPLASH" in cmd
+    assert "LIT_HIDE_CONSOLE" in cmd
     assert "pythonw" not in cmd
     assert "minimize-console.ps1" in cmd
+    assert "-Action hide" in cmd
