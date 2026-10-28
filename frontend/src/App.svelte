@@ -28,7 +28,7 @@
   import TemplateEditor from './lib/TemplateEditor.svelte';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupBodyBlocks, groupFieldsByRow, pickField } from './lib/fieldLayout';
-  import { HEADER_TITLE_EDITOR_PX, isNotesFillRow, minItemPanelHeight } from './lib/panelSize';
+  import { HEADER_TITLE_EDITOR_PX, isNotesFillRow, minItemPanelHeight, newItemPanelWidth } from './lib/panelSize';
   import {
     isPanelSortField,
     layoutColumnMajor,
@@ -1993,7 +1993,7 @@
     }
     void ensureDetail(itemId);
     const defaults = project?.default_item_panel || {};
-    const panelW = Math.max(200, Number(defaults.width) || 720);
+    const panelW = newItemPanelWidth(defaults.width);
     const existingItem = detailCache[itemId] || items.find((i) => i.id === itemId);
     const headerEditor =
       !existingItem || !itemDescription(existingItem) ? HEADER_TITLE_EDITOR_PX : 0;

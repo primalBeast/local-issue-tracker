@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FieldDef } from './api';
 import { groupFieldsByRow } from './fieldLayout';
-import { minItemPanelHeight, notesEditorMinPx, NOTES_MIN_LINES } from './panelSize';
+import { minItemPanelHeight, newItemPanelWidth, notesEditorMinPx, NOTES_MIN_LINES } from './panelSize';
 
 function f(id: string, order: number | string, type = 'text'): FieldDef {
   return { id, label: id, type, order };
@@ -22,5 +22,12 @@ describe('panelSize', () => {
       f('notes', 60, 'richtext'),
     ]);
     expect(minItemPanelHeight(many)).toBeGreaterThan(minItemPanelHeight(few));
+  });
+
+  it('opens a new ticket panel at 80% of the current default width', () => {
+    expect(newItemPanelWidth(720)).toBe(576);
+    expect(newItemPanelWidth(undefined)).toBe(576);
+    expect(newItemPanelWidth(0)).toBe(576);
+    expect(newItemPanelWidth(250)).toBe(200);
   });
 });

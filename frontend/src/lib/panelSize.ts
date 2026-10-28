@@ -17,6 +17,13 @@ export function notesEditorMinPx(lines = NOTES_MIN_LINES): number {
   return NOTES_EDITOR_PAD_PX + NOTES_LINE_PX * lines;
 }
 
+/** New ticket panels open at 80% of the configured default width. */
+export function newItemPanelWidth(configured: unknown, fallback = 720): number {
+  const base = Number(configured);
+  const width = Number.isFinite(base) && base > 0 ? base : fallback;
+  return Math.max(200, Math.round(width * 0.8));
+}
+
 export function notesBlockMinPx(lines = NOTES_MIN_LINES): number {
   return NOTES_LABEL_PX + NOTES_TOOLBAR_PX + notesEditorMinPx(lines);
 }
