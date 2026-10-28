@@ -225,6 +225,48 @@ def test_maintain_server_revives_once_then_stops() -> None:
     assert calls["check"] >= 3
 
 
+def test_maintain_server_restarts_after_it_stays_down() -> None:
+    from lit.server_launch import maintain_server
+
+    stop = threading.Event()
+    clock = {"t": 0.0}
+    calls = {"check": 0, "soft": 0, "hard": 0}
+
+    def healthy() -> bool:
+        calls["check"] += 1
+        if calls["check"] >= 3:
+            stop.set()
+            return True
+        return False
+
+    def tick() -> float:
+        return clock["t"]
+
+    def revive() -> bool:
+        calls["soft"] += 1
+        clock["t"] = 13.0
+        return False
+
+    def restart() -> bool:
+        calls["hard"] += 1
+        return True
+
+    maintain_server(
+        stop,
+        "127.0.0.1",
+        1,
+        Path("."),
+        interval=0.0,
+        hard_after=12.0,
+        healthy=healthy,
+        revive=revive,
+        restart=restart,
+        clock=tick,
+    )
+    assert calls["soft"] == 1
+    assert calls["hard"] == 1
+
+
 def test_parse_listening_pids_keeps_local_listeners_only() -> None:
     from lit.server_launch import parse_listening_pids
 

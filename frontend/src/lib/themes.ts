@@ -2,7 +2,6 @@ export type ThemeId =
   | 'midnight'
   | 'aurora'
   | 'ember'
-  | 'abyss'
   | 'lunar'
   | 'sakura'
   | 'solar'
@@ -126,30 +125,20 @@ export type ThemeId =
   | 'manta'
   | 'dropoff'
   | 'jelly'
-  | 'hadal'
   | 'honu'
   | 'bluehole'
   | 'anemone'
   | 'humpback'
-  | 'aethersea'
-  | 'glassreef'
-  | 'twinmoon'
   | 'rustshore'
   | 'vapor'
-  | 'prismtide'
   | 'goldlagoon'
   | 'stormwell'
-  | 'nightglass'
-  | 'spirecoast'
   | 'voidkelp'
   | 'crystalreef'
   | 'abyssfish'
-  | 'magmawell'
   | 'silkjell'
   | 'leviathan'
   | 'starfall'
-  | 'amethyst'
-  | 'ionvent'
   | 'moonpool'
   | 'sakuravideo'
   | 'oasisvideo'
@@ -217,7 +206,6 @@ export type ThemeId =
   | 'koipond'
   | 'canyonrail'
   | 'lavender'
-  | 'subwaydawn'
   | 'coralkeep'
   | 'pinesmoke'
   | 'ambermine'
@@ -239,7 +227,6 @@ export type ThemeId =
   | 'steammarket'
   | 'alpinehut'
   | 'lotusdusk'
-  | 'foundrydawn'
   | 'stardunes'
   | 'rainpagoda'
   | 'ciderorchard'
@@ -304,7 +291,6 @@ export type ThemeId =
   | 'lakestars'
   | 'oilrain'
   | 'moonwell'
-  | 'campfire'
   | 'cityglow'
   | 'lanternpath'
   | 'bloodmoon'
@@ -326,7 +312,6 @@ export type ThemeId =
   | 'powerlines'
   | 'marblequarry'
   | 'railyard'
-  | 'coolingtower'
   | 'saltworks'
   | 'lenticular'
   | 'mammatus'
@@ -474,15 +459,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(22, 10, 8, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(18,6,4,0.52) 0%, rgba(18,6,4,0.2) 42%, rgba(10,6,8,0.5) 100%)',
-  }),
-  themed('abyss', 'Abyssal Jade', 'abyss-trench.jpg', '#22d3ee', '#34d399', {
-    '--text': '#e6fffb',
-    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
-    '--accent-soft': 'rgba(52, 211, 153, 0.14)',
-    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
-    '--panel-glass': 'rgba(4, 14, 22, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(2,8,16,0.58) 0%, rgba(2,8,16,0.28) 40%, rgba(2,10,18,0.55) 100%)',
   }),
   themed('lunar', 'Lunar Silk', 'lunar.jpg', '#cbd5e1', '#93c5fd', {
     '--text': '#f8fafc',
@@ -1592,15 +1568,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,6,16,0.54) 0%, rgba(6,6,16,0.2) 44%, rgba(6,6,16,0.52) 100%)',
   }),
-  themed('hadal', 'Hadal Glow', 'hadal.jpg', '#22d3ee', '#a78bfa', {
-    '--text': '#ecfeff',
-    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
-    '--accent-soft': 'rgba(167, 139, 250, 0.14)',
-    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
-    '--panel-glass': 'rgba(4, 6, 14, 0.64)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(2,4,12,0.58) 0%, rgba(2,4,12,0.24) 44%, rgba(2,4,12,0.56) 100%)',
-  }),
   themed('honu', 'Honu Garden', 'honu.jpg', '#4ade80', '#fbbf24', {
     '--text': '#ecfdf5',
     '--focus-ring': 'rgba(74, 222, 128, 0.22)',
@@ -1637,33 +1604,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,8,14,0.5) 0%, rgba(4,8,14,0.18) 44%, rgba(4,8,14,0.5) 100%)',
   }),
-  themed('aethersea', 'Aether Sea', 'aethersea.jpg', '#c084fc', '#fb7185', {
-    '--text': '#faf5ff',
-    '--focus-ring': 'rgba(192, 132, 252, 0.22)',
-    '--accent-soft': 'rgba(251, 113, 133, 0.14)',
-    '--brand-glow': 'rgba(192, 132, 252, 0.4)',
-    '--panel-glass': 'rgba(10, 8, 16, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,6,14,0.5) 0%, rgba(8,6,14,0.18) 44%, rgba(8,6,14,0.5) 100%)',
-  }),
-  themed('glassreef', 'Glass Reef', 'glassreef.jpg', '#22d3ee', '#c084fc', {
-    '--text': '#ecfeff',
-    '--focus-ring': 'rgba(34, 211, 238, 0.22)',
-    '--accent-soft': 'rgba(192, 132, 252, 0.14)',
-    '--brand-glow': 'rgba(34, 211, 238, 0.4)',
-    '--panel-glass': 'rgba(8, 10, 16, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,8,14,0.5) 0%, rgba(6,8,14,0.18) 44%, rgba(6,8,14,0.5) 100%)',
-  }),
-  themed('twinmoon', 'Twin Moon Tide', 'twinmoon.jpg', '#fbbf24', '#93c5fd', {
-    '--text': '#fffbeb',
-    '--focus-ring': 'rgba(251, 191, 36, 0.22)',
-    '--accent-soft': 'rgba(147, 197, 253, 0.14)',
-    '--brand-glow': 'rgba(251, 191, 36, 0.4)',
-    '--panel-glass': 'rgba(6, 8, 16, 0.62)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,6,14,0.54) 0%, rgba(4,6,14,0.2) 44%, rgba(4,6,14,0.54) 100%)',
-  }),
   themed('rustshore', 'Rust Shore', 'rustshore.jpg', '#fb923c', '#34d399', {
     '--text': '#fff7ed',
     '--focus-ring': 'rgba(251, 146, 60, 0.22)',
@@ -1682,15 +1622,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(4,8,10,0.5) 0%, rgba(4,8,10,0.18) 44%, rgba(4,8,10,0.5) 100%)',
   }),
-  themed('prismtide', 'Prism Tide', 'prismtide.jpg', '#e879f9', '#22d3ee', {
-    '--text': '#fdf4ff',
-    '--focus-ring': 'rgba(232, 121, 249, 0.22)',
-    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
-    '--brand-glow': 'rgba(232, 121, 249, 0.4)',
-    '--panel-glass': 'rgba(8, 8, 16, 0.58)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,6,14,0.5) 0%, rgba(6,6,14,0.18) 44%, rgba(6,6,14,0.5) 100%)',
-  }),
   themed('goldlagoon', 'Gold Lagoon', 'goldlagoon.jpg', '#fbbf24', '#22d3ee', {
     '--text': '#fffbeb',
     '--focus-ring': 'rgba(251, 191, 36, 0.22)',
@@ -1708,24 +1639,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(8, 8, 16, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,6,14,0.54) 0%, rgba(6,6,14,0.2) 44%, rgba(6,6,14,0.52) 100%)',
-  }),
-  themed('nightglass', 'Nightglass Sea', 'nightglass.jpg', '#e879f9', '#4ade80', {
-    '--text': '#fdf4ff',
-    '--focus-ring': 'rgba(232, 121, 249, 0.22)',
-    '--accent-soft': 'rgba(74, 222, 128, 0.14)',
-    '--brand-glow': 'rgba(232, 121, 249, 0.4)',
-    '--panel-glass': 'rgba(6, 6, 12, 0.64)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(4,4,10,0.56) 0%, rgba(4,4,10,0.22) 44%, rgba(4,4,10,0.56) 100%)',
-  }),
-  themed('spirecoast', 'Spire Coast', 'spirecoast.jpg', '#67e8f9', '#fb923c', {
-    '--text': '#ecfeff',
-    '--focus-ring': 'rgba(103, 232, 249, 0.22)',
-    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
-    '--brand-glow': 'rgba(103, 232, 249, 0.4)',
-    '--panel-glass': 'rgba(8, 12, 16, 0.56)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,10,14,0.48) 0%, rgba(6,10,14,0.16) 44%, rgba(6,10,14,0.48) 100%)',
   }),
   themed('voidkelp', 'Void Kelp', 'voidkelp.jpg', '#c084fc', '#22d3ee', {
     '--text': '#faf5ff',
@@ -1754,15 +1667,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(6,6,16,0.54) 0%, rgba(6,6,16,0.2) 44%, rgba(6,6,16,0.54) 100%)',
   }),
-  themed('magmawell', 'Magma Well', 'magmawell.jpg', '#fb923c', '#22d3ee', {
-    '--text': '#fff7ed',
-    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
-    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
-    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
-    '--panel-glass': 'rgba(8, 8, 12, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(6,6,10,0.54) 0%, rgba(6,6,10,0.2) 44%, rgba(6,6,10,0.54) 100%)',
-  }),
   themed('silkjell', 'Silk Jellies', 'silkjell.jpg', '#fde68a', '#c084fc', {
     '--text': '#fffbeb',
     '--focus-ring': 'rgba(253, 230, 138, 0.22)',
@@ -1789,24 +1693,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(4, 8, 16, 0.62)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(2,6,14,0.56) 0%, rgba(2,6,14,0.22) 44%, rgba(2,6,14,0.56) 100%)',
-  }),
-  themed('amethyst', 'Amethyst Grotto', 'amethyst.jpg', '#a78bfa', '#22d3ee', {
-    '--text': '#f5f3ff',
-    '--focus-ring': 'rgba(167, 139, 250, 0.22)',
-    '--accent-soft': 'rgba(34, 211, 238, 0.14)',
-    '--brand-glow': 'rgba(167, 139, 250, 0.4)',
-    '--panel-glass': 'rgba(10, 8, 16, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(8,6,14,0.54) 0%, rgba(8,6,14,0.2) 44%, rgba(8,6,14,0.54) 100%)',
-  }),
-  themed('ionvent', 'Ion Vent', 'ionvent.jpg', '#38bdf8', '#c084fc', {
-    '--text': '#eff6ff',
-    '--focus-ring': 'rgba(56, 189, 248, 0.22)',
-    '--accent-soft': 'rgba(192, 132, 252, 0.14)',
-    '--brand-glow': 'rgba(56, 189, 248, 0.4)',
-    '--panel-glass': 'rgba(4, 6, 12, 0.64)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(2,4,10,0.58) 0%, rgba(2,4,10,0.24) 44%, rgba(2,4,10,0.56) 100%)',
   }),
   themed('moonpool', 'Moon Pool', 'moonpool.jpg', '#67e8f9', '#c4b5fd', {
     '--text': '#ecfeff',
@@ -2348,15 +2234,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(14,8,18,0.52) 0%, rgba(14,8,18,0.18) 44%, rgba(14,8,18,0.5) 100%)',
   }),
-  themed('subwaydawn', 'Subway Dawn', 'subwaydawn.jpg', '#fb923c', '#94a3b8', {
-    '--text': '#fff7ed',
-    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
-    '--accent-soft': 'rgba(148, 163, 184, 0.14)',
-    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
-    '--panel-glass': 'rgba(12, 12, 14, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(12,12,14,0.52) 0%, rgba(12,12,14,0.18) 44%, rgba(12,12,14,0.5) 100%)',
-  }),
   themed('coralkeep', 'Coral Keep', 'coralkeep.jpg', '#fb7185', '#2dd4bf', {
     '--text': '#fff1f2',
     '--focus-ring': 'rgba(251, 113, 133, 0.22)',
@@ -2545,15 +2422,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(14, 8, 14, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(14,8,14,0.52) 0%, rgba(14,8,14,0.18) 44%, rgba(14,8,14,0.5) 100%)',
-  }),
-  themed('foundrydawn', 'Foundry Dawn', 'foundrydawn.jpg', '#fb923c', '#38bdf8', {
-    '--text': '#fff7ed',
-    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
-    '--accent-soft': 'rgba(56, 189, 248, 0.14)',
-    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
-    '--panel-glass': 'rgba(10, 10, 14, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(10,10,14,0.52) 0%, rgba(10,10,14,0.18) 44%, rgba(10,10,14,0.5) 100%)',
   }),
   themed('stardunes', 'Star Dunes', 'stardunes.jpg', '#fde68a', '#818cf8', {
     '--text': '#fffbeb',
@@ -3131,15 +2999,6 @@ export const THEMES: Theme[] = [
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(10,12,14,0.52) 0%, rgba(10,12,14,0.18) 44%, rgba(10,12,14,0.5) 100%)',
   }),
-  themed('campfire', 'Lone Fire', 'campfire.jpg', '#fb923c', '#fbbf24', {
-    '--text': '#fff7ed',
-    '--focus-ring': 'rgba(251, 146, 60, 0.22)',
-    '--accent-soft': 'rgba(251, 191, 36, 0.14)',
-    '--brand-glow': 'rgba(251, 146, 60, 0.4)',
-    '--panel-glass': 'rgba(12, 8, 6, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(12,8,6,0.52) 0%, rgba(12,8,6,0.18) 44%, rgba(12,8,6,0.5) 100%)',
-  }),
   themed('cityglow', 'City Glow', 'cityglow.jpg', '#fbbf24', '#818cf8', {
     '--text': '#fffbeb',
     '--focus-ring': 'rgba(251, 191, 36, 0.22)',
@@ -3328,15 +3187,6 @@ export const THEMES: Theme[] = [
     '--panel-glass': 'rgba(12, 10, 10, 0.6)',
     '--wallpaper-veil':
       'linear-gradient(180deg, rgba(12,10,10,0.52) 0%, rgba(12,10,10,0.18) 44%, rgba(12,10,10,0.5) 100%)',
-  }),
-  themed('coolingtower', 'Cooling Towers', 'coolingtower.jpg', '#e2e8f0', '#fb923c', {
-    '--text': '#f8fafc',
-    '--focus-ring': 'rgba(226, 232, 240, 0.22)',
-    '--accent-soft': 'rgba(251, 146, 60, 0.14)',
-    '--brand-glow': 'rgba(226, 232, 240, 0.4)',
-    '--panel-glass': 'rgba(12, 12, 14, 0.6)',
-    '--wallpaper-veil':
-      'linear-gradient(180deg, rgba(12,12,14,0.52) 0%, rgba(12,12,14,0.18) 44%, rgba(12,12,14,0.5) 100%)',
   }),
   themed('saltworks', 'Salt Works', 'saltworks.jpg', '#fda4af', '#f8fafc', {
     '--text': '#fff1f2',
@@ -3563,7 +3413,6 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
     ids: [
       'aurora',
       'ember',
-      'abyss',
       'lunar',
       'sakura',
       'solar',
@@ -3723,7 +3572,6 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'manta',
       'dropoff',
       'jelly',
-      'hadal',
       'honu',
       'bluehole',
       'anemone',
@@ -3733,16 +3581,10 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
   {
     label: 'Alien ocean',
     ids: [
-      'aethersea',
-      'glassreef',
-      'twinmoon',
       'rustshore',
       'vapor',
-      'prismtide',
       'goldlagoon',
       'stormwell',
-      'nightglass',
-      'spirecoast',
     ],
   },
   {
@@ -3751,12 +3593,9 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'voidkelp',
       'crystalreef',
       'abyssfish',
-      'magmawell',
       'silkjell',
       'leviathan',
       'starfall',
-      'amethyst',
-      'ionvent',
       'moonpool',
     ],
   },
@@ -3827,7 +3666,6 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'koipond',
       'canyonrail',
       'lavender',
-      'subwaydawn',
       'coralkeep',
       'pinesmoke',
       'ambermine',
@@ -3849,7 +3687,6 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'steammarket',
       'alpinehut',
       'lotusdusk',
-      'foundrydawn',
       'stardunes',
       'rainpagoda',
       'ciderorchard',
@@ -3944,7 +3781,6 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'lakestars',
       'oilrain',
       'moonwell',
-      'campfire',
       'cityglow',
       'lanternpath',
       'bloodmoon',
@@ -3976,7 +3812,6 @@ export const THEME_GROUPS: { label: string; ids: ThemeId[] }[] = [
       'powerlines',
       'marblequarry',
       'railyard',
-      'coolingtower',
       'saltworks',
     ],
   },

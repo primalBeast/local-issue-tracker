@@ -18,11 +18,11 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe('themes', () => {
-  it('includes the midnight default plus three hundred and thirty-seven wallpapers', () => {
+  it('includes the midnight default plus the wallpaper and video looks', () => {
     expect(THEMES[0].id).toBe('midnight');
     expect(THEMES[0].name.toLowerCase()).toContain('default');
-    expect(THEMES).toHaveLength(345);
-    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(337);
+    expect(THEMES).toHaveLength(330);
+    expect(THEMES.filter((t) => t.wallpaper)).toHaveLength(322);
     expect(THEMES.filter((t) => t.video)).toHaveLength(7);
   });
 
@@ -111,11 +111,11 @@ describe('themes', () => {
     }
   });
 
-  it('ships fifty-nine random wallpapers in the Random theme group', () => {
+  it('ships fifty-seven random wallpapers in the Random theme group', () => {
     const group = THEME_GROUPS.find((g) => g.label === 'Random');
-    expect(group?.ids).toHaveLength(59);
+    expect(group?.ids).toHaveLength(57);
     const ids = new Set(group?.ids);
-    expect(ids.size).toBe(59);
+    expect(ids.size).toBe(57);
     for (const id of group!.ids) {
       const theme = THEMES.find((t) => t.id === id);
       expect(theme?.wallpaper, id).toBe(`/themes/${id}.jpg`);
@@ -125,7 +125,7 @@ describe('themes', () => {
     }
   });
 
-  it('ships one hundred various wallpapers across ten groups', () => {
+  it('ships ninety-eight various wallpapers across ten groups', () => {
     const labels = [
       'Weather',
       'Cities',
@@ -139,8 +139,8 @@ describe('themes', () => {
       'Ruins',
     ];
     const ids = labels.flatMap((label) => THEME_GROUPS.find((g) => g.label === label)?.ids ?? []);
-    expect(ids).toHaveLength(100);
-    expect(new Set(ids).size).toBe(100);
+    expect(ids).toHaveLength(98);
+    expect(new Set(ids).size).toBe(98);
     for (const id of ids) {
       const theme = THEMES.find((t) => t.id === id);
       expect(theme?.wallpaper, id).toBe(`/themes/${id}.jpg`);

@@ -72,6 +72,7 @@
   import { filledTicketSlots, isExternalTicketId, removeExternalTicketSlot, slotsToShow } from './lib/urlTicket';
   import { isAssignedField, nameAlreadyListed } from './lib/assigned';
   import { wokeFromSleep } from './lib/wake';
+  import { shouldAutoRestart } from './lib/serverWatch';
   import { lastNoteLines, notesFieldText } from './lib/notePreview';
   import {
     appearanceFromWorkspace,
@@ -255,6 +256,7 @@
   let appShellEl = $state<HTMLElement | null>(null);
   let serverOk = $state(true);
   let restarting = $state(false);
+  let downSince = 0;
   let lastHealthAt = Date.now();
   let healthRun = 0;
   /** Front panel (highest z). That is the one the red pulse follows. */
@@ -577,10 +579,18 @@
       if (run !== healthRun) return;
       const back = !serverOk && h.status === 'ok';
       serverOk = h.status === 'ok';
+      if (serverOk) downSince = 0;
       if (back) projectClaims.reconnect();
     } catch {
       if (run !== healthRun) return;
       serverOk = false;
+      if (!downSince) downSince = Date.now();
+      if (
+        shouldAutoRestart(downSince, Date.now(), restarting) &&
+        webviewApi()?.restart_server
+      ) {
+        void restartServer();
+      }
     } finally {
       window.clearTimeout(timer);
     }
@@ -608,6 +618,7 @@
       }
     } finally {
       restarting = false;
+      if (!serverOk) downSince = Date.now();
     }
   }
 

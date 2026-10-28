@@ -19,6 +19,8 @@ from typing import Any
 
 logger = logging.getLogger("lit.server")
 
+_restart_lock = threading.Lock()
+
 # CREATE_NO_WINDOW hides python.exe. Do not add DETACHED_PROCESS (it cancels
 # the hide) or CREATE_NEW_PROCESS_GROUP (CreateProcess can reject the pair).
 # Do not launch pythonw.exe: it was given a pid and then never answered.
@@ -149,18 +151,24 @@ def maintain_server(
     data_dir: Path,
     *,
     interval: float = 5.0,
+    hard_after: float = 12.0,
     healthy: Any = None,
     revive: Any = None,
+    restart: Any = None,
+    clock: Any = None,
 ) -> None:
-    """While the window is open, start the shared server again if it has exited.
+    """While the window is open, bring the shared server back if it stops answering.
 
-    Sleep drops the browser socket. The server then looks idle and exits.
-    The window is still open, so this brings ``/health`` back.
+    A clean exit is started again on the next check. If ``/health`` stays down
+    for ``hard_after`` seconds, the stuck process is stopped and a new one starts.
     """
     from lit.webview_host import wait_for_http
 
     check = healthy if healthy is not None else (lambda: wait_for_http(host, port, timeout=1.0))
     start = revive if revive is not None else (lambda: ensure_server(host, port, Path(data_dir)))
+    hard = restart if restart is not None else (lambda: restart_server(host, port, Path(data_dir)))
+    now = clock if clock is not None else time.monotonic
+    down_since: float | None = None
     while not stop.wait(interval):
         if stop.is_set():
             return
@@ -169,10 +177,20 @@ def maintain_server(
         except Exception:
             logger.exception("Server health check failed")
             ok = False
-        if ok or stop.is_set():
+        if stop.is_set():
+            return
+        if ok:
+            down_since = None
             continue
+        seen = float(now())
+        if down_since is None:
+            down_since = seen
         try:
-            start()
+            if seen - down_since >= hard_after:
+                hard()
+                down_since = seen
+            else:
+                start()
         except Exception:
             logger.exception("Could not bring the server back")
 
@@ -295,7 +313,22 @@ def restart_server(
     """Bring the shared server back. A stuck listener is stopped first.
 
     Returns True when ``/health`` answers. Already-up does not kill anything.
+    Overlapping calls wait, so the window and the keeper cannot kill each other.
     """
+    with _restart_lock:
+        return _restart_server(host, port, data_dir, healthy=healthy, stop_port=stop_port, start=start, probe=probe)
+
+
+def _restart_server(
+    host: str,
+    port: int,
+    data_dir: Path,
+    *,
+    healthy: Any = None,
+    stop_port: Any = None,
+    start: Any = None,
+    probe: float = 0.6,
+) -> bool:
     from lit.webview_host import wait_for_http
 
     check = healthy if healthy is not None else (lambda: wait_for_http(host, port, timeout=probe))

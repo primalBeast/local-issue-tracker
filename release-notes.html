@@ -263,7 +263,7 @@
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 16 Oct 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 28 Oct 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,13 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>28 Oct 2026 — Reconnect, and fewer themes</h3>
+          <ul>
+            <li>If the server stays quiet for about 15 seconds, the app starts it again. You do not have to click the red dot.</li>
+            <li>Removed themes 4, 128, 133, 134, 135, 138, 141, 142, 146, 150, 151, 212, 234, 299, and 321.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>16 Oct 2026 — Server process that never answered</h3>
           <ul>
             <li>The server was starting and then sitting there with no port open. It now uses the same Python as the window, and a stuck copy is stopped first. If it still fails, the message includes the server log.</li>
@@ -523,6 +530,22 @@
         </div>
         <button type="button" class="toggle" id="rebuilds">Show bundle rebuilds</button>
       </div>
+      <section class="day">
+        <div class="day-head">
+          <h3>Wed, Oct 28, 2026</h3>
+          <span>2</span>
+        </div>
+        <article class="entry">
+          <span class="kind fix">Fix</span>
+          <p class="subject">The app starts the server again after it has been quiet for about 15 seconds.</p>
+          <span class="hash">branch</span>
+        </article>
+        <article class="entry">
+          <span class="kind ui">UI</span>
+          <p class="subject">Removed 15 themes from the menu: Abyssal Jade, Hadal Glow, six alien seas, three alien depths, Subway Dawn, Foundry Dawn, Lone Fire, and Cooling Towers.</p>
+          <span class="hash">branch</span>
+        </article>
+      </section>
       <section class="day">
         <div class="day-head">
           <h3>Fri, Oct 16, 2026</h3>
