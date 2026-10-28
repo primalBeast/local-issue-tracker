@@ -3937,9 +3937,23 @@
                             checked={waitingOn}
                             onchange={(e) => patchItemFields(item.id, 'waiting', e.currentTarget.checked)}
                           />
-                          Waiting…
+                          Waiting for…
                         </label>
+                        {#if waitingOn}
                         <div class="waiting-details">
+                            {#if since}
+                              <label class="waiting-inline">
+                                <span>Since:</span>
+                                <input
+                                  type="date"
+                                  value={String(detailCache[item.id].fields.waiting_since ?? '')}
+                                  oninput={(e) =>
+                                    scheduleItemPatch(item.id, { waiting_since: e.currentTarget.value })}
+                                  onchange={(e) =>
+                                    scheduleItemPatch(item.id, { waiting_since: e.currentTarget.value })}
+                                />
+                              </label>
+                            {/if}
                             {#if person}
                               <div class="waiting-name-with-add">
                                 <label class="waiting-inline">
@@ -3964,20 +3978,8 @@
                                 >+</button>
                               </div>
                             {/if}
-                            {#if since}
-                              <label class="waiting-inline">
-                                <span>Since:</span>
-                                <input
-                                  type="date"
-                                  value={String(detailCache[item.id].fields.waiting_since ?? '')}
-                                  oninput={(e) =>
-                                    scheduleItemPatch(item.id, { waiting_since: e.currentTarget.value })}
-                                  onchange={(e) =>
-                                    scheduleItemPatch(item.id, { waiting_since: e.currentTarget.value })}
-                                />
-                              </label>
-                            {/if}
                           </div>
+                        {/if}
                       </div>
                       {/if}
                     {:else}

@@ -607,9 +607,20 @@
                       checked={waitingOn}
                       onchange={(e) => patchPreview('waiting', e.currentTarget.checked)}
                     />
-                    Waiting…
+                    Waiting for…
                   </label>
+                  {#if waitingOn}
                   <div class="waiting-details">
+                      {#if since}
+                        <label class="waiting-inline">
+                          <span>Since:</span>
+                          <input
+                            type="date"
+                            value={String(previewValues.waiting_since ?? '')}
+                            oninput={(e) => patchPreview('waiting_since', e.currentTarget.value)}
+                          />
+                        </label>
+                      {/if}
                       {#if person}
                         <label class="waiting-inline">
                           <span>{person.label || 'Name'}:</span>
@@ -624,17 +635,8 @@
                           </select>
                         </label>
                       {/if}
-                      {#if since}
-                        <label class="waiting-inline">
-                          <span>Since:</span>
-                          <input
-                            type="date"
-                            value={String(previewValues.waiting_since ?? '')}
-                            oninput={(e) => patchPreview('waiting_since', e.currentTarget.value)}
-                          />
-                        </label>
-                      {/if}
                     </div>
+                  {/if}
                 </div>
               {/if}
             {:else}
