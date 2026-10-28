@@ -3937,10 +3937,9 @@
                             checked={waitingOn}
                             onchange={(e) => patchItemFields(item.id, 'waiting', e.currentTarget.checked)}
                           />
-                          Waiting for...
+                          Waiting…
                         </label>
-                        {#if waitingOn}
-                          <div class="waiting-details">
+                        <div class="waiting-details">
                             {#if person}
                               <div class="waiting-name-with-add">
                                 <label class="waiting-inline">
@@ -3979,7 +3978,6 @@
                               </label>
                             {/if}
                           </div>
-                        {/if}
                       </div>
                       {/if}
                     {:else}

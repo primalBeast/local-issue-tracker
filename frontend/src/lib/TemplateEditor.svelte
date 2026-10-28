@@ -607,10 +607,9 @@
                       checked={waitingOn}
                       onchange={(e) => patchPreview('waiting', e.currentTarget.checked)}
                     />
-                    {pickField(block.fields, 'waiting')?.label || 'Waiting for...'}
+                    Waiting…
                   </label>
-                  {#if waitingOn}
-                    <div class="waiting-details">
+                  <div class="waiting-details">
                       {#if person}
                         <label class="waiting-inline">
                           <span>{person.label || 'Name'}:</span>
@@ -636,7 +635,6 @@
                         </label>
                       {/if}
                     </div>
-                  {/if}
                 </div>
               {/if}
             {:else}

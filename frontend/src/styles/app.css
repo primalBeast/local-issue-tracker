@@ -289,19 +289,33 @@ label.field-label {
   cursor: pointer;
 }
 
-.waiting-block { margin-bottom: 10px; }
+.waiting-block {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+  min-width: 0;
+}
+.waiting-block > .check-row {
+  flex: 0 0 auto;
+  margin: 0;
+  white-space: nowrap;
+}
 .waiting-details {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 10px 16px;
-  margin-top: 8px;
+  gap: 8px 12px;
+  margin-top: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .waiting-name-with-add {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 1 1 220px;
+  flex: 1 1 140px;
   min-width: 0;
 }
 .waiting-name-with-add .waiting-inline {
@@ -315,7 +329,7 @@ label.field-label {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  flex: 1 1 180px;
+  flex: 1 1 120px;
 }
 .waiting-inline span {
   flex: 0 0 auto;
@@ -329,7 +343,8 @@ label.field-label {
   width: auto;
 }
 .waiting-inline input[type="date"] {
-  flex: 0 1 160px;
+  flex: 0 1 148px;
+  min-width: 0;
 }
 
 .panel-body-fill {
