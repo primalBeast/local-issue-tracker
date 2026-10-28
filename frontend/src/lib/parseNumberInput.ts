@@ -17,3 +17,20 @@ export function parseNumberInput(
   if (typeof bounds?.max === 'number' && n > bounds.max) return undefined;
   return n;
 }
+
+/**
+ * The value to store while a number box is being typed.
+ * `undefined` means the draft is incomplete or unchanged, so leave the field alone.
+ */
+export function liveNumberValue(
+  draft: string,
+  original: unknown,
+  bounds?: { min?: unknown; max?: unknown; required?: boolean }
+): number | null | undefined {
+  const parsed = parseNumberInput(draft, bounds);
+  if (parsed === undefined) return undefined;
+  const blank = original == null || original === '';
+  if (parsed === null) return blank ? undefined : null;
+  if (blank || Number(original) !== parsed) return parsed;
+  return undefined;
+}

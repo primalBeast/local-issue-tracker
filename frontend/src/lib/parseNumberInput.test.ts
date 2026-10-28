@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseNumberInput } from './parseNumberInput';
+import { parseNumberInput, liveNumberValue } from './parseNumberInput';
 
 describe('parseNumberInput', () => {
   it('clears a blank field to null', () => {
@@ -37,5 +37,14 @@ describe('parseNumberInput', () => {
     expect(parseNumberInput('2', { required: true, min: 3 })).toBeUndefined();
     expect(parseNumberInput('', { required: false })).toBeNull();
     expect(parseNumberInput('  ', { required: false, max: 9 })).toBeNull();
+  });
+
+  it('publishes a typed number as soon as it differs from the stored one', () => {
+    expect(liveNumberValue('4', 88, { required: true })).toBe(4);
+    expect(liveNumberValue('88', 88, { required: true })).toBeUndefined();
+    expect(liveNumberValue('1e', 88, { required: true })).toBeUndefined();
+    expect(liveNumberValue('', 88, { required: true })).toBeUndefined();
+    expect(liveNumberValue('', 3)).toBeNull();
+    expect(liveNumberValue('', null)).toBeUndefined();
   });
 });

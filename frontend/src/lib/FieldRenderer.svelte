@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { FieldDef } from './api';
   import { isVisible } from './filters';
-  import { parseNumberInput } from './parseNumberInput';
+  import { liveNumberValue } from './parseNumberInput';
   import RichText from './RichText.svelte';
   import UrlTicketField from './UrlTicketField.svelte';
 
@@ -39,22 +39,25 @@
     numberDraft = value == null || value === '' ? '' : String(value);
   }
 
-  function finishNumberEdit() {
-    if (!numberFocused) return;
-    const parsed = parseNumberInput(numberDraft, {
+  function numberBounds() {
+    return {
       min: def.validation?.min,
       max: def.validation?.max,
       required: def.required,
-    });
+    };
+  }
+
+  function publishNumberDraft() {
+    const next = liveNumberValue(numberDraft, numberOriginal, numberBounds());
+    if (next === undefined) return;
+    numberOriginal = next;
+    onchange(def.id, next);
+  }
+
+  function finishNumberEdit() {
+    if (!numberFocused) return;
+    publishNumberDraft();
     numberFocused = false;
-    // Invalid text, or a blank required number, keeps the stored value.
-    if (parsed === undefined) return;
-    const blank = numberOriginal == null || numberOriginal === '';
-    if (parsed === null) {
-      if (!blank) onchange(def.id, null);
-      return;
-    }
-    if (blank || Number(numberOriginal) !== parsed) onchange(def.id, parsed);
   }
 </script>
 
@@ -103,6 +106,7 @@
         oninput={(e) => {
           if (!numberFocused) beginNumberEdit();
           numberDraft = e.currentTarget.value;
+          publishNumberDraft();
         }}
         onblur={finishNumberEdit}
       />
