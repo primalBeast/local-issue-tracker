@@ -317,6 +317,7 @@ label.field-label {
   gap: 6px;
   flex: 1 1 140px;
   min-width: 0;
+  margin-left: 18px;
 }
 .waiting-name-with-add .waiting-inline {
   flex: 1 1 auto;
@@ -342,9 +343,13 @@ label.field-label {
   min-width: 0;
   width: auto;
 }
+.waiting-details > .waiting-inline {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
 .waiting-inline input[type="date"] {
-  flex: 0 1 148px;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: auto;
 }
 
 .panel-body-fill {
