@@ -2375,7 +2375,7 @@
   function listCellDisplay(f: FieldDef, item: Item): string {
     if (f.id === 'waiting_for' && !isItemWaiting(item)) return '';
     if (f.type === 'checkbox') return item.fields[f.id] ? 'Yes' : '';
-    if (f.id === 'ticket_key' || f.id === keyField()) {
+    if (f.id === 'ticket_key' || f.id === keyField() || f.id === 'alternate_ticket') {
       return ticketNumberLabel(String(item.fields[f.id] ?? '')) || String(item.fields[f.id] ?? '');
     }
     return String(item.fields[f.id] ?? '');

@@ -83,7 +83,9 @@ def test_seeded_project_and_fields(client: TestClient):
     assert "waiting" in ids
     assert "alternate_ticket" in ids
     by_id = {f["id"]: f for f in fields["fields"]}
-    assert by_id["alternate_ticket"]["show_in_list"] is False
+    assert by_id["alternate_ticket"]["show_in_list"] is True
+    assert by_id["alternate_ticket"]["list_label"] == "Alternate"
+    assert by_id["alternate_ticket"]["order"] == 15
     assert by_id["priority"]["order"] == "30a"
     assert by_id["urgency"]["order"] == "30b"
     assert by_id["state"]["order"] == "30c"
@@ -98,6 +100,24 @@ def test_seeded_project_and_fields(client: TestClient):
         "field": "state",
         "starts_with": "External Fixing",
     }
+
+
+def test_existing_alternate_ticket_becomes_a_list_column():
+    from lit.storage.project_fs import show_alternate_ticket_column
+
+    data = {
+        "fields": [
+            {"id": "ticket_key", "order": 10, "show_in_list": True},
+            {"id": "title", "order": 20, "show_in_list": True},
+            {"id": "alternate_ticket", "order": 21, "show_in_list": False},
+        ]
+    }
+    assert show_alternate_ticket_column(data) is True
+    alt = next(f for f in data["fields"] if f["id"] == "alternate_ticket")
+    assert alt["show_in_list"] is True
+    assert alt["order"] == 15
+    assert alt["list_label"] == "Alternate"
+    assert show_alternate_ticket_column(data) is False
 
 
 def test_external_ticket_url_field(client: TestClient):

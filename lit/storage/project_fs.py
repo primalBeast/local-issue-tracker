@@ -224,10 +224,11 @@ ALTERNATE_TICKET_FIELD: dict[str, Any] = {
     "label": "Alternate ticket",
     "type": "text",
     "required": False,
-    "order": 21,
+    "order": 15,
     "default": "",
     "placeholder": "Related ticket number",
-    "show_in_list": False,
+    "show_in_list": True,
+    "list_label": "Alternate",
     "show_in_compact": False,
 }
 
@@ -250,6 +251,27 @@ def ensure_alternate_ticket_field(data: dict[str, Any]) -> bool:
         _insert_field_before(fields, spec, ("priority", "state", "waiting", "notes"))
     data["fields"] = fields
     return True
+
+
+def show_alternate_ticket_column(data: dict[str, Any]) -> bool:
+    """Show Alternate just to the right of the ticket number on All Items."""
+    fields = data.get("fields")
+    if not isinstance(fields, list):
+        return False
+    changed = False
+    for f in fields:
+        if not isinstance(f, dict) or f.get("id") != "alternate_ticket":
+            continue
+        if f.get("show_in_list") is not True:
+            f["show_in_list"] = True
+            changed = True
+        if not f.get("list_label"):
+            f["list_label"] = "Alternate"
+            changed = True
+        if f.get("order") in (21, "21", None, ""):
+            f["order"] = 15
+            changed = True
+    return changed
 
 
 def ensure_external_ticket_fields(data: dict[str, Any]) -> bool:
@@ -516,6 +538,8 @@ def load_fields(slug: str) -> dict[str, Any]:
     if ensure_external_ticket_fields(data):
         changed = True
     if ensure_alternate_ticket_field(data):
+        changed = True
+    if show_alternate_ticket_column(data):
         changed = True
     if ensure_unbounded_int_fields(data):
         changed = True
