@@ -122,6 +122,11 @@ export type Workspace = {
     direction: 'asc' | 'desc';
     secondary?: { field: string; direction: 'asc' | 'desc' };
   };
+  /** All Items column order and which ticket fields are shown. */
+  list_columns?: {
+    order?: string[];
+    visible?: Record<string, boolean>;
+  };
   panels: Panel[];
 };
 
@@ -322,7 +327,8 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
-  items: (slug: string) => req<Item[]>(`/api/projects/${slug}/items`),
+  items: (slug: string, opts?: { full?: boolean }) =>
+    req<Item[]>(`/api/projects/${slug}/items${opts?.full ? '?full=true' : ''}`),
   item: (slug: string, id: string) => req<Item>(`/api/projects/${slug}/items/${id}`),
   createItem: (slug: string, fields: Record<string, unknown>) =>
     req<Item>(`/api/projects/${slug}/items`, {

@@ -51,13 +51,13 @@ class ItemPatch(BaseModel):
 
 
 @router.get("")
-async def list_items(slug: str) -> list[dict[str, Any]]:
+async def list_items(slug: str, full: bool = False) -> list[dict[str, Any]]:
     require_project(slug)
     field_defs = load_fields(slug).get("fields", [])
     db = db_path_for(slug)
 
     def _list(conn):
-        return items_db.list_items(conn, field_defs, lean=True)
+        return items_db.list_items(conn, field_defs, lean=not full)
 
     items = await items_db.run_db_async(db, _list)
     try:

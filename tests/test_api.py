@@ -260,6 +260,10 @@ def test_item_crud_and_lean_list(client: TestClient):
     match = next(x for x in lean if x["id"] == item_id)
     assert "notes" not in match["fields"]
 
+    full = client.get(f"/api/projects/{slug}/items?full=true").json()
+    full_match = next(x for x in full if x["id"] == item_id)
+    assert "notes" in full_match["fields"]
+
     detail = client.get(f"/api/projects/{slug}/items/{item_id}").json()
     assert "notes" in detail["fields"]
 

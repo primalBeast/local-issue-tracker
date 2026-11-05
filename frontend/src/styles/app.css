@@ -1797,13 +1797,64 @@ body.lit-panel-resizing * { cursor: inherit !important; }
   font-weight: 600;
 }
 .table th.sortable {
-  cursor: pointer;
+  cursor: grab;
   user-select: none;
   white-space: nowrap;
+  position: relative;
 }
 .table th.sortable:hover { color: var(--text); }
 .table th.sorted { color: var(--accent); }
 .table th.sorted-secondary { color: var(--text); }
+.table th.col-dragging { opacity: 0.45; cursor: grabbing; }
+body:has(th.col-dragging) { cursor: grabbing; }
+.table th.col-drop-before::before,
+.table th.col-drop-after::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.table th.col-drop-before::before { left: 0; }
+.table th.col-drop-after::after { right: 0; }
+.col-menu {
+  position: fixed;
+  z-index: 2200;
+  width: 260px;
+  max-height: min(420px, 70vh);
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: transparent;
+  background-image:
+    linear-gradient(var(--panel-glass), var(--panel-glass)),
+    var(--wallpaper);
+  background-size: auto, cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: scroll, fixed;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.col-menu .check-row {
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.col-menu .check-row:hover { background: var(--bg-hover); }
 .table tr:hover td { background: rgba(255, 255, 255, 0.06); }
 .table tr.clickable { cursor: pointer; }
 @keyframes list-value-glow {
