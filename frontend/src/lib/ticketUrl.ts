@@ -1,4 +1,6 @@
-import { urlTail } from './urlTicket';
+import { isExternalTicketId, urlTail } from './urlTicket';
+
+const TICKET_COLUMN_IDS = new Set(['ticket_key', 'alternate_ticket']);
 
 /** Display form of a ticket key: last path segment when the value is a full URL. */
 export function ticketNumberLabel(raw: string | null | undefined): string {
@@ -6,6 +8,22 @@ export function ticketNumberLabel(raw: string | null | undefined): string {
   if (!s) return '';
   if (launchableHref(s)) return urlTail(s) || s;
   return s;
+}
+
+/** All Items text for a ticket column. Null when this field is not a ticket column. */
+export function ticketColumnText(
+  field: { id: string; type?: string },
+  value: unknown,
+  keyFieldId = 'ticket_key'
+): string | null {
+  const ticket =
+    field.id === keyFieldId ||
+    TICKET_COLUMN_IDS.has(field.id) ||
+    field.type === 'url' ||
+    isExternalTicketId(field.id);
+  if (!ticket) return null;
+  const raw = String(value ?? '');
+  return ticketNumberLabel(raw) || raw;
 }
 
 /** Build a launchable ticket URL. A full http(s) ticket key is used as-is; otherwise prefix + key. */

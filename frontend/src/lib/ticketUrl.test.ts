@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { launchableHref, splitTicketUrls, ticketHref, ticketNumberLabel } from './ticketUrl';
+import { launchableHref, splitTicketUrls, ticketColumnText, ticketHref, ticketNumberLabel } from './ticketUrl';
 
 describe('ticketHref', () => {
   it('returns null when the prefix or ticket key is empty', () => {
@@ -43,6 +43,21 @@ describe('ticketNumberLabel', () => {
   it('leaves a plain ticket number unchanged', () => {
     expect(ticketNumberLabel('SHOP-12')).toBe('SHOP-12');
     expect(ticketNumberLabel('')).toBe('');
+  });
+});
+
+describe('ticketColumnText', () => {
+  it('shows the ticket number for every ticket column when the value is a URL', () => {
+    const url = 'https://jira.example/browse/SHOP-12';
+    expect(ticketColumnText({ id: 'ticket_key', type: 'text' }, url)).toBe('SHOP-12');
+    expect(ticketColumnText({ id: 'alternate_ticket', type: 'text' }, url)).toBe('SHOP-12');
+    expect(ticketColumnText({ id: 'external_ticket', type: 'url' }, `${url}/`)).toBe('SHOP-12');
+    expect(ticketColumnText({ id: 'external_ticket_2', type: 'url' }, url)).toBe('SHOP-12');
+    expect(ticketColumnText({ id: 'external_ticket_3', type: 'url' }, 'EXT-3')).toBe('EXT-3');
+  });
+
+  it('does not rewrite other columns', () => {
+    expect(ticketColumnText({ id: 'title', type: 'text' }, 'https://jira.example/browse/SHOP-12')).toBeNull();
   });
 });
 

@@ -76,7 +76,7 @@
     waitingNameChoices,
   } from './lib/waiting';
   import { nextTicketKey, normalizeTicketPrefix, slugFromName, uniqueSlug } from './lib/ticketPrefix';
-  import { launchableHref, splitTicketUrls, ticketHref, ticketNumberLabel } from './lib/ticketUrl';
+  import { launchableHref, splitTicketUrls, ticketColumnText, ticketHref, ticketNumberLabel } from './lib/ticketUrl';
   import { filledTicketSlots, isExternalTicketId, removeExternalTicketSlot, slotsToShow } from './lib/urlTicket';
   import { isAssignedField, nameAlreadyListed } from './lib/assigned';
   import { wokeFromSleep } from './lib/wake';
@@ -2466,13 +2466,22 @@
     const value = listFieldValue(item, f.id);
     if (f.id === 'waiting_for' && !isItemWaiting(item)) return '';
     if (f.type === 'checkbox') return value ? 'Yes' : '';
-    if (f.id === 'ticket_key' || f.id === keyField() || f.id === 'alternate_ticket') {
-      return ticketNumberLabel(String(value ?? '')) || String(value ?? '');
-    }
+    const ticketText = ticketColumnText(f, value, keyField());
+    if (ticketText != null) return ticketText;
     if (f.type === 'richtext' || f.type === 'textarea') {
       return notesFieldText(value).replace(/\s+/g, ' ').trim();
     }
     return String(value ?? '');
+  }
+
+  function listCellTitle(f: FieldDef, item: Item): string | undefined {
+    if ((f.id === 'urgency' || f.id === 'priority') && workspace?.sort?.field === f.id) {
+      return `Drag up or down to reorder by ${f.label || f.id}`;
+    }
+    const raw = String(listFieldValue(item, f.id) ?? '').trim();
+    const shown = listCellDisplay(f, item);
+    if (raw && shown && shown !== raw && launchableHref(raw)) return raw;
+    return undefined;
   }
 
   function tabToNextListCell(): boolean {
@@ -4442,11 +4451,7 @@
                               workspace.sort?.field === f.id &&
                               !(listEdit?.itemId === it.id && listEdit?.fieldId === f.id)
                             }
-                            title={
-                              (f.id === 'urgency' || f.id === 'priority') && workspace.sort?.field === f.id
-                                ? `Drag up or down to reorder by ${f.label || f.id}`
-                                : undefined
-                            }
+                            title={listCellTitle(f, it)}
                             onpointerdown={(e) => {
                               if (f.id === 'urgency' || f.id === 'priority') onUrgencyPointerDown(e, it, f.id);
                             }}
