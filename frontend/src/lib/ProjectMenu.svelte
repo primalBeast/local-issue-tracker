@@ -5,6 +5,7 @@
     moveMenuFocus,
     projectMenuEntries,
     rootFocusableIndexes,
+    submenuOpenAfterSwitchClick,
     switchFocusableIndexes,
     switchProjectMenu,
     type MenuNavKey,
@@ -96,8 +97,14 @@
     if (!entry || entry.kind !== 'item') return;
     rootFocus = index;
     if (entry.submenu || entry.id === 'switch') {
-      if (submenuOpen) submenuOpen = false;
-      else openSubmenu();
+      // Click opens or keeps the submenu open. Hover already set it open
+      // on mouseenter, and this click must not toggle that shut.
+      const open = submenuOpenAfterSwitchClick(submenuOpen);
+      if (open) {
+        if (!submenuOpen) openSubmenu();
+      } else {
+        submenuOpen = false;
+      }
       return;
     }
     onaction(entry.id);

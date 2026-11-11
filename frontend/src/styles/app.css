@@ -822,6 +822,13 @@ body.lit-tab-dragging .ws-tab { cursor: grabbing !important; }
   border-radius: 6px;
 }
 
+/* Root rows keep space-between so the ▸ caret stays on the right.
+   Submenu rows are check, then the label flush left. */
+.project-submenu .project-menu-item {
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .project-menu-item:hover,
 .project-menu-item:focus {
   background: var(--bg-hover);

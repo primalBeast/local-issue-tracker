@@ -91,6 +91,19 @@ export function switchProjectMenu(
   return rows;
 }
 
+/**
+ * Open state after a click on the Switch project row.
+ *
+ * Hover opens the submenu on mouseenter before the click event, so a toggle
+ * would shut it again. A click opens a closed submenu and keeps an open one
+ * open. ArrowRight and Enter open it; Escape and ArrowLeft close it.
+ */
+export function submenuOpenAfterSwitchClick(openBeforeClick: boolean): boolean {
+  // Not a toggle: both the closed and the hover-opened states end open.
+  if (openBeforeClick) return true;
+  return true;
+}
+
 export function rootFocusableIndexes(entries: readonly MenuEntry[]): number[] {
   return entries.flatMap((entry, index) => (entry.kind === 'item' ? [index] : []));
 }

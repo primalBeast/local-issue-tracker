@@ -12,6 +12,7 @@ import {
   resolveSettingsClose,
   rootFocusableIndexes,
   settingsDraftFromProject,
+  submenuOpenAfterSwitchClick,
   switchFocusableIndexes,
   switchProjectMenu,
   templateOptionLabel,
@@ -95,6 +96,13 @@ describe('project menu model', () => {
   it('fits every row on a 900px-tall window without scrolling', () => {
     expect(menuFitsWithoutScrolling(900)).toBe(true);
     expect(projectMenuEntries()).toHaveLength(9);
+  });
+
+  it('a click on Switch project opens the submenu and does not close one hover opened', () => {
+    expect(submenuOpenAfterSwitchClick(false)).toBe(true);
+    expect(submenuOpenAfterSwitchClick(true)).toBe(true);
+    expect(menuSource).toContain('submenuOpenAfterSwitchClick(submenuOpen)');
+    expect(menuSource).not.toContain('if (submenuOpen) submenuOpen = false');
   });
 });
 
