@@ -26,6 +26,15 @@
   import ItemTitleBar from './lib/ItemTitleBar.svelte';
   import AllItemsCell from './lib/AllItemsCell.svelte';
   import TemplateEditor from './lib/TemplateEditor.svelte';
+  import ProjectMenu from './lib/ProjectMenu.svelte';
+  import ProjectSettingsDialog from './lib/ProjectSettingsDialog.svelte';
+  import NewProjectDialog from './lib/NewProjectDialog.svelte';
+  import {
+    newProjectCreateArgs,
+    type ProjectMenuActionId,
+    type SettingsDraft,
+    type TemplateOption,
+  } from './lib/projectMenu';
   import RichText from './lib/RichText.svelte';
   import { fieldFlex, groupBodyBlocks, groupFieldsByRow, pickField } from './lib/fieldLayout';
   import { HEADER_TITLE_EDITOR_PX, isNotesFillRow, minItemPanelHeight, newItemPanelWidth } from './lib/panelSize';
@@ -182,15 +191,12 @@
     x: number;
     y: number;
   } | null>(null);
-  let projectEditor = $state<{
-    name: string;
-    ticket_prefix: string;
-    url_prefix: string;
-    newName: string;
-    newPrefix: string;
-    newTemplate: string;
-    templates: Array<{ id: string; name: string; is_default: boolean }>;
-  } | null>(null);
+  let projectMenuOpen = $state(false);
+  let settingsDialogOpen = $state(false);
+  let newProjectDialogOpen = $state(false);
+  let newProjectTemplates = $state<TemplateOption[]>([]);
+  let newProjectDefault = $state('issue-tracker');
+  let brandButtonEl = $state<HTMLButtonElement | null>(null);
 
   const TAB_COLOR_SWATCHES: (string | null)[] = [
     null,
@@ -546,12 +552,26 @@
           boardRemoveConfirm = null;
           return;
         }
-        if (templateEditorOpen) {
-          templateEditorOpen = false;
+        if (settingsDialogOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeSettingsDialog();
           return;
         }
-        if (projectEditor) {
-          void closeProjectEditor(true);
+        if (newProjectDialogOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeNewProjectDialog();
+          return;
+        }
+        if (projectMenuOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeProjectMenu();
+          return;
+        }
+        if (templateEditorOpen) {
+          templateEditorOpen = false;
           return;
         }
         boardEditor = null;
@@ -597,12 +617,27 @@
         if (!t?.closest?.('.confirm-dialog')) boardRemoveConfirm = null;
         return;
       }
+      if (settingsDialogOpen) {
+        if (!t?.closest?.('.project-dialog')) closeSettingsDialog();
+        return;
+      }
+      if (newProjectDialogOpen) {
+        if (!t?.closest?.('.project-dialog')) closeNewProjectDialog();
+        return;
+      }
+      if (
+        projectMenuOpen &&
+        !t?.closest?.('.project-menu') &&
+        !t?.closest?.('.project-submenu') &&
+        !t?.closest?.('.brand') &&
+        !t?.closest?.('.project-dialog') &&
+        !t?.closest?.('.template-editor')
+      ) {
+        closeProjectMenu();
+      }
       if (templateEditorOpen) {
         if (!t?.closest?.('.template-editor')) templateEditorOpen = false;
         return;
-      }
-      if (projectEditor && !t?.closest?.('.project-editor') && !t?.closest?.('.brand')) {
-        void closeProjectEditor(true);
       }
       if (!boardEditor) return;
       if (t?.closest?.('.board-editor')) return;
@@ -1668,7 +1703,7 @@
   }
 
   const CTRL_PAN_SKIP_CLICK =
-    '.project-editor, .template-editor, .confirm-backdrop, .confirm-dialog, .theme-dialog';
+    '.project-menu, .project-submenu, .project-dialog, .template-editor, .confirm-backdrop, .confirm-dialog, .theme-dialog';
   const CTRL_PAN_SUPPRESS_EVENTS = ['click', 'auxclick', 'dblclick', 'mouseup', 'change'] as const;
   let ctrlPanClickHandler: ((ev: Event) => void) | null = null;
   let ctrlPanClickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -3136,7 +3171,9 @@
     projectClaims.setCurrentProject(null);
     project = null;
     workspace = null;
-    projectEditor = null;
+    projectMenuOpen = false;
+    settingsDialogOpen = false;
+    newProjectDialogOpen = false;
     templateEditorOpen = false;
   }
 
@@ -3253,34 +3290,83 @@
     }
   }
 
-  function openProjectEditor() {
+  function closeProjectMenu(restoreFocus = true) {
+    const wasOpen = projectMenuOpen;
+    projectMenuOpen = false;
+    if (restoreFocus && wasOpen) queueMicrotask(() => brandButtonEl?.focus());
+  }
+
+  function closeSettingsDialog() {
+    settingsDialogOpen = false;
+    queueMicrotask(() => brandButtonEl?.focus());
+  }
+
+  function closeNewProjectDialog() {
+    newProjectDialogOpen = false;
+    queueMicrotask(() => brandButtonEl?.focus());
+  }
+
+  function openProjectMenu() {
     if (!project) return;
-    if (projectEditor) {
-      void closeProjectEditor(true);
+    if (projectMenuOpen) {
+      closeProjectMenu();
       return;
     }
-    projectEditor = {
-      name: project.name,
-      ticket_prefix: project.ticket_prefix || readStoredPrefix(project.slug) || 'NEW-',
-      url_prefix: String(project.url_prefix ?? ''),
-      newName: '',
-      newPrefix: 'NEW-',
-      newTemplate: 'issue-tracker',
-      templates: [],
-    };
-    void api.templates().then((body) => {
-      if (!projectEditor) return;
-      projectEditor = {
-        ...projectEditor,
-        templates: body.templates,
-        newTemplate: body.default || 'issue-tracker',
-      };
-    });
+    projectMenuOpen = true;
   }
 
   function openTemplateEditor() {
-    void closeProjectEditor(true);
+    settingsDialogOpen = false;
     templateEditorOpen = true;
+  }
+
+  async function openNewProjectDialog() {
+    newProjectDialogOpen = true;
+    try {
+      const body = await api.templates();
+      if (!newProjectDialogOpen) return;
+      newProjectTemplates = body.templates;
+      newProjectDefault = body.default || 'issue-tracker';
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function onProjectMenuAction(id: ProjectMenuActionId) {
+    if (id === 'settings') {
+      closeProjectMenu(false);
+      settingsDialogOpen = true;
+      return;
+    }
+    if (id === 'new') {
+      closeProjectMenu(false);
+      void openNewProjectDialog();
+      return;
+    }
+    if (id === 'templates') {
+      closeProjectMenu(false);
+      openTemplateEditor();
+      return;
+    }
+    if (id === 'open-folder') {
+      closeProjectMenu();
+      void openProjectFolder();
+      return;
+    }
+    if (id === 'reload') {
+      closeProjectMenu(false);
+      void reloadApp();
+      return;
+    }
+    if (id === 'release-notes') {
+      closeProjectMenu();
+      openReleaseNotes();
+    }
+  }
+
+  async function saveProjectSettings(draft: SettingsDraft) {
+    const ok = await persistProjectMeta(draft.name, draft.ticketPrefix, draft.urlPrefix, true);
+    if (ok) closeSettingsDialog();
   }
 
   async function persistProjectMeta(name: string, prefixRaw: string, urlPrefixRaw: string, toast: boolean) {
@@ -3316,31 +3402,6 @@
     }
   }
 
-  async function saveProjectEditor() {
-    if (!project || !projectEditor) return;
-    const ok = await persistProjectMeta(
-      projectEditor.name,
-      projectEditor.ticket_prefix,
-      projectEditor.url_prefix,
-      true
-    );
-    if (ok && projectEditor) {
-      projectEditor = {
-        ...projectEditor,
-        name: project.name,
-        ticket_prefix: project.ticket_prefix || projectEditor.ticket_prefix,
-        url_prefix: String(project.url_prefix ?? projectEditor.url_prefix),
-      };
-    }
-  }
-
-  async function closeProjectEditor(save: boolean) {
-    const ed = projectEditor;
-    if (!ed) return;
-    projectEditor = null;
-    if (save) await persistProjectMeta(ed.name, ed.ticket_prefix, ed.url_prefix, false);
-  }
-
   async function closeOpenProject() {
     if (!project) return;
     const slug = project.slug;
@@ -3357,11 +3418,12 @@
     }
     project = null;
     workspace = null;
-    projectEditor = null;
+    projectMenuOpen = false;
+    settingsDialogOpen = false;
+    newProjectDialogOpen = false;
   }
 
   async function switchProject(slug: string) {
-    if (projectEditor) await closeProjectEditor(true);
     if (!project || slug === project.slug) return;
     if (pickerItemState(liveClaims, clientId, slug, project.slug).disabled) {
       showToast(TAKEN_TITLE);
@@ -3391,15 +3453,19 @@
     await loadProject(slug);
   }
 
-  async function createNewProject() {
-    if (!projectEditor) return;
-    const name = projectEditor.newName.trim();
-    if (!name) {
+  async function createNewProject(nameRaw: string, prefixRaw: string, templateId: string) {
+    const args = newProjectCreateArgs({
+      name: nameRaw,
+      ticketPrefix: prefixRaw,
+      templateId,
+    });
+    if (!args) {
       showToast('New project needs a name');
       return;
     }
-    const ticket_prefix = normalizeTicketPrefix(projectEditor.newPrefix);
-    const template = projectEditor.newTemplate || undefined;
+    const name = args.name;
+    const ticket_prefix = normalizeTicketPrefix(args.ticketPrefix);
+    const template = args.templateId || undefined;
     const previousSlug = project?.slug ?? null;
     await itemSaveQueue.flush();
     await flushWorkspaceSave();
@@ -3415,7 +3481,7 @@
         template,
       });
       projects = [...projects, created];
-      projectEditor = null;
+      closeNewProjectDialog();
       endAllGestures();
       await itemSaveQueue.flush();
       await flushWorkspaceSave();
@@ -3479,8 +3545,12 @@
       <button
         type="button"
         class="brand"
-        title="Project settings — name, ticket prefix, switch or create"
-        onclick={openProjectEditor}
+        bind:this={brandButtonEl}
+        title="Project menu"
+        aria-haspopup="menu"
+        aria-expanded={projectMenuOpen}
+        aria-controls="project-menu"
+        onclick={openProjectMenu}
       >
         <div class="brand-mark"></div>
         {project.name}
@@ -3696,134 +3766,42 @@
       <button type="button" class="ws-tab ws-tab-add" onclick={() => void newWorkspace()} title="New workspace">+</button>
     </aside>
 
-    {#if projectEditor}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="project-editor" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-        <div class="board-editor-title">Project</div>
+    {#if projectMenuOpen}
+      {@const openSlug = project.slug}
+      <ProjectMenu
+        projects={projects}
+        currentSlug={openSlug}
+        pickerItemState={(slug) => pickerItemState(liveClaims, clientId, slug, openSlug)}
+        onaction={onProjectMenuAction}
+        onswitch={(slug) => {
+          closeProjectMenu(false);
+          void switchProject(slug);
+        }}
+        oncloseproject={() => {
+          closeProjectMenu(false);
+          void closeOpenProject();
+        }}
+        onclose={() => closeProjectMenu()}
+      />
+    {/if}
 
-        <section class="project-section">
-          <div class="project-section-title">This project</div>
-          <label class="field-label" for="project-name-input">Name</label>
-          <input
-            id="project-name-input"
-            type="text"
-            bind:value={projectEditor.name}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') void saveProjectEditor();
-              if (e.key === 'Escape') projectEditor = null;
-            }}
-          />
-          <label class="field-label" for="project-prefix-input" style="margin-top:10px">Ticket prefix</label>
-          <input
-            id="project-prefix-input"
-            type="text"
-            bind:value={projectEditor.ticket_prefix}
-            placeholder="NEW-"
-            onkeydown={(e) => {
-              if (e.key === 'Enter') void saveProjectEditor();
-              if (e.key === 'Escape') projectEditor = null;
-            }}
-          />
-          <label class="field-label" for="project-url-prefix-input" style="margin-top:10px">URL prefix</label>
-          <input
-            id="project-url-prefix-input"
-            type="text"
-            bind:value={projectEditor.url_prefix}
-            placeholder="https://example.com/browse/"
-            onkeydown={(e) => {
-              if (e.key === 'Enter') void saveProjectEditor();
-              if (e.key === 'Escape') projectEditor = null;
-            }}
-          />
-          <div class="board-editor-actions">
-            <button type="button" class="ghost" onclick={() => void closeProjectEditor(false)}>Cancel</button>
-            <button type="button" onclick={openTemplateEditor}>Templates</button>
-            <button type="button" class="primary" onclick={() => void saveProjectEditor()}>Save</button>
-          </div>
-        </section>
+    {#if settingsDialogOpen}
+      <ProjectSettingsDialog
+        name={project.name}
+        ticketPrefix={project.ticket_prefix || readStoredPrefix(project.slug) || 'NEW-'}
+        urlPrefix={String(project.url_prefix ?? '')}
+        onsave={(draft) => void saveProjectSettings(draft)}
+        onclose={closeSettingsDialog}
+      />
+    {/if}
 
-        <section class="project-section">
-          <div class="project-section-title">Open project</div>
-          <div class="project-list">
-            {#each projects as p (p.slug)}
-              {@const state = pickerItemState(liveClaims, clientId, p.slug, project.slug)}
-              <button
-                type="button"
-                class:current={p.slug === project.slug}
-                disabled={state.disabled}
-                title={state.title}
-                onclick={() => void switchProject(p.slug)}
-              >
-                {p.name}
-              </button>
-            {/each}
-          </div>
-          <div class="board-editor-actions">
-            <button type="button" onclick={() => void closeOpenProject()}>Close project</button>
-          </div>
-        </section>
-
-        <section class="project-section">
-          <div class="project-section-title">New project</div>
-          <input
-            type="text"
-            placeholder="Name"
-            bind:value={projectEditor.newName}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') void createNewProject();
-            }}
-          />
-          <input
-            type="text"
-            placeholder="Ticket prefix (NEW-)"
-            style="margin-top:6px"
-            bind:value={projectEditor.newPrefix}
-            onkeydown={(e) => {
-              if (e.key === 'Enter') void createNewProject();
-            }}
-          />
-          {#if projectEditor.templates.length}
-            <label class="field-label" for="new-project-template" style="margin-top:8px">Template</label>
-            <select id="new-project-template" bind:value={projectEditor.newTemplate}>
-              {#each projectEditor.templates as t}
-                <option value={t.id}>{t.name}{t.is_default ? ' (default)' : ''}</option>
-              {/each}
-            </select>
-          {/if}
-          <div class="board-editor-actions">
-            <button type="button" class="primary" onclick={() => void createNewProject()}>Create</button>
-          </div>
-        </section>
-
-        <section class="project-section">
-          <div class="project-section-title">Location on disk</div>
-          <div class="project-path-row">
-            <div class="project-path" title={project.data_path || ''}>{project.data_path || '—'}</div>
-            <button
-              type="button"
-              title="Open this folder in File Explorer"
-              disabled={!project.data_path}
-              onclick={() => void openProjectFolder()}
-            >Open</button>
-          </div>
-        </section>
-
-        <section class="project-section">
-          <button
-            type="button"
-            class="project-release-notes"
-            title="Reload the UI (F5)"
-            onclick={reloadApp}
-          >Reload (F5)</button>
-          <button
-            type="button"
-            class="project-release-notes"
-            title="Open the release notes in a new tab"
-            onclick={openReleaseNotes}
-            style="margin-top:8px"
-          >Release notes</button>
-        </section>
-      </div>
+    {#if newProjectDialogOpen}
+      <NewProjectDialog
+        templates={newProjectTemplates}
+        defaultTemplateId={newProjectDefault}
+        oncreate={(draft) => void createNewProject(draft.name, draft.ticketPrefix, draft.templateId)}
+        onclose={closeNewProjectDialog}
+      />
     {/if}
 
     {#if templateEditorOpen && project}

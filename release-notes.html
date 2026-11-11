@@ -263,7 +263,7 @@
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 6 Nov 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 10 Nov 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,14 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>10 Nov 2026 — Project menu</h3>
+          <ul>
+            <li>The project name opens a menu: settings, switch project, new project, templates, the data folder, reload, and release notes.</li>
+            <li>Project settings and new project are small dialogs. Templates no longer saves the project name unless you press Save.</li>
+            <li>The URL prefix shows an example and a one-line hint. The menu stays on screen at a short window height.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>6 Nov 2026 — Ticket number in the list</h3>
           <ul>
             <li>A ticket column shows only the text after the last slash when the field is a full URL. A plain ticket number is unchanged.</li>
@@ -583,6 +591,17 @@
       </div>
       <section class="day">
         <div class="day-head">
+          <h3>Tue, Nov 10, 2026</h3>
+          <span>1</span>
+        </div>
+        <article class="entry">
+          <span class="kind ui">UI</span>
+          <p class="subject">The project name opens a menu for settings, switching, a new project, and templates. Settings save only when you press Save.</p>
+          <span class="hash">ff151b1</span>
+        </article>
+      </section>
+      <section class="day">
+        <div class="day-head">
           <h3>Fri, Nov 6, 2026</h3>
           <span>1</span>
         </div>
@@ -749,6 +768,272 @@
 <!-- COMMITS_JSON_START -->
 <script type="application/json" id="commits-json">
 [
+  {
+    "hash": "e574246",
+    "date": "2026-11-11",
+    "subject": "docs: point the project-menu note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "ff151b1",
+    "date": "2026-11-11",
+    "subject": "ui: project menu dropdown with settings/new-project dialogs; Templates no longer auto-saves",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "70145cd",
+    "date": "2026-11-06",
+    "subject": "docs: point the ticket-number note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "3cfd4fd",
+    "date": "2026-11-06",
+    "subject": "ui: show the ticket number in All Items URL columns",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "29fce29",
+    "date": "2026-11-05",
+    "subject": "docs: point the column-order note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "1686a6c",
+    "date": "2026-11-05",
+    "subject": "ui: drag All Items columns and choose which fields show",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "25a3cdd",
+    "date": "2026-11-04",
+    "subject": "docs: point the alternate-column note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "885133a",
+    "date": "2026-11-04",
+    "subject": "ui: show Alternate beside the ticket number",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "a194ff3",
+    "date": "2026-10-28",
+    "subject": "docs: point the panel-width note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "7dc79be",
+    "date": "2026-10-28",
+    "subject": "ui: keep since with the name and narrow new ticket panels",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "2ff13bc",
+    "date": "2026-10-28",
+    "subject": "docs: point the waiting-order note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "2b90689",
+    "date": "2026-10-28",
+    "subject": "ui: reorder the waiting line and hide it when unchecked",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "9f80193",
+    "date": "2026-10-28",
+    "subject": "docs: point the waiting-spacing note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "24f8b8e",
+    "date": "2026-10-28",
+    "subject": "ui: space the waiting name and pin the calendar right",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "e99cceb",
+    "date": "2026-10-28",
+    "subject": "docs: point the waiting-line note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "0d379c7",
+    "date": "2026-10-28",
+    "subject": "ui: put waiting name and date on the Waiting line",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "0766d75",
+    "date": "2026-10-28",
+    "subject": "docs: point the priority-list note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "9b3e706",
+    "date": "2026-10-28",
+    "subject": "fix: show a ticket's new priority on All Items immediately",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "a3e53c0",
+    "date": "2026-10-28",
+    "subject": "docs: point the reconnect and theme notes at their commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "8a69034",
+    "date": "2026-10-28",
+    "subject": "fix: reconnect a quiet server and drop 15 themes",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "3fa4c1f",
+    "date": "2026-10-16",
+    "subject": "docs: point the server-start note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "c38c79b",
+    "date": "2026-10-16",
+    "subject": "fix: start the server with the Python that actually serves",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "023b8a8",
+    "date": "2026-10-16",
+    "subject": "docs: point the startup fix note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "0ae6e16",
+    "date": "2026-10-16",
+    "subject": "fix: stop startup from exiting with code 1",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "277e002",
+    "date": "2026-10-16",
+    "subject": "docs: point the favourite-themes note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "10a90f9",
+    "date": "2026-10-16",
+    "subject": "feat: star a theme to favourite it",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "a333153",
+    "date": "2026-10-16",
+    "subject": "docs: point the restart-dot note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "84882fe",
+    "date": "2026-10-16",
+    "subject": "feat: click the red status dot to restart the server",
+    "kind": "feat",
+    "rebuild": false
+  },
+  {
+    "hash": "2625dee",
+    "date": "2026-10-16",
+    "subject": "docs: point the console-hide note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "898e2e2",
+    "date": "2026-10-16",
+    "subject": "fix: hide the server console completely",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "c278a38",
+    "date": "2026-10-16",
+    "subject": "docs: point the 16 Oct notes at 7e1e83c",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "7e1e83c",
+    "date": "2026-10-16",
+    "subject": "fix: bring the server back after the computer wakes",
+    "kind": "fix",
+    "rebuild": false
+  },
+  {
+    "hash": "eaa7ef9",
+    "date": "2026-10-15",
+    "subject": "docs: point the 15 Oct notes at 7d54cd1",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "7d54cd1",
+    "date": "2026-10-15",
+    "subject": "ui: move All Items search and add Waiting For names",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "8ae6952",
+    "date": "2026-10-15",
+    "subject": "docs: point the 15 Oct notes at bde607c",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "bde607c",
+    "date": "2026-10-15",
+    "subject": "ui: pulse the title bar and focused panel when the server is down",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "21a3d9b",
+    "date": "2026-10-08",
+    "subject": "Merge pull request #5 from primalBeast/fix/slice3-saves-and-ranks",
+    "kind": "merge",
+    "rebuild": false
+  },
+  {
+    "hash": "51fecf5",
+    "date": "2026-10-08",
+    "subject": "docs: release notes \u2014 drop 'not merged yet' for PR #5, fix the docs commit hash",
+    "kind": "docs",
+    "rebuild": false
+  },
   {
     "hash": "d4ccab2",
     "date": "2026-10-08",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import appSource from '../App.svelte?raw';
+import menuSource from './ProjectMenu.svelte?raw';
 
 function fnBody(source: string, name: string): string {
   const marker = `function ${name}`;
@@ -50,7 +51,10 @@ describe('project lock source wiring', () => {
     expect(appSource).toContain('pickerItemState(');
     expect(appSource).toContain('disabled={state.disabled}');
     expect(appSource).toContain('title={state.title}');
-    expect(appSource).toContain('Close project');
+    expect(menuSource).toContain('pickerItemState');
+    expect(menuSource).toContain('disabled={entry.disabled}');
+    expect(menuSource).toContain('title={entry.title}');
+    expect(menuSource).toContain('Close project');
   });
 
   it('switchProject flushes before it releases the previous project', () => {
