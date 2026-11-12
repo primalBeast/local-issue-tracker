@@ -4,6 +4,8 @@ import {
   fieldIdFromTitleBarClick,
   isSelected,
   nextSelectionAfterRemove,
+  previewScrollId,
+  scrollCounterpartIntoView,
   selectField,
 } from './templateSelection';
 
@@ -35,6 +37,31 @@ describe('preview selection', () => {
     expect(click('Description')).toBe('title');
     expect(click('Alternate ticket')).toBe('alternate_ticket');
     expect(click('Ticket number')).toBe('ticket_key');
+  });
+
+  it('scrolls the counterpart into view, mapping title-bar fields onto one preview hit', () => {
+    expect(previewScrollId('title')).toBe('ticket_key');
+    expect(previewScrollId('alternate_ticket')).toBe('ticket_key');
+    expect(previewScrollId('notes')).toBe('notes');
+
+    const scrolled: string[] = [];
+    const node = (fieldId: string) => ({
+      dataset: { fieldId },
+      scrollIntoView() {
+        scrolled.push(fieldId);
+      },
+    });
+    const chip = node('notes');
+    const titleHit = node('ticket_key');
+    const notesHit = node('notes');
+    const root = {
+      querySelectorAll(sel: string) {
+        return sel === '.template-chip' ? [chip] : [titleHit, notesHit];
+      },
+    };
+    scrollCounterpartIntoView(root as unknown as ParentNode, 'preview', 'notes');
+    scrollCounterpartIntoView(root as unknown as ParentNode, 'canvas', 'title');
+    expect(scrolled).toEqual(['notes', 'ticket_key']);
   });
 
   it('keeps a neighbor selected after remove', () => {

@@ -34,6 +34,18 @@ describe('templates editor wiring', () => {
     expect(editorSource).toContain('saveEnabled');
   });
 
+  it('keeps the layout beside details and the example on a wide window', () => {
+    expect(editorSource).toContain('template-editor-canvas');
+    expect(editorSource).toContain("selectFrom('canvas'");
+    expect(editorSource).toContain("selectFrom('preview'");
+    expect(editorSource).toContain('scrollCounterpartIntoView');
+    expect(previewSource).toContain('role="button"');
+    expect(previewSource).toContain('tabindex="0"');
+    expect(previewSource).toContain('Select field');
+    expect(previewSource).toContain('onHitKey');
+    expect(previewSource).not.toContain('svelte-ignore a11y_no_static_element_interactions');
+  });
+
   it('splits the list, canvas, and one details panel, and drops the ▾ expanders', () => {
     expect(editorSource).toContain('<TemplateList');
     expect(editorSource).toContain('<TemplateLayoutCanvas');

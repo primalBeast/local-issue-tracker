@@ -38,7 +38,7 @@
     moveWithinRow,
     setFieldWidth,
   } from './templatePlacement';
-  import { nextSelectionAfterRemove } from './templateSelection';
+  import { nextSelectionAfterRemove, scrollCounterpartIntoView } from './templateSelection';
 
   interface Props {
     projectSlug: string;
@@ -246,6 +246,11 @@
     previewValues = { ...previewValues, [id]: value };
   }
 
+  function selectFrom(origin: 'canvas' | 'preview', id: string) {
+    selectedId = id;
+    void tick().then(() => scrollCounterpartIntoView(dialogEl, origin, id));
+  }
+
   let windowKey: ((e: KeyboardEvent) => void) | null = null;
 
   onMount(() => {
@@ -303,14 +308,16 @@
     <div class="template-editor-body">
       <TemplateList {templates} {source} onselect={onSelectSource} onsetdefault={makeDefault} />
       <div class="template-editor-main">
-        <TemplateLayoutCanvas
-          fields={draft}
-          {selectedId}
-          disabled={!canSave}
-          onfields={setDraft}
-          onselect={(id) => (selectedId = id)}
-          onadd={onAdd}
-        />
+        <div class="template-editor-canvas">
+          <TemplateLayoutCanvas
+            fields={draft}
+            {selectedId}
+            disabled={!canSave}
+            onfields={setDraft}
+            onselect={(id) => selectFrom('canvas', id)}
+            onadd={onAdd}
+          />
+        </div>
         <div class="template-editor-stage">
           <FieldDetailsPanel
             field={selected}
@@ -327,7 +334,7 @@
             {draft}
             {previewValues}
             {selectedId}
-            onselect={(id) => (selectedId = id)}
+            onselect={(id) => selectFrom('preview', id)}
             onpreview={patchPreview}
           />
         </div>

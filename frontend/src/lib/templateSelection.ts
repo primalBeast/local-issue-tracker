@@ -28,6 +28,31 @@ export function isSelected(selectedId: string | null, fieldId: string): boolean 
   return Boolean(selectedId) && selectedId === fieldId;
 }
 
+const TITLE_BAR_PREVIEW_ID = 'ticket_key';
+const TITLE_BAR_FIELD_IDS = new Set(['ticket_key', 'title', 'alternate_ticket']);
+
+/** Preview hit id for a field. Title-bar fields share one hit. */
+export function previewScrollId(fieldId: string): string {
+  return TITLE_BAR_FIELD_IDS.has(fieldId) ? TITLE_BAR_PREVIEW_ID : fieldId;
+}
+
+/** Scroll the other pane when selection moves between the canvas and the preview. */
+export function scrollCounterpartIntoView(
+  root: ParentNode | null,
+  origin: 'canvas' | 'preview',
+  id: string
+): void {
+  if (!root || !id) return;
+  const wantPreview = origin === 'canvas';
+  const selector = wantPreview ? '.template-preview-hit' : '.template-chip';
+  const lookup = wantPreview ? previewScrollId(id) : id;
+  for (const node of root.querySelectorAll<HTMLElement>(selector)) {
+    if ((node.dataset?.fieldId || '') !== lookup) continue;
+    node.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+}
+
 export function nextSelectionAfterRemove(fields: { id: string }[], removedId: string, current: string | null): string | null {
   if (current !== removedId) {
     return fields.some((f) => f.id === current) ? current : (fields[0]?.id ?? null);
