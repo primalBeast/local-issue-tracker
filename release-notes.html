@@ -263,7 +263,7 @@
         <div class="stats">
           <span class="stat"><b id="stat-commits">—</b> commits</span>
           <span class="stat"><b id="stat-features">—</b> features</span>
-          <span class="stat"><b id="stat-range">9 Aug – 10 Nov 2026</b></span>
+          <span class="stat"><b id="stat-range">9 Aug – 11 Nov 2026</b></span>
           <span class="stat">Repo <a href="https://github.com/primalBeast/local-issue-tracker">primalBeast/local-issue-tracker</a></span>
         </div>
       </header>
@@ -271,6 +271,15 @@
       <h2>Latest</h2>
       <div class="cards" id="latest">
         <article class="card latest">
+          <h3>11 Nov 2026 — Templates window</h3>
+          <ul>
+            <li>Templates is a proper dialog: the template name in the title, a close ✕, a dimmed backdrop, and Escape.</li>
+            <li>The left list is This project's fields, Built-in (read-only), and saved templates. Drag fields to arrange them; the selected field has one details panel.</li>
+            <li>On a wide window the layout stays beside the field details and the example, and choosing a field brings it into view.</li>
+            <li>Unsaved changes show a dot by the title. Close asks before discarding. Save stays off until something actually changed.</li>
+          </ul>
+        </article>
+        <article class="card">
           <h3>10 Nov 2026 — Project menu</h3>
           <ul>
             <li>The project name opens a menu: settings, switch project, new project, templates, the data folder, reload, and release notes.</li>
@@ -591,6 +600,17 @@
       </div>
       <section class="day">
         <div class="day-head">
+          <h3>Wed, Nov 11, 2026</h3>
+          <span>1</span>
+        </div>
+        <article class="entry">
+          <span class="kind ui">UI</span>
+          <p class="subject">Templates is a split dialog: list on the left, drag fields on the right, one details panel, and a prompt if you close with unsaved changes.</p>
+          <span class="hash">d9554cb</span>
+        </article>
+      </section>
+      <section class="day">
+        <div class="day-head">
           <h3>Tue, Nov 10, 2026</h3>
           <span>1</span>
         </div>
@@ -768,6 +788,48 @@
 <!-- COMMITS_JSON_START -->
 <script type="application/json" id="commits-json">
 [
+  {
+    "hash": "654f195",
+    "date": "2026-11-11",
+    "subject": "ui: keep template layout beside field details and the example",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "771b124",
+    "date": "2026-11-11",
+    "subject": "docs: point the templates note at its commit",
+    "kind": "docs",
+    "rebuild": false
+  },
+  {
+    "hash": "d9554cb",
+    "date": "2026-11-11",
+    "subject": "ui: split Templates dialog with drag layout, details panel, and unsaved-changes prompt",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "fb0f3e9",
+    "date": "2026-11-11",
+    "subject": "Merge pull request #7 from primalBeast/ui/project-menu-1-7",
+    "kind": "merge",
+    "rebuild": false
+  },
+  {
+    "hash": "504c10f",
+    "date": "2026-11-11",
+    "subject": "ui: project menu submenu opens on click; left-align submenu items",
+    "kind": "ui",
+    "rebuild": false
+  },
+  {
+    "hash": "2d5abed",
+    "date": "2026-11-11",
+    "subject": "docs: refresh the release notes commit log",
+    "kind": "docs",
+    "rebuild": false
+  },
   {
     "hash": "e574246",
     "date": "2026-11-11",
