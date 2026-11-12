@@ -99,3 +99,24 @@ def test_user_template_fields_round_trip(client: TestClient):
     assert client.put("/api/templates/mine/fields", json=fields).status_code == 200
     again = client.get("/api/templates/mine/fields").json()
     assert again["fields"][0]["label"] == "Renamed"
+
+
+def test_template_fields_put_without_changes_is_identical(client: TestClient):
+    slug = client.get("/api/projects").json()[0]["slug"]
+    assert (
+        client.post(
+            "/api/templates",
+            json={"from_project": slug, "id": "roundtrip", "name": "Round trip"},
+        ).status_code
+        == 201
+    )
+    original = client.get("/api/templates/roundtrip/fields").json()
+    saved = client.put("/api/templates/roundtrip/fields", json=original)
+    assert saved.status_code == 200, saved.text
+    once = client.get("/api/templates/roundtrip/fields").json()
+    assert once["fields"][0]["show_in_list"] is True
+    again_saved = client.put("/api/templates/roundtrip/fields", json=once)
+    assert again_saved.status_code == 200, again_saved.text
+    twice = client.get("/api/templates/roundtrip/fields").json()
+    assert twice == once
+    assert again_saved.json() == once

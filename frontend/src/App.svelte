@@ -571,7 +571,6 @@
           return;
         }
         if (templateEditorOpen) {
-          templateEditorOpen = false;
           return;
         }
         boardEditor = null;
@@ -636,7 +635,6 @@
         closeProjectMenu();
       }
       if (templateEditorOpen) {
-        if (!t?.closest?.('.template-editor')) templateEditorOpen = false;
         return;
       }
       if (!boardEditor) return;
@@ -1703,7 +1701,7 @@
   }
 
   const CTRL_PAN_SKIP_CLICK =
-    '.project-menu, .project-submenu, .project-dialog, .template-editor, .confirm-backdrop, .confirm-dialog, .theme-dialog';
+    '.project-menu, .project-submenu, .project-dialog, .template-editor, .template-editor-backdrop, .confirm-backdrop, .confirm-dialog, .theme-dialog';
   const CTRL_PAN_SUPPRESS_EVENTS = ['click', 'auxclick', 'dblclick', 'mouseup', 'change'] as const;
   let ctrlPanClickHandler: ((ev: Event) => void) | null = null;
   let ctrlPanClickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -3808,7 +3806,10 @@
       <TemplateEditor
         projectSlug={project.slug}
         projectName={project.name}
-        onclose={() => (templateEditorOpen = false)}
+        onclose={() => {
+          templateEditorOpen = false;
+          queueMicrotask(() => brandButtonEl?.focus());
+        }}
         onprojectfields={(doc) => {
           fieldsDoc = doc;
         }}
